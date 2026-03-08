@@ -1,12 +1,13 @@
+
 import { createBogOrder } from "../lib/bog.js";
 import { appendPayment, getEventByCode } from "../lib/sheets.js";
 import {
-  extractReserveMetaFromUrl,
+  extractReserveInfo,
+  firstNonEmpty,
   json,
   makeInternalOrderId,
   nowIso,
-  parseNumber,
-  safeUrl
+  parseNumber
 } from "../lib/utils.js";
 
 export const config = {
@@ -20,75 +21,6 @@ function isAuthorized(req) {
   return String(got || "") === String(expected);
 }
 
-function buildAbsoluteUrl(raw, originHint) {
-  const trimmed = String(raw || "").trim();
-  if (!trimmed) return "";
-
-  const absolute = safeUrl(trimmed);
-  if (absolute) return absolute.toString();
-
-  const base = safeUrl(originHint || "");
-  if (!base) return "";
-
-  try {
-    return new URL(trimmed, base.origin).toString();
-  } catch {
-    return "";
-  }
-}
-
-function detectReserveUrl(req, body) {
-  const candidates = [
-    body.reserve_url,
-    body.tilda_page,
-    body.page,
-    body.page_url,
-    body.current_url,
-    req.headers.referer,
-    req.headers.referrer
-  ];
-
-  const originHint = String(req.headers.origin || req.headers.referer || "");
-
-  for (const candidate of candidates) {
-    const absolute = buildAbsoluteUrl(candidate, originHint);
-    if (!absolute) continue;
-
-    const meta = extractReserveMetaFromUrl(absolute);
-    if (meta.eid) {
-      return {
-        reserveUrl: absolute,
-        reserveMeta: meta
-      };
-    }
-  }
-
-  const directEid = String(req.query?.eid || body.eid || body.event_code || "").trim();
-  if (directEid) {
-    return {
-      reserveUrl: "",
-      reserveMeta: {
-        eid: directEid,
-        date: String(req.query?.date || body.date || "").trim(),
-        time: String(req.query?.time || body.time || "").trim(),
-        poster: String(req.query?.poster || body.poster || "").trim(),
-        duration: String(req.query?.duration || body.duration || "").trim()
-      }
-    };
-  }
-
-  return {
-    reserveUrl: "",
-    reserveMeta: {
-      eid: "",
-      date: "",
-      time: "",
-      poster: "",
-      duration: ""
-    }
-  };
-}
-
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return json(res, 405, { error: "Method not allowed" });
@@ -100,20 +32,27 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body || {};
-    const { reserveUrl, reserveMeta } = detectReserveUrl(req, body);
 
-    const eventCode = reserveMeta.eid;
-    const tableNo = String(body.table_no || body.table || "").trim();
+    const reserveUrl = firstNonEmpty(
+      body.reserve_url,
+      body.tilda_page,
+      body.page,
+      body.page_url,
+      body.current_url
+    );
+    const reserveInfo = extractReserveInfo(reserveUrl);
+
+    const eventCode = firstNonEmpty(
+      body.event_code,
+      body.eid,
+      reserveInfo.eid
+    );
+    const tableNo = firstNonEmpty(body.table_no, body.table);
     const guests = parseNumber(body.guests || body.persons || body.people || 1);
-    const customerName = String(body.customer_name || body.name || "").trim();
-    const customerPhone = String(body.customer_phone || body.phone || "").trim();
-    const tildaPage = reserveUrl || String(body.tilda_page || body.page || body.page_url || "").trim();
+    const customerName = firstNonEmpty(body.customer_name, body.name);
+    const customerPhone = firstNonEmpty(body.customer_phone, body.phone);
 
-    if (!eventCode) {
-      return json(res, 400, {
-        error: "Missing eid in reserve URL or request payload"
-      });
-    }
+    if (!eventCode) return json(res, 400, { error: "Missing event_code / eid" });
     if (!tableNo) return json(res, 400, { error: "Missing table_no" });
     if (!customerName) return json(res, 400, { error: "Missing customer_name" });
     if (!Number.isFinite(guests) || guests <= 0) {
@@ -149,7 +88,7 @@ export default async function handler(req, res) {
       guests,
       customer_name: customerName,
       customer_phone: customerPhone,
-      tilda_page: tildaPage,
+      tilda_page: reserveUrl,
       green_notified_at: "",
       raw_callback_status: bog.status
     });
@@ -161,8 +100,7 @@ export default async function handler(req, res) {
       bog_order_id: bog.bogOrderId,
       total_amount: totalAmount,
       event_title: event.title,
-      deposit_text: event.deposit_text,
-      reserve_meta: reserveMeta
+      deposit_text: event.deposit_text
     });
   } catch (error) {
     console.error("payment.js error", error);

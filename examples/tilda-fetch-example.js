@@ -1,11 +1,14 @@
 /*
 Example frontend snippet for Tilda custom HTML/JS block.
 
-Important:
-- reserve page URL already contains eid, for example:
-  https://spot-bar.site/reserve?date=27-02-2026&time=22:30&eid=film10&poster=...&duration=120
-- frontend does NOT need to send event_code separately
-- backend extracts eid from reserve_url / current page URL
+Send:
+- event_code (eid from sheet `events`)
+- table_no
+- guests
+- customer_name
+- customer_phone
+
+Then redirect the user to payment_url.
 */
 
 async function createSpotPayment(payload) {
@@ -28,9 +31,10 @@ async function createSpotPayment(payload) {
 
 // Example:
 // createSpotPayment({
+//   event_code: "film7",
 //   table_no: "Стол 4",
 //   guests: 2,
 //   customer_name: "Erik",
 //   customer_phone: "+995555123456",
-//   reserve_url: window.location.href
+//   tilda_page: window.location.href
 // });

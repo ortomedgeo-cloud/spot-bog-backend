@@ -1,6 +1,12 @@
+
 import { sendWhatsappNotification } from "../lib/greenapi.js";
-import { findPaymentByBogOrderId, updatePaymentByRowNumber } from "../lib/sheets.js";
-import { json, nowIso } from "../lib/utils.js";
+import {
+  ensureBookingWritten,
+  findPaymentByBogOrderId,
+  getEventByCode,
+  updatePaymentByRowNumber
+} from "../lib/sheets.js";
+import { extractReserveInfo, json, nowIso } from "../lib/utils.js";
 
 export const config = {
   api: { bodyParser: true }
@@ -31,9 +37,12 @@ function normalizeStatus(payload) {
 }
 
 function buildWhatsappMessage(record) {
+  const reserveInfo = record.reserve_info || {};
   return [
     "✅ Новая оплаченная бронь",
     "",
+    `Дата: ${reserveInfo.date || "-"}`,
+    `Время: ${reserveInfo.time || "-"}`,
     `Событие: ${record.event_title || "-"}`,
     `Код события: ${record.event_code || "-"}`,
     `Тип: ${record.type || "-"}`,
@@ -69,6 +78,9 @@ export default async function handler(req, res) {
     }
 
     const current = found.record;
+    const event = await getEventByCode(current.event_code);
+    const reserveInfo = extractReserveInfo(current.tilda_page);
+
     const updated = {
       ...current,
       created_at: current.created_at || nowIso(),
@@ -81,8 +93,8 @@ export default async function handler(req, res) {
           ? "failed"
           : current.status || "pending",
       event_code: current.event_code || "",
-      event_title: current.event_title || "",
-      type: current.type || "",
+      event_title: current.event_title || event?.title || "",
+      type: current.type || event?.type || "",
       price: current.price || "",
       table_no: current.table_no || "",
       guests: current.guests || "",
@@ -90,20 +102,41 @@ export default async function handler(req, res) {
       customer_phone: current.customer_phone || "",
       tilda_page: current.tilda_page || "",
       green_notified_at: current.green_notified_at || "",
-      raw_callback_status: JSON.stringify(payload)
+      raw_callback_status: JSON.stringify(payload),
+      reserve_info: reserveInfo,
+      deposit_text: event?.deposit_text || ""
     };
 
     let whatsappSent = false;
+    let waStatus = "";
+    let whatsappError = null;
 
     if (normalizedStatus === "paid" && !current.green_notified_at) {
-      await sendWhatsappNotification(buildWhatsappMessage(updated));
-      updated.green_notified_at = nowIso();
-      whatsappSent = true;
+      try {
+        await sendWhatsappNotification(buildWhatsappMessage(updated));
+        updated.green_notified_at = nowIso();
+        whatsappSent = true;
+        waStatus = `OK ${updated.green_notified_at.replace("T", " ").slice(0, 19)}`;
+      } catch (error) {
+        whatsappError = String(error.message || error);
+        waStatus = `ERR ${nowIso().replace("T", " ").slice(0, 19)}`;
+        console.error("GreenAPI send failed", error);
+      }
+    } else if (normalizedStatus === "paid" && current.green_notified_at) {
+      waStatus = `OK ${String(current.green_notified_at).replace("T", " ").slice(0, 19)}`;
+    }
+
+    if (normalizedStatus === "paid") {
+      await ensureBookingWritten(updated, waStatus);
     }
 
     await updatePaymentByRowNumber(found.rowNumber, updated);
 
-    return json(res, 200, { ok: true, whatsapp_sent: whatsappSent });
+    return json(res, 200, {
+      ok: true,
+      whatsapp_sent: whatsappSent,
+      whatsapp_error: whatsappError
+    });
   } catch (error) {
     console.error("callback.js error", error);
     return json(res, 200, { ok: true });

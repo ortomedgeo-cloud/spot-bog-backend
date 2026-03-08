@@ -2,9 +2,7 @@
 
 Черновой backend под Vercel для схемы:
 
-- страница `reserve` на Tilda уже содержит query-параметры вроде `eid`, `date`, `time`
-- кастомный фронт отправляет данные формы в `/api/payment`
-- backend сам вытаскивает `eid` из URL страницы `reserve`
+- Tilda / кастомный фронт отправляет данные формы в `/api/payment`
 - backend читает лист `events` в Google Sheets
 - берет цену и название события по `eid`
 - создает заказ в Bank of Georgia
@@ -16,17 +14,15 @@
 
 Лист `events` **не меняем**.
 
-У тебя `eid` - это **постоянный идентификатор события**, а не идентификатор конкретного фильма.
+У тебя `eid` — это **постоянный идентификатор события**, а не идентификатор конкретного фильма.
 Поэтому логика такая:
 
-- фронт передает URL текущей страницы `reserve`, например:
-  `https://spot-bar.site/reserve?date=27-02-2026&time=22:30&eid=film10&poster=...&duration=120`
-- backend вытаскивает из URL `eid=film10`
-- дальше backend находит строку по `eid`
+- фронт передает постоянный `eid`, например `film7`
+- backend находит строку по `eid`
 - из этой строки берет **актуальные на эту неделю** `Title`, `Type`, `Price`, `DepositText`
 
 Это значит, что когда в воскресенье вы меняете сам фильм внутри уже существующего события,
-ничего в коде менять не нужно - важно только, чтобы `eid` оставался тем же.
+ничего в коде менять не нужно — важно только, чтобы `eid` оставался тем же.
 
 Код адаптирован под текущую структуру листа `events`:
 
@@ -67,21 +63,14 @@ POST JSON:
 
 ```json
 {
+  "event_code": "film7",
   "table_no": "Стол 4",
   "guests": 2,
   "customer_name": "Erik",
   "customer_phone": "+995555123456",
-  "reserve_url": "https://spot-bar.site/reserve?date=27-02-2026&time=22:30&eid=film10&poster=https%3A%2F%2Fstatic.tildacdn.com%2F...jpg&duration=120"
+  "tilda_page": "https://spot-bar.site/main"
 }
 ```
-
-Допустимо вместо `reserve_url` передавать:
-- `tilda_page`
-- `page`
-- `page_url`
-- `current_url`
-
-Если совсем надо, backend также поймет `eid` напрямую из payload/query, но основной сценарий теперь - брать его из URL страницы `reserve`.
 
 Ответ:
 
@@ -93,14 +82,7 @@ POST JSON:
   "bog_order_id": "...",
   "total_amount": 198,
   "event_title": "Актуальное название события из листа events",
-  "deposit_text": "(актуальный текст из DepositText)",
-  "reserve_meta": {
-    "eid": "film10",
-    "date": "27-02-2026",
-    "time": "22:30",
-    "poster": "https://static.tildacdn.com/...jpg",
-    "duration": "120"
-  }
+  "deposit_text": "(актуальный текст из DepositText)"
 }
 ```
 
@@ -115,12 +97,6 @@ window.location.href = data.payment_url;
 На Tilda `/api` не нужен.
 `/api/payment` и `/api/callback` живут на домене Vercel-проекта.
 
-С Tilda тебе нужно только:
-- взять данные формы
-- передать `table_no`, `guests`, `customer_name`, `customer_phone`
-- передать `reserve_url: window.location.href`
-- после ответа сделать redirect на `payment_url`
-
 ## Vercel: что было исправлено
 
 Ошибка `Function Runtimes must have a valid version` обычно возникает из-за старого или кривого `runtime` в `vercel.json`.
@@ -133,9 +109,9 @@ window.location.href = data.payment_url;
 
 ## Важно
 
-- `BOG_CALLBACK_URL` - серверный URL на Vercel
-- `BOG_SUCCESS_URL` - обычная страница для пользователя
-- `BOG_FAIL_URL` - обычная страница для пользователя
+- `BOG_CALLBACK_URL` — серверный URL на Vercel
+- `BOG_SUCCESS_URL` — обычная страница для пользователя
+- `BOG_FAIL_URL` — обычная страница для пользователя
 
 Не путай `fail` и `callback`.
 
@@ -163,3 +139,28 @@ vercel dev
 Формат callback payload от BOG может немного отличаться по именам полей.
 Сейчас `api/callback.js` написан с мягким парсингом (`order_id`, `status`, `payment_status` и т.п.).
 После первого теста, возможно, захочется подправить `extractBogOrderId()` и `normalizeStatus()`.
+
+
+## Дополнительно: запись в лист `Bookings`
+
+После успешного callback от BOG backend теперь:
+- обновляет строку в `payments`
+- пишет новую строку в лист `Bookings`
+
+Формат подогнан под текущий `Bookings.xlsx`:
+
+```text
+Date | Time | table | Name | Phone | persons | amount | Event | WA Status | eid | Type | Price | DepositText | Payment | booking_id | status
+```
+
+Что именно пишется:
+- `Date` и `Time` берутся из query-параметров URL страницы `reserve`
+- `table`, `Name`, `Phone`, `persons` берутся из данных формы / `payments`
+- `amount` = общая сумма платежа
+- `Event`, `eid`, `Type`, `Price`, `DepositText` берутся из `events` / `payments`
+- `WA Status` = `OK YYYY-MM-DD HH:mm:ss`, если GreenAPI отправил уведомление
+- `Payment` = `TRUE`
+- `booking_id` = `internal_order_id` (нужно, чтобы callback не создавал дубликаты)
+- `status` = `list`
+
+Если callback прилетит повторно, строка в `Bookings` второй раз не создастся.

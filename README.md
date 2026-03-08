@@ -2,7 +2,9 @@
 
 Черновой backend под Vercel для схемы:
 
-- Tilda / кастомный фронт отправляет данные формы в `/api/payment`
+- страница `reserve` на Tilda уже содержит query-параметры вроде `eid`, `date`, `time`
+- кастомный фронт отправляет данные формы в `/api/payment`
+- backend сам вытаскивает `eid` из URL страницы `reserve`
 - backend читает лист `events` в Google Sheets
 - берет цену и название события по `eid`
 - создает заказ в Bank of Georgia
@@ -10,7 +12,21 @@
 - BOG шлет callback в `/api/callback`
 - backend обновляет статус в `payments` и шлет уведомление в WhatsApp через GreenAPI
 
-## Под что адаптирован код
+## Важное уточнение по `events`
+
+Лист `events` **не меняем**.
+
+У тебя `eid` - это **постоянный идентификатор события**, а не идентификатор конкретного фильма.
+Поэтому логика такая:
+
+- фронт передает URL текущей страницы `reserve`, например:
+  `https://spot-bar.site/reserve?date=27-02-2026&time=22:30&eid=film10&poster=...&duration=120`
+- backend вытаскивает из URL `eid=film10`
+- дальше backend находит строку по `eid`
+- из этой строки берет **актуальные на эту неделю** `Title`, `Type`, `Price`, `DepositText`
+
+Это значит, что когда в воскресенье вы меняете сам фильм внутри уже существующего события,
+ничего в коде менять не нужно - важно только, чтобы `eid` оставался тем же.
 
 Код адаптирован под текущую структуру листа `events`:
 
@@ -18,13 +34,7 @@
 eid | Title | Type | Price | DepositText
 ```
 
-Пример:
-- `film1 | "Возвращение в Сайлент Хилл" | mov | 30`
-- `film7 | Киноужин "Чарли и шоколадная фабрика" | din | 99`
-
-То есть менять `events` не нужно.
-
-## Под что адаптирован лист `payments`
+## Лист `payments`
 
 Код ожидает такой header в первой строке листа `payments`:
 
@@ -57,14 +67,21 @@ POST JSON:
 
 ```json
 {
-  "event_code": "film7",
   "table_no": "Стол 4",
   "guests": 2,
   "customer_name": "Erik",
   "customer_phone": "+995555123456",
-  "tilda_page": "https://spot-bar.site/main"
+  "reserve_url": "https://spot-bar.site/reserve?date=27-02-2026&time=22:30&eid=film10&poster=https%3A%2F%2Fstatic.tildacdn.com%2F...jpg&duration=120"
 }
 ```
+
+Допустимо вместо `reserve_url` передавать:
+- `tilda_page`
+- `page`
+- `page_url`
+- `current_url`
+
+Если совсем надо, backend также поймет `eid` напрямую из payload/query, но основной сценарий теперь - брать его из URL страницы `reserve`.
 
 Ответ:
 
@@ -75,8 +92,15 @@ POST JSON:
   "internal_order_id": "spot_...",
   "bog_order_id": "...",
   "total_amount": 198,
-  "event_title": "Киноужин \"Чарли и шоколадная фабрика\"",
-  "deposit_text": "(сет-меню входит в стоимость)"
+  "event_title": "Актуальное название события из листа events",
+  "deposit_text": "(актуальный текст из DepositText)",
+  "reserve_meta": {
+    "eid": "film10",
+    "date": "27-02-2026",
+    "time": "22:30",
+    "poster": "https://static.tildacdn.com/...jpg",
+    "duration": "120"
+  }
 }
 ```
 
@@ -91,11 +115,27 @@ window.location.href = data.payment_url;
 На Tilda `/api` не нужен.
 `/api/payment` и `/api/callback` живут на домене Vercel-проекта.
 
+С Tilda тебе нужно только:
+- взять данные формы
+- передать `table_no`, `guests`, `customer_name`, `customer_phone`
+- передать `reserve_url: window.location.href`
+- после ответа сделать redirect на `payment_url`
+
+## Vercel: что было исправлено
+
+Ошибка `Function Runtimes must have a valid version` обычно возникает из-за старого или кривого `runtime` в `vercel.json`.
+
+В этой версии:
+- убран проблемный runtime-конфиг
+- версия Node задается через `package.json -> engines.node = 20.x`
+
+То есть проект можно просто импортировать в Vercel без старого `now.json`/битого `runtime`.
+
 ## Важно
 
-- `BOG_CALLBACK_URL` — серверный URL на Vercel
-- `BOG_SUCCESS_URL` — обычная страница для пользователя
-- `BOG_FAIL_URL` — обычная страница для пользователя
+- `BOG_CALLBACK_URL` - серверный URL на Vercel
+- `BOG_SUCCESS_URL` - обычная страница для пользователя
+- `BOG_FAIL_URL` - обычная страница для пользователя
 
 Не путай `fail` и `callback`.
 

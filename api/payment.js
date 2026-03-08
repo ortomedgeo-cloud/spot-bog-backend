@@ -1,4 +1,3 @@
-
 import { createBogOrder } from "../lib/bog.js";
 import { appendPayment, getEventByCode } from "../lib/sheets.js";
 import {
@@ -32,7 +31,6 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body || {};
-
     const reserveUrl = firstNonEmpty(
       body.reserve_url,
       body.tilda_page,
@@ -42,11 +40,7 @@ export default async function handler(req, res) {
     );
     const reserveInfo = extractReserveInfo(reserveUrl);
 
-    const eventCode = firstNonEmpty(
-      body.event_code,
-      body.eid,
-      reserveInfo.eid
-    );
+    const eventCode = firstNonEmpty(body.event_code, body.eid, reserveInfo.eid);
     const tableNo = firstNonEmpty(body.table_no, body.table);
     const guests = parseNumber(body.guests || body.persons || body.people || 1);
     const customerName = firstNonEmpty(body.customer_name, body.name);
@@ -64,14 +58,13 @@ export default async function handler(req, res) {
       return json(res, 404, { error: `Event not found: ${eventCode}` });
     }
 
-    const totalAmount = event.unit_price * guests;
+    const totalAmount = Number(event.unit_price) * Number(guests);
     const internalOrderId = makeInternalOrderId("spot");
 
     const bog = await createBogOrder({
       totalAmount,
       eventCode: event.event_code,
-      guests,
-      unitPrice: event.unit_price,
+      title: event.title,
       internalOrderId
     });
 

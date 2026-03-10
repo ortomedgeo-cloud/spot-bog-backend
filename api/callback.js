@@ -11,11 +11,15 @@ export const config = {
 };
 
 function extractBogOrderId(payload) {
-  return String(
-    payload?.body?.order_id ||
-    payload?.order_id ||
-    ""
-  ).trim();
+  const possible =
+    payload?.body?.id ??
+    payload?.id ??
+    payload?.body?.order_id ??
+    payload?.order_id ??
+    payload?.body?.external_order_id ??
+    payload?.external_order_id;
+
+  return possible ? String(possible).trim() : "";
 }
 
 function normalizeStatus(payload) {
@@ -46,6 +50,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log("BOG RAW CALLBACK", JSON.stringify(req.body, null, 2));
     const payload = req.body || {};
     const bogOrderId = extractBogOrderId(payload);
     const normalizedStatus = normalizeStatus(payload);

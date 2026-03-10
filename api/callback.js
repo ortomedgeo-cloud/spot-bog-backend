@@ -1,6 +1,7 @@
 import {
   appendBookingRowIfNotExists,
   findPaymentRowByBogOrderId,
+  findPaymentRowByInternalOrderId,
   updatePaymentStatus
 } from "../lib/sheets.js";
 import { sendWhatsappNotification } from "../lib/greenapi.js";
@@ -10,38 +11,84 @@ export const config = {
   api: { bodyParser: true }
 };
 
+function normalizeBody(body) {
+  let payload = body;
+
+  if (!payload) return {};
+
+  if (Buffer.isBuffer(payload)) {
+    try {
+      payload = JSON.parse(payload.toString("utf8"));
+    } catch {
+      return {};
+    }
+  }
+
+  if (typeof payload === "string") {
+    try {
+      payload = JSON.parse(payload);
+    } catch {
+      return {};
+    }
+  }
+
+  if (typeof payload !== "object") return {};
+
+  return payload;
+}
+
 function extractBogOrderId(payload) {
-  const possible =
-    payload?.body?.id ??
-    payload?.id ??
+  const id =
     payload?.body?.order_id ??
+    payload?.body?.id ??
     payload?.order_id ??
+    payload?.id;
+
+  return id ? String(id).trim() : "";
+}
+
+function extractInternalOrderId(payload) {
+  const id =
     payload?.body?.external_order_id ??
     payload?.external_order_id;
 
-  return possible ? String(possible).trim() : "";
+  return id ? String(id).trim() : "";
 }
 
 function normalizeStatus(payload) {
   const raw = String(
-    payload?.body?.order_status?.key ||
-    payload?.body?.status ||
-    payload?.status ||
+    payload?.body?.order_status?.key ??
+    payload?.body?.status ??
+    payload?.status ??
     ""
   ).toLowerCase();
 
-  if (raw.includes("complete") || raw.includes("paid") || raw.includes("success")) {
+  if (
+    raw.includes("complete") ||
+    raw.includes("paid") ||
+    raw.includes("success")
+  ) {
     return "paid";
   }
-  if (raw.includes("reject") || raw.includes("fail") || raw.includes("cancel")) {
+
+  if (
+    raw.includes("reject") ||
+    raw.includes("fail") ||
+    raw.includes("cancel")
+  ) {
     return "failed";
   }
+
   return "unknown";
 }
 
 function formatWaStatusOk(date = new Date()) {
   const pad = (n) => String(n).padStart(2, "0");
-  return `OK ${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  return `OK ${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    date.getDate()
+  )} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
+    date.getSeconds()
+  )}`;
 }
 
 export default async function handler(req, res) {
@@ -50,32 +97,50 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log("BOG RAW CALLBACK", JSON.stringify(req.body, null, 2));
-    const payload = req.body || {};
+    const payload = normalizeBody(req.body);
+
+    console.log("BOG RAW CALLBACK", JSON.stringify(payload, null, 2));
+
     const bogOrderId = extractBogOrderId(payload);
+    const internalOrderId = extractInternalOrderId(payload);
     const normalizedStatus = normalizeStatus(payload);
 
     console.log("callback parsed", {
       bogOrderId,
+      internalOrderId,
       normalizedStatus,
       rawOrderStatus: payload?.body?.order_status?.key || null
     });
 
-    if (!bogOrderId) {
-      console.error("callback missing bog order id", payload);
+    if (!bogOrderId && !internalOrderId) {
+      console.error("callback missing order ids", payload);
       return json(res, 200, { ok: true });
     }
 
-    const found = await findPaymentRowByBogOrderId(bogOrderId);
+    let found = null;
+
+    if (bogOrderId) {
+      found = await findPaymentRowByBogOrderId(bogOrderId);
+    }
+
+    if (!found && internalOrderId) {
+      found = await findPaymentRowByInternalOrderId(internalOrderId);
+    }
+
     if (!found) {
-      console.error("callback payment row not found", { bogOrderId, payload });
+      console.error("callback payment row not found", {
+        bogOrderId,
+        internalOrderId,
+        payload
+      });
       return json(res, 200, { ok: true });
     }
 
     const current = found.data;
+
     const next = {
       ...current,
-      bog_order_id: bogOrderId,
+      bog_order_id: bogOrderId || current.bog_order_id,
       status:
         normalizedStatus === "paid"
           ? "paid"
@@ -85,32 +150,51 @@ export default async function handler(req, res) {
       raw_callback_status: JSON.stringify(payload)
     };
 
-    let waStatus = "";
-    if (normalizedStatus === "paid" && !current.green_notified_at) {
-      const text =
-`✅ Новая оплаченная бронь\n\nСобытие: ${current.event_title}\nID события: ${current.event_code}\nСтол: ${current.table_no}\nГостей: ${current.guests}\nИмя: ${current.customer_name}\nКонтакт: ${current.customer_phone}\nСумма: ${current.price} GEL\nBOG order: ${bogOrderId}\nBooking ID: ${current.internal_order_id}`;
+    let waStatus = current.green_notified_at || "";
 
-      await sendWhatsappNotification(text);
-      next.green_notified_at = new Date().toISOString();
-      waStatus = formatWaStatusOk(new Date());
+    if (normalizedStatus === "paid" && current.status !== "paid") {
+      if (!current.green_notified_at) {
+        const text =
+`✅ Новая оплаченная бронь
+
+Событие: ${current.event_title}
+ID события: ${current.event_code}
+Стол: ${current.table_no}
+Гостей: ${current.guests}
+Имя: ${current.customer_name}
+Контакт: ${current.customer_phone}
+Сумма: ${current.price} GEL
+BOG order: ${bogOrderId || current.bog_order_id}
+Booking ID: ${current.internal_order_id}`;
+
+        try {
+          await sendWhatsappNotification(text);
+          waStatus = formatWaStatusOk(new Date());
+          next.green_notified_at = new Date().toISOString();
+        } catch (error) {
+          console.error("whatsapp notification failed", error);
+        }
+      }
+
+      try {
+        await appendBookingRowIfNotExists({
+          booking_id: current.internal_order_id,
+          reserve_url: current.tilda_page,
+          table_no: current.table_no,
+          customer_name: current.customer_name,
+          customer_phone: current.customer_phone,
+          guests: current.guests,
+          amount: current.price,
+          event_code: current.event_code,
+          wa_status: waStatus,
+          status: "list"
+        });
+      } catch (error) {
+        console.error("append booking failed", error);
+      }
     }
 
     await updatePaymentStatus(found.sheetRowNumber, next);
-
-    if (normalizedStatus === "paid") {
-      await appendBookingRowIfNotExists({
-        booking_id: current.internal_order_id,
-        reserve_url: current.tilda_page,
-        table_no: current.table_no,
-        customer_name: current.customer_name,
-        customer_phone: current.customer_phone,
-        guests: current.guests,
-        amount: current.price,
-        event_code: current.event_code,
-        wa_status: waStatus,
-        status: "list"
-      });
-    }
 
     return json(res, 200, { ok: true });
   } catch (error) {

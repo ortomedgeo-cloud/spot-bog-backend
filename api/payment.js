@@ -93,12 +93,6 @@ export default async function handler(req, res) {
       body.phone
     );
 
-    const customerInstagram = firstNonEmpty(
-      body.customer_instagram,
-      body.instagram,
-      body.insta
-    );
-
     const comment = firstNonEmpty(
       body.comment,
       body.Comment,
@@ -117,8 +111,8 @@ export default async function handler(req, res) {
       return json(res, 400, { error: "Missing customer_name" });
     }
 
-    if (!customerPhone && !customerInstagram) {
-      return json(res, 400, { error: "Missing contact info" });
+    if (!customerPhone) {
+      return json(res, 400, { error: "Missing customer_phone" });
     }
 
     if (!Number.isFinite(guests) || guests <= 0) {
@@ -154,10 +148,6 @@ export default async function handler(req, res) {
       throw new Error("BOG returned empty redirect URL");
     }
 
-    const combinedContact = [customerPhone, customerInstagram]
-      .filter(Boolean)
-      .join(" / ");
-
     await appendPayment({
       created_at: nowIso(),
       internal_order_id: internalOrderId,
@@ -170,7 +160,7 @@ export default async function handler(req, res) {
       table_no: tableNo,
       guests,
       customer_name: customerName,
-      customer_phone: combinedContact,
+      customer_phone: customerPhone,
       tilda_page: reserveUrl,
       green_notified_at: "",
       raw_callback_status: "",

@@ -6,7 +6,15 @@
   "engines": {
     "node": "20.x"
   },
+  "scripts": {
+    "dev": "vercel dev",
+    "lint": "eslint ."
+  },
   "dependencies": {
     "googleapis": "^144.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.19.0",
+    "eslint": "^9.19.0"
   }
 }

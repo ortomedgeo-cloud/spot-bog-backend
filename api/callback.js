@@ -96,13 +96,16 @@ export default async function handler(req, res) {
     return json(res, 405, { error: "Method not allowed" });
   }
 
+  let bogOrderId = "";
+  let internalOrderId = "";
+
   try {
     const payload = normalizeBody(req.body);
 
     console.log("BOG RAW CALLBACK", JSON.stringify(payload, null, 2));
 
-    const bogOrderId = extractBogOrderId(payload);
-    const internalOrderId = extractInternalOrderId(payload);
+    bogOrderId = extractBogOrderId(payload);
+    internalOrderId = extractInternalOrderId(payload);
     const normalizedStatus = normalizeStatus(payload);
 
     console.log("callback parsed", {
@@ -171,6 +174,17 @@ Booking ID: ${current.internal_order_id}`;
           await sendWhatsappNotification(text);
           waStatus = formatWaStatusOk(new Date());
           next.green_notified_at = new Date().toISOString();
+
+          // Persist immediately so a retry of this callback (after a later
+          // failure below) does not re-send WhatsApp. Status is intentionally
+          // left unchanged here — it's only flipped to "paid" once the
+          // booking row is also written, at the bottom of the handler.
+          await updatePaymentStatus(found.sheetRowNumber, {
+            ...current,
+            bog_order_id: bogOrderId || current.bog_order_id,
+            green_notified_at: next.green_notified_at,
+            raw_callback_status: JSON.stringify(payload)
+          });
         } catch (error) {
           console.error("whatsapp notification failed", error);
         }
@@ -191,6 +205,7 @@ Booking ID: ${current.internal_order_id}`;
         });
       } catch (error) {
         console.error("append booking failed", error);
+        throw error; // propagate so this callback is not marked handled; see outer catch
       }
     }
 
@@ -198,7 +213,12 @@ Booking ID: ${current.internal_order_id}`;
 
     return json(res, 200, { ok: true });
   } catch (error) {
-    console.error("callback.js error", error);
-    return json(res, 200, { ok: true });
+    console.error("CALLBACK_FATAL", {
+      message: error?.message,
+      stack: error?.stack,
+      bogOrderId,
+      internalOrderId
+    });
+    return json(res, 500, { ok: false, error: "internal_error" });
   }
 }

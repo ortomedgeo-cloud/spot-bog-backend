@@ -1,0 +1,85 @@
+diff --git a/api/availability.js b/api/availability.js
+new file mode 100644
+index 0000000..d06736d
+--- /dev/null
++++ b/api/availability.js
+@@ -0,0 +1,48 @@
++import { getBookedTablesForSession } from "../lib/sheets.js";
++import { json } from "../lib/utils.js";
++
++// Read-only endpoint for the Tilda seat widget. Given eid + date (both taken
++// straight from the reserve page URL, e.g. ?eid=film10&date=10-07-2026), it
++// returns the tables booked for that exact screening - matched against
++// columns L (eid) and A (Date) in the Bookings sheet. Never writes anything.
++//
++// eid alone is not enough: the same eid gets reused across different films
++// (only the poster/title changes), so eid+date together is what uniquely
++// identifies one screening.
++
++function setCors(res) {
++  res.setHeader("Access-Control-Allow-Origin", "https://spot-bar.site");
++  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
++}
++
++export default async function handler(req, res) {
++  setCors(res);
++
++  if (req.method === "OPTIONS") {
++    return res.status(200).end();
++  }
++
++  if (req.method !== "GET") {
++    return json(res, 405, { error: "Method not allowed" });
++  }
++
++  try {
++    const eid = String(req.query?.eid || "").trim();
++    const date = String(req.query?.date || "").trim();
++
++    if (!eid || !date) {
++      return json(res, 400, { error: "Missing eid or date" });
++    }
++
++    const booked = await getBookedTablesForSession(eid, date);
++
++    return json(res, 200, { ok: true, booked });
++  } catch (error) {
++    console.error("availability.js error", error);
++
++    return json(res, 500, {
++      error: "Failed to read availability",
++      detail: String(error?.message || error)
++    });
++  }
++}
+diff --git a/lib/sheets.js b/lib/sheets.js
+index e2386f7..4997efc 100644
+--- a/lib/sheets.js
++++ b/lib/sheets.js
+@@ -284,6 +284,26 @@ function buildBookingRow(header, booking) {
+   return buildRowFromHeader(header, valuesByName).slice(0, 16);
+ }
+ 
++export async function getBookedTablesForSession(eid, date) {
++  const sheetName = process.env.BOOKINGS_SHEET_NAME || "Bookings";
++  const rows = await readRows(sheetName, "A:P"); // A=Date ... L=eid
++
++  if (!rows.length) return [];
++
++  const [header, ...data] = rows;
++  const idx = headerIndexMap(header);
++  const targetEid = String(eid || "").trim();
++  const targetDate = String(date || "").trim();
++
++  return data
++    .filter((row) =>
++      String(cellByHeader(row, idx, "eid") || "").trim() === targetEid &&
++      String(cellByHeader(row, idx, "Date") || "").trim() === targetDate
++    )
++    .map((row) => String(cellByHeader(row, idx, "table") || "").trim())
++    .filter(Boolean);
++}
++
+ // NOTE: the exists-check + append below is not atomic (read-then-write across
+ // two network calls). A duplicate row is only possible if BOG delivers the
+ // same "paid" webhook twice within roughly this function's round-trip time.

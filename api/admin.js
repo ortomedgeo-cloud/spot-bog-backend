@@ -21,9 +21,8 @@ const DEPOSIT_MOV =
 const DEPOSIT_DIN =
   "(сет-меню входит в стоимость) ❗️Условия отмены: отмена за 3 дня до мероприятия и ранее - возвращается 100% суммы\n- отмена за 2 дня - взвращается 50%\n- отмена за день и в день мероприятия - сумма за билет сгорает.";
 
-function page(secretKey) {
+function page() {
   const cfg = JSON.stringify({
-    key: secretKey,
     seats: SEATS,
     depositMov: DEPOSIT_MOV,
     depositDin: DEPOSIT_DIN
@@ -76,9 +75,30 @@ function page(secretKey) {
   .msg { margin-top:14px; padding:11px 13px; border-radius:8px; font-size:14px; display:none; }
   .msg.ok { background:#eefaf0; border:1px solid #c6efd2; color:#166534; display:block; }
   .msg.err { background:#fdecec; border:1px solid #f5c2c2; color:#991b1b; display:block; }
+
+  /* login overlay */
+  #login { position:fixed; inset:0; background:#f5f5f7; display:flex; align-items:center; justify-content:center; z-index:50; }
+  #login.hidden { display:none; }
+  .login-box { background:#fff; border-radius:14px; padding:26px 22px; width:100%; max-width:340px; box-shadow:0 4px 24px rgba(0,0,0,.08); }
+  .login-box h2 { margin:0 0 16px; font-size:19px; }
+  .login-box input { width:100%; box-sizing:border-box; padding:11px 12px; font-size:15px; border:1px solid #ccc; border-radius:8px; margin-bottom:12px; }
+  .login-box button { width:100%; padding:12px; font-size:16px; font-weight:700; color:#fff; background:#111; border:none; border-radius:10px; cursor:pointer; }
+  .login-box button:disabled { opacity:.5; }
+  #login-err { color:#991b1b; font-size:13px; margin-top:10px; display:none; }
+  #login-err.show { display:block; }
 </style>
 </head>
 <body>
+<div id="login">
+  <div class="login-box">
+    <h2>Вход в админ-панель</h2>
+    <input id="login-user" placeholder="Логин" autocomplete="username">
+    <input id="login-pass" type="password" placeholder="Пароль" autocomplete="current-password">
+    <button id="login-btn">Войти</button>
+    <div id="login-err"></div>
+  </div>
+</div>
+
 <div class="wrap">
   <h1>SPOT. — админ-панель</h1>
   <div class="tabs">
@@ -128,7 +148,7 @@ function page(secretKey) {
 
 <script>
 const CFG = ${cfg};
-const KEY = CFG.key, SEATS = CFG.seats;
+const SEATS = CFG.seats;
 const $ = (id) => document.getElementById(id);
 const api = (path) => '/api/' + path;
 
@@ -141,6 +161,42 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
 }));
 
 function msg(el, text, ok){ el.textContent = text; el.className = 'msg ' + (ok ? 'ok' : 'err'); }
+
+// ---- login / session ----
+const loginBox = $('login'), loginErr = $('login-err'), loginBtn = $('login-btn');
+function showLogin(){ loginBox.classList.remove('hidden'); }
+function hideLogin(){ loginBox.classList.add('hidden'); }
+
+// If any action returns 401 (session expired), pop the login overlay back up.
+function handle401(){ showLogin(); }
+
+async function doLogin(){
+  loginErr.classList.remove('show');
+  const user = $('login-user').value, pass = $('login-pass').value;
+  if(!user || !pass){ loginErr.textContent='Введи логин и пароль.'; loginErr.classList.add('show'); return; }
+  loginBtn.disabled = true; loginBtn.textContent = 'Вход…';
+  try{
+    const r = await fetch(api('admin-login'), {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ user, pass })
+    });
+    const d = await r.json().catch(()=>({}));
+    if(r.ok && d.ok){ $('login-pass').value=''; hideLogin(); }
+    else { loginErr.textContent = d.error || 'Ошибка входа'; loginErr.classList.add('show'); }
+  }catch(e){ loginErr.textContent='Сетевая ошибка.'; loginErr.classList.add('show'); }
+  finally{ loginBtn.disabled=false; loginBtn.textContent='Войти'; }
+}
+loginBtn.addEventListener('click', doLogin);
+$('login-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+
+// On load: if the session cookie is still valid, skip the overlay.
+(async () => {
+  try{
+    const r = await fetch(api('admin-check'), { credentials:'same-origin' });
+    if(r.ok){ hideLogin(); } else { showLogin(); }
+  }catch(e){ showLogin(); }
+})();
 
 // ================= TAB 1: MANUAL BOOKING =================
 (() => {
@@ -175,11 +231,11 @@ function msg(el, text, ok){ el.textContent = text; el.className = 'msg ' + (ok ?
     const p={eid:film.value,date:date.value,time:time.value,table:table.value.trim(),name:$('b-name').value.trim(),phone:$('b-phone').value.trim(),guests:$('b-guests').value.trim(),amount:$('b-amount').value.trim(),payment_status:$('b-payment').value};
     if(!p.eid||!p.date||!p.time||!p.table){ msg(m,'Выбери фильм, дату, время и стол.',false); return; }
     btn.disabled=true; btn.textContent='Сохранение…';
-    try{ const u=new URL(api('manual-booking'),location.origin); u.searchParams.set('key',KEY);
-      const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}); const d=await r.json().catch(()=>({}));
+    try{ const u=new URL(api('manual-booking'),location.origin);
+      const r=await fetch(u,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}); const d=await r.json().catch(()=>({}));
       if(r.ok&&d.ok){ msg(m,'Бронь создана: '+d.table+', '+d.date+' '+d.time,true); $('b-name').value='';$('b-phone').value='';$('b-amount').value='';table.value=''; avail(); }
       else if(r.status===409){ msg(m,'Стол уже занят на этот сеанс.',false); avail(); }
-      else if(r.status===401){ msg(m,'Неверный ключ доступа.',false); }
+      else if(r.status===401){ msg(m,'Сессия истекла, войди заново.',false); handle401(); }
       else msg(m,'Ошибка: '+(d.detail||d.error||'?'),false);
     }catch(e){ msg(m,'Сетевая ошибка.',false); } finally{ btn.disabled=false; btn.textContent='Создать бронь'; } };
   load(); seats();
@@ -209,10 +265,10 @@ function msg(el, text, ok){ el.textContent = text; el.className = 'msg ' + (ok ?
     if(!p.title){ msg(m,'Найди и выбери фильм.',false); return; }
     if(!p.eid||!p.date||!p.time){ msg(m,'Заполни eid, дату и время.',false); return; }
     btn.disabled=true; btn.textContent='Создание…';
-    try{ const u=new URL(api('create-session'),location.origin); u.searchParams.set('key',KEY);
-      const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}); const d=await r.json().catch(()=>({}));
+    try{ const u=new URL(api('create-session'),location.origin);
+      const r=await fetch(u,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}); const d=await r.json().catch(()=>({}));
       if(r.ok&&d.ok){ msg(m,'Сеанс создан: '+d.link,true); KNOWN[p.eid]=p.title; eid.value='';date.value='';time.value=''; warn.classList.remove('show'); prevw(); }
-      else if(r.status===401){ msg(m,'Неверный ключ доступа.',false); }
+      else if(r.status===401){ msg(m,'Сессия истекла, войди заново.',false); handle401(); }
       else msg(m,'Ошибка: '+(d.detail||d.error||'?'),false);
     }catch(e){ msg(m,'Сетевая ошибка.',false); } finally{ btn.disabled=false; btn.textContent='Создать сеанс'; } };
 })();
@@ -231,11 +287,11 @@ function msg(el, text, ok){ el.textContent = text; el.className = 'msg ' + (ok ?
     const p={eid:$('e-eid').value.trim(),title:$('e-title').value.trim(),type:type.value,price:$('e-price').value.trim(),deposit_text:dep.value};
     if(!p.eid||!p.title||!p.price){ msg(m,'Заполни eid, название и цену.',false); return; }
     btn.disabled=true; btn.textContent='Добавление…';
-    try{ const u=new URL(api('create-event'),location.origin); u.searchParams.set('key',KEY);
-      const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}); const d=await r.json().catch(()=>({}));
+    try{ const u=new URL(api('create-event'),location.origin);
+      const r=await fetch(u,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}); const d=await r.json().catch(()=>({}));
       if(r.ok&&d.ok){ msg(m,'Событие добавлено: '+d.eid+' — '+d.title,true); $('e-eid').value='';$('e-title').value='';$('e-price').value=''; touched=false; dep.value=TPL[type.value]; }
       else if(r.status===409){ msg(m,'Событие с таким eid уже существует.',false); }
-      else if(r.status===401){ msg(m,'Неверный ключ доступа.',false); }
+      else if(r.status===401){ msg(m,'Сессия истекла, войди заново.',false); handle401(); }
       else msg(m,'Ошибка: '+(d.detail||d.error||'?'),false);
     }catch(e){ msg(m,'Сетевая ошибка.',false); } finally{ btn.disabled=false; btn.textContent='Добавить событие'; } };
 })();
@@ -245,17 +301,11 @@ function msg(el, text, ok){ el.textContent = text; el.className = 'msg ' + (ok ?
 }
 
 export default function handler(req, res) {
-  const expected = process.env.MANUAL_BOOKING_SECRET;
-  const provided = String(req.query?.key || "");
-
-  if (!expected || provided !== expected) {
-    res.statusCode = 401;
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.end("<!doctype html><meta charset='utf-8'><body style='font-family:sans-serif;padding:40px'>401 — нужен правильный ?key=</body>");
-    return;
-  }
-
+  // The page itself is always served; it shows a login overlay until the
+  // browser has a valid session cookie. Auth is enforced on the action
+  // endpoints (manual-booking / create-session / create-event) and on
+  // admin-login, not on serving this static shell.
   res.statusCode = 200;
   res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.end(page(provided));
+  res.end(page());
 }

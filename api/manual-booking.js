@@ -1,5 +1,5 @@
 import { appendManualBooking } from "../lib/sheets.js";
-import { json } from "../lib/utils.js";
+import { json, isAdminAuthed } from "../lib/utils.js";
 
 // Staff-only endpoint for entering bookings made by phone / social / walk-in,
 // so employees never touch the sheet directly. Writes a Bookings row in the
@@ -25,15 +25,6 @@ function safeBody(body) {
   }
 }
 
-function checkKey(req) {
-  const expected = process.env.MANUAL_BOOKING_SECRET;
-  if (!expected) return false; // fail closed if secret isn't configured
-  const provided =
-    String(req.query?.key || "") ||
-    String(req.headers?.["x-manual-key"] || "");
-  return provided === expected;
-}
-
 export default async function handler(req, res) {
   setCors(res);
 
@@ -45,7 +36,7 @@ export default async function handler(req, res) {
     return json(res, 405, { error: "Method not allowed" });
   }
 
-  if (!checkKey(req)) {
+  if (!isAdminAuthed(req)) {
     return json(res, 401, { error: "Unauthorized" });
   }
 

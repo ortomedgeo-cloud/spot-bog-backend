@@ -1,5 +1,5 @@
 import { appendSessionLink } from "../lib/sheets.js";
-import { json } from "../lib/utils.js";
+import { json, isAdminAuthed } from "../lib/utils.js";
 
 // Staff-only endpoint that generates a reserve link and appends it as a new
 // session row in the Ссылки (Links) sheet. Gated by the same shared secret
@@ -21,15 +21,6 @@ function safeBody(body) {
   }
 }
 
-function checkKey(req) {
-  const expected = process.env.MANUAL_BOOKING_SECRET;
-  if (!expected) return false;
-  const provided =
-    String(req.query?.key || "") ||
-    String(req.headers?.["x-manual-key"] || "");
-  return provided === expected;
-}
-
 export default async function handler(req, res) {
   setCors(res);
 
@@ -41,7 +32,7 @@ export default async function handler(req, res) {
     return json(res, 405, { error: "Method not allowed" });
   }
 
-  if (!checkKey(req)) {
+  if (!isAdminAuthed(req)) {
     return json(res, 401, { error: "Unauthorized" });
   }
 

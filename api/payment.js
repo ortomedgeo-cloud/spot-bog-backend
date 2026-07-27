@@ -13,8 +13,23 @@ export const config = {
   api: { bodyParser: true }
 };
 
-function setCors(res) {
-  res.setHeader("Access-Control-Allow-Origin", "https://spot-bar.site");
+// The site is reachable on both the apex and the www host (BOG has the
+// merchant registered as https://www.spot-bar.site), and a single hardcoded
+// origin meant every visitor arriving on the other host failed CORS preflight
+// and never got a payment link at all.
+const ALLOWED_ORIGINS = new Set([
+  "https://spot-bar.site",
+  "https://www.spot-bar.site"
+]);
+
+function setCors(req, res) {
+  const origin = String(req.headers?.origin || "");
+
+  res.setHeader(
+    "Access-Control-Allow-Origin",
+    ALLOWED_ORIGINS.has(origin) ? origin : "https://spot-bar.site"
+  );
+  res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Form-Token");
 }
@@ -39,7 +54,7 @@ function isAuthorized(req, body) {
 }
 
 export default async function handler(req, res) {
-  setCors(res);
+  setCors(req, res);
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();

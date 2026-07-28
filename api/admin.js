@@ -91,6 +91,24 @@ function page() {
   .batchbar .btn.small { background:#fff; color:#111; }
   .batchbar .btn.small.danger { background:#F44336; color:#fff; }
 
+  /* calendar */
+  #cal-pop { position:absolute; z-index:70; background:#fff; border-radius:14px; box-shadow:0 10px 40px rgba(0,0,0,.22); padding:14px; width:280px; display:none; }
+  #cal-pop.show { display:block; }
+  .cal-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .cal-head b { font-size:15px; text-transform:capitalize; }
+  .cal-nav { width:32px; height:32px; border:none; background:#f2f2f4; border-radius:8px; font-size:16px; cursor:pointer; }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+  .cal-dow { text-align:center; font-size:11px; color:#999; padding:4px 0; font-weight:600; }
+  .cal-day { text-align:center; padding:8px 0; font-size:14px; border-radius:8px; cursor:pointer; border:none; background:none; }
+  .cal-day:hover { background:#f0f0f2; }
+  .cal-day.other { color:#ccc; }
+  .cal-day.today { font-weight:800; color:#111; box-shadow:0 0 0 1px #111 inset; }
+  .cal-day.sel { background:#111; color:#fff; }
+  .cal-foot { display:flex; gap:8px; margin-top:12px; }
+  .cal-foot .btn { flex:1; padding:10px; font-size:14px; }
+  .cal-input-wrap { position:relative; }
+  .cal-input-wrap input { cursor:pointer; }
+
   /* FAB */
   #fab { position:fixed; right:18px; bottom:18px; z-index:40; padding:14px 20px; font-size:15px; font-weight:700; color:#fff; background:#111; border:none; border-radius:99px; box-shadow:0 6px 20px rgba(0,0,0,.25); cursor:pointer; }
 
@@ -149,6 +167,11 @@ function page() {
 
   <!-- ===== TODAY ===== -->
   <div class="panel active" id="panel-today">
+    <div class="card" style="display:flex;align-items:center;gap:10px;padding:12px 16px">
+      <label style="font-size:13px;font-weight:600">Дата:</label>
+      <input id="today-date" readonly style="flex:1;max-width:160px;padding:9px 12px;font-size:14px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer" placeholder="сегодня">
+      <button class="btn small ghost" id="today-reset">Сегодня</button>
+    </div>
     <div id="today-list"><div class="hint">Загрузка…</div></div>
   </div>
 
@@ -187,7 +210,7 @@ function page() {
     <div class="card">
       <div class="row"><label>Событие *</label><select id="ss-event"><option value="">Загрузка…</option></select></div>
       <div class="row two">
-        <div><label>Дата * (ДД-ММ-ГГГГ)</label><input id="ss-date" placeholder="25-07-2026"></div>
+        <div><label>Дата *</label><input id="ss-date" readonly placeholder="выбери в календаре"></div>
         <div><label>Время * (ЧЧ:ММ)</label><input id="ss-time" placeholder="21:00"></div>
       </div>
       <button class="btn" id="ss-create">Создать сеанс</button>
@@ -226,6 +249,19 @@ function page() {
       </div>
       <div id="erik-list"><div class="hint">Загрузка…</div></div>
     </div>
+  </div>
+</div>
+
+<div id="cal-pop">
+  <div class="cal-head">
+    <button class="cal-nav" id="cal-prev">‹</button>
+    <b id="cal-title"></b>
+    <button class="cal-nav" id="cal-next">›</button>
+  </div>
+  <div class="cal-grid" id="cal-grid"></div>
+  <div class="cal-foot">
+    <button class="btn ghost" id="cal-close">Отмена</button>
+    <button class="btn" id="cal-ok">Выбрать</button>
   </div>
 </div>
 
@@ -304,15 +340,96 @@ function boot(){
   $('ev-deposit').value = CFG.depositMov;
 }
 
+// ---------- CALENDAR ----------
+const CAL = { view:new Date(), sel:null, onPick:null, anchor:null };
+const MONTHS = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+const DOWS = ['пн','вт','ср','чт','пт','сб','вс'];
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+function fmtDdMm(d){ return pad2(d.getDate())+'-'+pad2(d.getMonth()+1)+'-'+d.getFullYear(); }
+function sameDay(a,b){ return a&&b&&a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate(); }
+
+function calRender(){
+  const v=CAL.view;
+  $('cal-title').textContent = MONTHS[v.getMonth()]+' '+v.getFullYear();
+  const grid=$('cal-grid'); grid.innerHTML='';
+  DOWS.forEach(d=>{ const el=document.createElement('div'); el.className='cal-dow'; el.textContent=d; grid.appendChild(el); });
+  const first=new Date(v.getFullYear(), v.getMonth(), 1);
+  let start=(first.getDay()+6)%7; // Monday-first
+  const today=new Date();
+  for(let i=0;i<42;i++){
+    const d=new Date(v.getFullYear(), v.getMonth(), 1-start+i);
+    const b=document.createElement('button');
+    b.className='cal-day'+(d.getMonth()!==v.getMonth()?' other':'')+(sameDay(d,today)?' today':'')+(sameDay(d,CAL.sel)?' sel':'');
+    b.textContent=d.getDate();
+    b.onclick=()=>{ CAL.sel=d; calRender(); };
+    grid.appendChild(b);
+  }
+}
+
+function calOpen(anchorEl, initial, onPick){
+  CAL.onPick=onPick; CAL.anchor=anchorEl;
+  CAL.sel = initial || null;
+  CAL.view = initial ? new Date(initial) : new Date();
+  calRender();
+  const pop=$('cal-pop');
+  const r=anchorEl.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + window.innerWidth - 296)) + 'px';
+  pop.style.top  = (window.scrollY + r.bottom + 6) + 'px';
+  pop.classList.add('show');
+}
+function calClose(){ $('cal-pop').classList.remove('show'); }
+
+$('cal-prev').addEventListener('click', ()=>{ CAL.view=new Date(CAL.view.getFullYear(), CAL.view.getMonth()-1, 1); calRender(); });
+$('cal-next').addEventListener('click', ()=>{ CAL.view=new Date(CAL.view.getFullYear(), CAL.view.getMonth()+1, 1); calRender(); });
+$('cal-close').addEventListener('click', calClose);
+$('cal-ok').addEventListener('click', ()=>{
+  if(!CAL.sel){ calClose(); return; }
+  if(CAL.onPick) CAL.onPick(CAL.sel);
+  calClose();
+});
+document.addEventListener('click', (e)=>{
+  const pop=$('cal-pop');
+  if(!pop.classList.contains('show')) return;
+  if(pop.contains(e.target) || e.target===CAL.anchor) return;
+  calClose();
+});
+
+function parseDdMm(s){
+  const m=String(s||'').match(/^(\\d{1,2})-(\\d{1,2})-(\\d{4})$/);
+  return m ? new Date(Number(m[3]), Number(m[2])-1, Number(m[1])) : null;
+}
+
+// ---------- calendar wiring ----------
+document.addEventListener('DOMContentLoaded', ()=>{});
+$('ss-date').addEventListener('click', ()=>{
+  calOpen($('ss-date'), parseDdMm($('ss-date').value), (d)=>{ $('ss-date').value = fmtDdMm(d); });
+});
+$('today-date').addEventListener('click', ()=>{
+  calOpen($('today-date'), parseDdMm($('today-date').value), (d)=>{
+    $('today-date').value = fmtDdMm(d);
+    TODAY_ISO = d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+    loadToday();
+  });
+});
+$('today-reset').addEventListener('click', ()=>{
+  TODAY_ISO=null; $('today-date').value='';
+  loadToday();
+});
+
 // ---------- TODAY ----------
+let TODAY_ISO = null; // null = today
+
 async function loadToday(){
   const box=$('today-list'); box.innerHTML='<div class="hint">Загрузка…</div>';
   try{
-    const r=await fetch(api('admin-today'), F);
+    const u=new URL(api('admin-today'), location.origin);
+    if(TODAY_ISO) u.searchParams.set('date', TODAY_ISO);
+    const r=await fetch(u, F);
     if(r.status===401){ handle401(); return; }
     const d=await r.json();
     const ss=d.sessions||[];
-    if(!ss.length){ box.innerHTML='<div class="hint">Сегодня ('+esc(d.date)+') сеансов нет.</div>'; return; }
+    if(!ss.length){ box.innerHTML='<div class="hint">На '+esc(d.date)+' сеансов нет.</div>'; return; }
     box.innerHTML = ss.map(s => {
       const bks=(s.bookings||[]).map(b =>
         '<div class="bk"><span class="st">'+esc(b.table_label)+'</span>'+

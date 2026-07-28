@@ -4,3 +4,4 @@ node_modules
 pass.patch
 db.patch
 bog.patch
+stage2.patch

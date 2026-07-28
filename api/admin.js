@@ -362,7 +362,7 @@ function calRender(){
     const b=document.createElement('button');
     b.className='cal-day'+(d.getMonth()!==v.getMonth()?' other':'')+(sameDay(d,today)?' today':'')+(sameDay(d,CAL.sel)?' sel':'');
     b.textContent=d.getDate();
-    b.onclick=()=>{ CAL.sel=d; calRender(); };
+    b.onclick=(ev)=>{ ev.stopPropagation(); CAL.sel=d; calRender(); };
     grid.appendChild(b);
   }
 }
@@ -391,6 +391,9 @@ $('cal-ok').addEventListener('click', ()=>{
 document.addEventListener('click', (e)=>{
   const pop=$('cal-pop');
   if(!pop.classList.contains('show')) return;
+  // A day click re-renders the grid, detaching the clicked button before the
+  // event bubbles here — a detached target must not count as "outside".
+  if(!document.contains(e.target)) return;
   if(pop.contains(e.target) || e.target===CAL.anchor) return;
   calClose();
 });

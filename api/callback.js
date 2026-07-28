@@ -1,9 +1,9 @@
 import {
-  appendBookingRowIfNotExists,
-  findPaymentRowByBogOrderId,
-  findPaymentRowByInternalOrderId,
-  updatePaymentStatus
-} from "../lib/sheets.js";
+  findPaymentByBogOrderId,
+  findPaymentByInternalOrderId,
+  updatePayment,
+  createBookingIfNotExists
+} from "../lib/db.js";
 import { sendWhatsappNotification } from "../lib/greenapi.js";
 import { json } from "../lib/utils.js";
 
@@ -13,9 +13,7 @@ export const config = {
 
 function normalizeBody(body) {
   let payload = body;
-
   if (!payload) return {};
-
   if (Buffer.isBuffer(payload)) {
     try {
       payload = JSON.parse(payload.toString("utf8"));
@@ -23,7 +21,6 @@ function normalizeBody(body) {
       return {};
     }
   }
-
   if (typeof payload === "string") {
     try {
       payload = JSON.parse(payload);
@@ -31,9 +28,7 @@ function normalizeBody(body) {
       return {};
     }
   }
-
   if (typeof payload !== "object") return {};
-
   return payload;
 }
 
@@ -43,7 +38,6 @@ function extractBogOrderId(payload) {
     payload?.body?.id ??
     payload?.order_id ??
     payload?.id;
-
   return id ? String(id).trim() : "";
 }
 
@@ -51,7 +45,6 @@ function extractInternalOrderId(payload) {
   const id =
     payload?.body?.external_order_id ??
     payload?.external_order_id;
-
   return id ? String(id).trim() : "";
 }
 
@@ -63,32 +56,13 @@ function normalizeStatus(payload) {
     ""
   ).toLowerCase();
 
-  if (
-    raw.includes("complete") ||
-    raw.includes("paid") ||
-    raw.includes("success")
-  ) {
+  if (raw.includes("complete") || raw.includes("paid") || raw.includes("success")) {
     return "paid";
   }
-
-  if (
-    raw.includes("reject") ||
-    raw.includes("fail") ||
-    raw.includes("cancel")
-  ) {
+  if (raw.includes("reject") || raw.includes("fail") || raw.includes("cancel")) {
     return "failed";
   }
-
   return "unknown";
-}
-
-function formatWaStatusOk(date = new Date()) {
-  const pad = (n) => String(n).padStart(2, "0");
-  return `OK ${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-    date.getDate()
-  )} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
-    date.getSeconds()
-  )}`;
 }
 
 export default async function handler(req, res) {
@@ -101,7 +75,6 @@ export default async function handler(req, res) {
 
   try {
     const payload = normalizeBody(req.body);
-
     console.log("BOG RAW CALLBACK", JSON.stringify(payload, null, 2));
 
     bogOrderId = extractBogOrderId(payload);
@@ -120,96 +93,86 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true });
     }
 
-    let found = null;
-
+    let payment = null;
     if (bogOrderId) {
-      found = await findPaymentRowByBogOrderId(bogOrderId);
+      payment = await findPaymentByBogOrderId(bogOrderId);
+    }
+    if (!payment && internalOrderId) {
+      payment = await findPaymentByInternalOrderId(internalOrderId);
     }
 
-    if (!found && internalOrderId) {
-      found = await findPaymentRowByInternalOrderId(internalOrderId);
-    }
-
-    if (!found) {
-      console.error("callback payment row not found", {
-        bogOrderId,
-        internalOrderId,
-        payload
-      });
+    if (!payment) {
+      console.error("callback payment not found", { bogOrderId, internalOrderId });
       return json(res, 200, { ok: true });
     }
 
-    const current = found.data;
+    const alreadyPaid = payment.status === "paid";
 
-    const next = {
-      ...current,
-      bog_order_id: bogOrderId || current.bog_order_id,
-      status:
-        normalizedStatus === "paid"
-          ? "paid"
-          : normalizedStatus === "failed"
-            ? "failed"
-            : current.status,
-      raw_callback_status: JSON.stringify(payload)
-    };
+    if (normalizedStatus === "paid" && !alreadyPaid) {
+      // 1) Notify WhatsApp once. green_notified_at guards against re-sending on
+      //    a duplicate callback.
+      let greenNotifiedAt = payment.green_notified_at;
 
-    let waStatus = current.green_notified_at || "";
-
-    if (normalizedStatus === "paid" && current.status !== "paid") {
-      if (!current.green_notified_at) {
+      if (!greenNotifiedAt) {
         const text =
 `✅ Новая оплаченная бронь
 
-Событие: ${current.event_title}
-ID события: ${current.event_code}
-Стол: ${current.table_no}
-Гостей: ${current.guests}
-Имя: ${current.customer_name}
-Контакт: ${current.customer_phone}
-Сумма: ${current.price} GEL
-BOG order: ${bogOrderId || current.bog_order_id}
-Booking ID: ${current.internal_order_id}`;
+Событие: ${payment.event_title}
+Стол: ${payment.table_label}
+Гостей: ${payment.guests}
+Имя: ${payment.guest_name}
+Контакт: ${payment.guest_phone}
+Сумма: ${payment.amount} GEL
+BOG order: ${bogOrderId || payment.bog_order_id}
+Booking ID: ${payment.internal_order_id}`;
 
         try {
           await sendWhatsappNotification(text);
-          waStatus = formatWaStatusOk(new Date());
-          next.green_notified_at = new Date().toISOString();
-
-          // Persist immediately so a retry of this callback (after a later
-          // failure below) does not re-send WhatsApp. Status is intentionally
-          // left unchanged here — it's only flipped to "paid" once the
-          // booking row is also written, at the bottom of the handler.
-          await updatePaymentStatus(found.sheetRowNumber, {
-            ...current,
-            bog_order_id: bogOrderId || current.bog_order_id,
-            green_notified_at: next.green_notified_at,
-            raw_callback_status: JSON.stringify(payload)
+          greenNotifiedAt = new Date().toISOString();
+          // persist the notify timestamp immediately so a retry won't re-send
+          await updatePayment(payment.id, {
+            bog_order_id: bogOrderId || payment.bog_order_id,
+            green_notified_at: greenNotifiedAt,
+            raw_callback: payload
           });
         } catch (error) {
           console.error("whatsapp notification failed", error);
         }
       }
 
+      // 2) Create the booking (idempotent). Uses the internal_order_id as the
+      //    booking id, so a duplicate callback can't double-book. The unique
+      //    (session_id, table_label) constraint is the final guard.
       try {
-        await appendBookingRowIfNotExists({
-          booking_id: current.internal_order_id,
-          reserve_url: current.tilda_page,
-          table_no: current.table_no,
-          customer_name: current.customer_name,
-          customer_phone: current.customer_phone,
-          guests: current.guests,
-          amount: current.price,
-          event_code: current.event_code,
-          wa_status: waStatus,
-          status: "list"
+        await createBookingIfNotExists({
+          id: payment.internal_order_id,
+          session_id: payment.session_id,
+          table_label: payment.table_label,
+          guest_name: payment.guest_name,
+          guest_phone: payment.guest_phone,
+          guests: payment.guests,
+          amount: payment.amount,
+          payment_status: "paid",
+          source: "online",
+          wa_status: greenNotifiedAt || null
         });
       } catch (error) {
-        console.error("append booking failed", error);
-        throw error; // propagate so this callback is not marked handled; see outer catch
+        console.error("create booking failed", error);
+        throw error; // don't mark handled; BOG will retry
       }
     }
 
-    await updatePaymentStatus(found.sheetRowNumber, next);
+    // 3) Flip payment status last.
+    await updatePayment(payment.id, {
+      bog_order_id: bogOrderId || payment.bog_order_id,
+      status:
+        normalizedStatus === "paid"
+          ? "paid"
+          : normalizedStatus === "failed"
+            ? "failed"
+            : payment.status,
+      raw_callback: payload
+    });
 
     return json(res, 200, { ok: true });
   } catch (error) {

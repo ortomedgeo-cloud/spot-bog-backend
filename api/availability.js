@@ -1,22 +1,28 @@
-import { getBookedTablesForSession } from "../lib/sheets.js";
+import { getBookedTables } from "../lib/db.js";
 import { json } from "../lib/utils.js";
 
-// Read-only endpoint for the Tilda seat widget. Given eid + date (both taken
-// straight from the reserve page URL, e.g. ?eid=film10&date=10-07-2026), it
-// returns the tables booked for that exact screening - matched against
-// columns L (eid) and A (Date) in the Bookings sheet. Never writes anything.
-//
-// eid alone is not enough: the same eid gets reused across different films
-// (only the poster/title changes), so eid+date together is what uniquely
-// identifies one screening.
+// Read-only endpoint for the Tilda seat widget. Given ?session_id=s_xxx it
+// returns the tables already booked for that session, from Postgres. The
+// session_id uniquely identifies one screening (date/time are intrinsic to it),
+// so no more eid+date pair.
 
-function setCors(res) {
-  res.setHeader("Access-Control-Allow-Origin", "https://spot-bar.site");
+const ALLOWED_ORIGINS = new Set([
+  "https://spot-bar.site",
+  "https://www.spot-bar.site"
+]);
+
+function setCors(req, res) {
+  const origin = String(req.headers?.origin || "");
+  res.setHeader(
+    "Access-Control-Allow-Origin",
+    ALLOWED_ORIGINS.has(origin) ? origin : "https://spot-bar.site"
+  );
+  res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
 }
 
 export default async function handler(req, res) {
-  setCors(res);
+  setCors(req, res);
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();
@@ -27,19 +33,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    const eid = String(req.query?.eid || "").trim();
-    const date = String(req.query?.date || "").trim();
-
-    if (!eid || !date) {
-      return json(res, 400, { error: "Missing eid or date" });
+    const sessionId = String(req.query?.session_id || "").trim();
+    if (!sessionId) {
+      return json(res, 400, { error: "Missing session_id" });
     }
 
-    const booked = await getBookedTablesForSession(eid, date);
-
+    const booked = await getBookedTables(sessionId);
     return json(res, 200, { ok: true, booked });
   } catch (error) {
     console.error("availability.js error", error);
-
     return json(res, 500, {
       error: "Failed to read availability",
       detail: String(error?.message || error)

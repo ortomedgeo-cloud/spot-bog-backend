@@ -1,7 +1,6 @@
 import { createBogOrder } from "../lib/bog.js";
-import { appendPayment, getEventByCode } from "../lib/sheets.js";
+import { getSession, createPayment } from "../lib/db.js";
 import {
-  extractReserveInfo,
   firstNonEmpty,
   json,
   makeInternalOrderId,
@@ -14,9 +13,7 @@ export const config = {
 };
 
 // The site is reachable on both the apex and the www host (BOG has the
-// merchant registered as https://www.spot-bar.site), and a single hardcoded
-// origin meant every visitor arriving on the other host failed CORS preflight
-// and never got a payment link at all.
+// merchant registered as https://www.spot-bar.site), so allow both origins.
 const ALLOWED_ORIGINS = new Set([
   "https://spot-bar.site",
   "https://www.spot-bar.site"
@@ -24,7 +21,6 @@ const ALLOWED_ORIGINS = new Set([
 
 function setCors(req, res) {
   const origin = String(req.headers?.origin || "");
-
   res.setHeader(
     "Access-Control-Allow-Origin",
     ALLOWED_ORIGINS.has(origin) ? origin : "https://spot-bar.site"
@@ -37,7 +33,6 @@ function setCors(req, res) {
 function safeBody(body) {
   if (!body) return {};
   if (typeof body === "object") return body;
-
   try {
     return JSON.parse(body);
   } catch {
@@ -48,7 +43,6 @@ function safeBody(body) {
 function isAuthorized(req, body) {
   const expected = process.env.INCOMING_FORM_TOKEN;
   if (!expected) return true;
-
   const got = req.headers["x-form-token"] || body?.form_token;
   return String(got || "") === String(expected);
 }
@@ -73,6 +67,12 @@ export default async function handler(req, res) {
   try {
     console.log("payment request body", body);
 
+    const sessionId = firstNonEmpty(body.session_id, body.sessionId);
+    const tableNo = firstNonEmpty(body.table_no, body.table);
+    const guests = parseNumber(body.guests || body.persons || body.people || 1);
+    const customerName = firstNonEmpty(body.customer_name, body.name);
+    const customerPhone = firstNonEmpty(body.customer_phone, body.phone);
+    const comment = firstNonEmpty(body.comment, body.Comment, body.message);
     const reserveUrl = firstNonEmpty(
       body.reserve_url,
       body.tilda_page,
@@ -81,67 +81,29 @@ export default async function handler(req, res) {
       body.current_url
     );
 
-    const reserveInfo = extractReserveInfo(reserveUrl);
-
-    const eventCode = firstNonEmpty(
-      body.event_code,
-      body.eid,
-      reserveInfo.eid
-    );
-
-    const tableNo = firstNonEmpty(
-      body.table_no,
-      body.table
-    );
-
-    const guests = parseNumber(
-      body.guests || body.persons || body.people || 1
-    );
-
-    const customerName = firstNonEmpty(
-      body.customer_name,
-      body.name
-    );
-
-    const customerPhone = firstNonEmpty(
-      body.customer_phone,
-      body.phone
-    );
-
-    const comment = firstNonEmpty(
-      body.comment,
-      body.Comment,
-      body.message
-    );
-
-    if (!eventCode) {
-      return json(res, 400, { error: "Missing event_code / eid" });
+    if (!sessionId) {
+      return json(res, 400, { error: "Missing session_id" });
     }
-
     if (!tableNo) {
       return json(res, 400, { error: "Missing table_no" });
     }
-
     if (!customerName) {
       return json(res, 400, { error: "Missing customer_name" });
     }
-
     if (!customerPhone) {
       return json(res, 400, { error: "Missing customer_phone" });
     }
-
     if (!Number.isFinite(guests) || guests <= 0) {
       return json(res, 400, { error: "Invalid guests count" });
     }
 
-    const event = await getEventByCode(eventCode);
-
-    if (!event) {
-      return json(res, 404, { error: `Event not found: ${eventCode}` });
+    const session = await getSession(sessionId);
+    if (!session) {
+      return json(res, 404, { error: `Session not found: ${sessionId}` });
     }
 
-    const totalAmount = Number(event.unit_price) * Number(guests);
-
+    // Deposit = per-seat price * number of guests (same rule as before).
+    const totalAmount = Number(session.price) * Number(guests);
     if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
       return json(res, 400, { error: "Invalid total amount" });
     }
@@ -150,35 +112,32 @@ export default async function handler(req, res) {
 
     const bog = await createBogOrder({
       totalAmount,
-      eventCode: event.event_code,
-      title: event.title,
+      eventCode: session.event_id,
+      title: session.title,
       internalOrderId
     });
 
     if (!bog?.bogOrderId) {
       throw new Error("BOG returned empty order id");
     }
-
     if (!bog?.redirectUrl) {
       throw new Error("BOG returned empty redirect URL");
     }
 
-    await appendPayment({
-      created_at: nowIso(),
+    // Store a pending payment. The booking row itself is created in the
+    // callback once payment is confirmed (so unpaid attempts don't hold seats).
+    await createPayment({
       internal_order_id: internalOrderId,
       bog_order_id: bog.bogOrderId,
       status: "pending",
-      event_code: event.event_code,
-      event_title: event.title,
-      type: event.type,
-      price: totalAmount,
-      table_no: tableNo,
+      session_id: session.id,
+      event_title: session.title,
+      table_label: String(tableNo).replace(/\s+/g, " ").trim(),
       guests,
-      customer_name: customerName,
-      customer_phone: customerPhone,
-      tilda_page: reserveUrl,
-      green_notified_at: "",
-      raw_callback_status: "",
+      amount: totalAmount,
+      guest_name: customerName,
+      guest_phone: customerPhone,
+      reserve_url: reserveUrl,
       comment
     });
 
@@ -189,12 +148,11 @@ export default async function handler(req, res) {
       internal_order_id: internalOrderId,
       bog_order_id: bog.bogOrderId,
       total_amount: totalAmount,
-      event_title: event.title,
-      deposit_text: event.deposit_text
+      event_title: session.title,
+      deposit_text: session.deposit_text
     });
   } catch (error) {
     console.error("payment.js error", error);
-
     return json(res, 500, {
       error: "Failed to create payment",
       detail: String(error?.message || error)

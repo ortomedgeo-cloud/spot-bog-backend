@@ -83,6 +83,7 @@ function page() {
   .srow .info { flex:1; min-width:0; }
   .srow .t { font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .srow .d { font-size:12px; color:#666; }
+  .srow.arch { opacity:.5; }
 
   /* FAB */
   #fab { position:fixed; right:18px; bottom:18px; z-index:40; padding:14px 20px; font-size:15px; font-weight:700; color:#fff; background:#111; border:none; border-radius:99px; box-shadow:0 6px 20px rgba(0,0,0,.25); cursor:pointer; }
@@ -159,6 +160,7 @@ function page() {
       </div>
       <div class="row"><label>DepositText (шаблон по формату, можно править)</label><textarea id="ev-deposit"></textarea></div>
       <button class="btn" id="ev-create">Создать событие</button>
+      <button class="btn ghost" id="ev-cancel" style="display:none;margin-left:8px">Отмена</button>
       <div class="msg" id="ev-msg"></div>
     </div>
     <div class="card">
@@ -176,6 +178,7 @@ function page() {
         <div><label>Время * (ЧЧ:ММ)</label><input id="ss-time" placeholder="21:00"></div>
       </div>
       <button class="btn" id="ss-create">Создать сеанс</button>
+      <button class="btn ghost" id="ss-cancel" style="display:none;margin-left:8px">Отмена</button>
       <div class="msg" id="ss-msg"></div>
     </div>
     <div class="card">
@@ -305,6 +308,17 @@ async function loadToday(){
 
 // ---------- EVENTS ----------
 let EV_PICK = { title:'', poster:'', tmdb_id:null };
+let EV_EDIT = null; // event being edited: {id,title,poster_url}
+
+function evResetForm(){
+  EV_EDIT=null; EV_PICK={ title:'', poster:'', tmdb_id:null };
+  $('ev-picked').textContent=''; $('ev-price').value='';
+  $('ev-results').innerHTML='';
+  $('ev-deposit').value = $('ev-format').value==='din' ? CFG.depositDin : CFG.depositMov;
+  $('ev-create').textContent='Создать событие';
+  $('ev-cancel').style.display='none';
+}
+
 
 $('ev-searchbtn').addEventListener('click', evSearch);
 $('ev-query').addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); evSearch(); } });
@@ -340,18 +354,29 @@ $('ev-format').addEventListener('change', ()=>{
   }
 });
 
+$('ev-cancel').addEventListener('click', evResetForm);
+
 $('ev-create').addEventListener('click', async ()=>{
   const m=$('ev-msg'); m.style.display='none';
-  if(!EV_PICK.title){ msg(m,'Найди и выбери фильм.',false); return; }
+  // In edit mode a new TMDB pick is optional: keep the existing title/poster
+  // unless a new film was picked.
+  const title = EV_PICK.title || (EV_EDIT && EV_EDIT.title) || '';
+  const poster = EV_PICK.title ? EV_PICK.poster : (EV_EDIT ? (EV_EDIT.poster_url||'') : '');
+  if(!title){ msg(m,'Найди и выбери фильм.',false); return; }
   const price=$('ev-price').value.trim();
   if(!price){ msg(m,'Укажи цену.',false); return; }
   const btn=$('ev-create'); btn.disabled=true;
   try{
+    const body={ tmdb_id:EV_PICK.tmdb_id, title, poster_url:poster, format:$('ev-format').value, price, deposit_text:$('ev-deposit').value };
+    if(EV_EDIT) body.id = EV_EDIT.id;
     const r=await fetch(api('admin-events'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ tmdb_id:EV_PICK.tmdb_id, title:EV_PICK.title, poster_url:EV_PICK.poster, format:$('ev-format').value, price, deposit_text:$('ev-deposit').value })});
+      body:JSON.stringify(body)});
     if(r.status===401){ handle401(); return; }
     const d=await r.json().catch(()=>({}));
-    if(r.ok&&d.ok){ msg(m,'Событие создано: '+d.event.title,true); loadEventsList(); loadEventOptions(); }
+    if(r.ok&&d.ok){
+      msg(m,(EV_EDIT?'Событие обновлено: ':'Событие создано: ')+d.event.title,true);
+      evResetForm(); loadEventsList(); loadEventOptions();
+    }
     else msg(m,'Ошибка: '+(d.detail||d.error||'?'),false);
   }catch(e){ msg(m,'Сетевая ошибка.',false); }
   finally{ btn.disabled=false; }
@@ -363,10 +388,26 @@ async function loadEventsList(){
     const r=await fetch(api('admin-events'), F);
     if(r.status===401){ handle401(); return; }
     const d=await r.json(); const evs=d.events||[];
-    box.innerHTML = evs.length ? evs.map(e =>
-      '<div class="srow">'+(e.poster_url?'<img src="'+esc(e.poster_url)+'">':'<img>')+
-      '<div class="info"><div class="t">'+esc(e.title)+'</div><div class="d">'+esc(e.format)+' · '+esc(String(e.price))+' GEL</div></div></div>'
+    box.innerHTML = evs.length ? evs.map((e,i) =>
+      '<div class="srow" data-i="'+i+'" style="cursor:pointer" title="Нажми, чтобы редактировать">'+
+      (e.poster_url?'<img src="'+esc(e.poster_url)+'">':'<img>')+
+      '<div class="info"><div class="t">'+esc(e.title)+'</div><div class="d">'+esc(e.format)+' · '+esc(String(e.price))+' GEL'+(e.poster_url?'':' · без постера')+'</div></div>'+
+      '<button class="btn small ghost">Изм.</button></div>'
     ).join('') : '<div class="hint">Событий нет.</div>';
+    box.querySelectorAll('.srow').forEach(row=>{
+      row.onclick=()=>{
+        const e=evs[Number(row.dataset.i)];
+        EV_EDIT={ id:e.id, title:e.title, poster_url:e.poster_url||'' };
+        EV_PICK={ title:'', poster:'', tmdb_id:null };
+        $('ev-format').value=e.format||'mov';
+        $('ev-price').value=e.price;
+        $('ev-deposit').value=e.deposit_text||($('ev-format').value==='din'?CFG.depositDin:CFG.depositMov);
+        $('ev-picked').textContent='Редактирование: '+e.title+(e.poster_url?'':' — постера нет, найди фильм в TMDB чтобы добавить');
+        $('ev-create').textContent='Сохранить изменения';
+        $('ev-cancel').style.display='inline-block';
+        window.scrollTo({top:0,behavior:'smooth'});
+      };
+    });
   }catch(e){ box.innerHTML='<div class="hint">Ошибка.</div>'; }
 }
 
@@ -381,20 +422,36 @@ async function loadEventOptions(){
   }catch(e){ $('ss-event').innerHTML='<option value="">Ошибка</option>'; }
 }
 
+let SS_EDIT = null; // session id being edited
+
+function ssResetForm(){
+  SS_EDIT=null;
+  $('ss-event').value=''; $('ss-date').value=''; $('ss-time').value='';
+  $('ss-create').textContent='Создать сеанс';
+  $('ss-cancel').style.display='none';
+}
+$('ss-cancel').addEventListener('click', ssResetForm);
+
 $('ss-create').addEventListener('click', async ()=>{
   const m=$('ss-msg'); m.style.display='none';
   const event_id=$('ss-event').value, date=$('ss-date').value.trim(), time=$('ss-time').value.trim();
-  if(!event_id||!date||!time){ msg(m,'Выбери событие, дату и время.',false); return; }
+  if(!SS_EDIT && (!event_id||!date||!time)){ msg(m,'Выбери событие, дату и время.',false); return; }
+  if(SS_EDIT && !event_id && !date && !time){ msg(m,'Нечего менять.',false); return; }
   const btn=$('ss-create'); btn.disabled=true;
   try{
-    const r=await fetch(api('admin-sessions'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify({event_id,date,time})});
+    const body={event_id,date,time};
+    if(SS_EDIT) body.id = SS_EDIT;
+    const r=await fetch(api('admin-sessions'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     if(r.status===401){ handle401(); return; }
     const d=await r.json().catch(()=>({}));
     if(r.ok&&d.ok){
-      const link='https://spot-bar.site/reserve?session_id='+d.session.id;
-      msg(m,'Сеанс создан. Ссылка: '+link,true);
-      $('ss-date').value=''; $('ss-time').value='';
-      loadSessionsList();
+      if(SS_EDIT){ msg(m,'Сеанс обновлён.',true); ssResetForm(); }
+      else {
+        const link='https://spot-bar.site/reserve?session_id='+d.session.id;
+        msg(m,'Сеанс создан. Ссылка: '+link,true);
+        $('ss-date').value=''; $('ss-time').value='';
+      }
+      loadSessionsList(); loadToday();
     } else msg(m,'Ошибка: '+(d.detail||d.error||'?'),false);
   }catch(e){ msg(m,'Сетевая ошибка.',false); }
   finally{ btn.disabled=false; }
@@ -406,16 +463,28 @@ async function loadSessionsList(){
     const r=await fetch(api('admin-sessions'), F);
     if(r.status===401){ handle401(); return; }
     const d=await r.json(); const ss=d.sessions||[];
-    box.innerHTML = ss.length ? ss.map(s => {
+    box.innerHTML = ss.length ? ss.map((s,i) => {
       const link='https://spot-bar.site/reserve?session_id='+s.id;
-      return '<div class="srow">'+(s.poster_url?'<img src="'+esc(s.poster_url)+'">':'<img>')+
+      return '<div class="srow'+(s.is_archived?' arch':'')+'" data-i="'+i+'">'+(s.poster_url?'<img src="'+esc(s.poster_url)+'">':'<img>')+
         '<div class="info"><div class="t">'+esc(s.title)+'</div><div class="d">'+esc(s.date)+' · '+esc(s.time)+' · '+esc(String(s.price))+' GEL</div></div>'+
+        '<button class="btn small ghost" data-edit="'+esc(s.id)+'">Изм.</button>'+
         '<button class="btn small ghost" data-link="'+esc(link)+'">Ссылка</button></div>';
     }).join('') : '<div class="hint">Сеансов нет.</div>';
     box.querySelectorAll('button[data-link]').forEach(b=>{
       b.onclick=async()=>{
         try{ await navigator.clipboard.writeText(b.dataset.link); b.textContent='Скопировано!'; setTimeout(()=>b.textContent='Ссылка',1500); }
         catch(e){ prompt('Скопируй ссылку:', b.dataset.link); }
+      };
+    });
+    box.querySelectorAll('button[data-edit]').forEach(b=>{
+      b.onclick=()=>{
+        const s=ss.find(x=>x.id===b.dataset.edit);
+        SS_EDIT=s.id;
+        $('ss-event').value=s.event_id||'';
+        $('ss-date').value=s.date||''; $('ss-time').value=s.time||'';
+        $('ss-create').textContent='Сохранить изменения';
+        $('ss-cancel').style.display='inline-block';
+        window.scrollTo({top:0,behavior:'smooth'});
       };
     });
   }catch(e){ box.innerHTML='<div class="hint">Ошибка.</div>'; }

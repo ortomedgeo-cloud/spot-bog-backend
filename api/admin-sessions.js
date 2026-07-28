@@ -1,4 +1,4 @@
-import { listSessions, createSession, getBookedTables } from "../lib/db.js";
+import { listSessions, createSession, updateSession } from "../lib/db.js";
 import { json, isAdminAuthed } from "../lib/utils.js";
 
 // GET  -> all sessions (joined with event) newest first
@@ -25,6 +25,18 @@ export default async function handler(req, res) {
       const date = String(b.date || "").trim();
       const time = String(b.time || "").trim();
       const duration = Number(b.duration) || 120;
+
+      // body.id => update existing session (reassign event / fix date/time)
+      if (b.id) {
+        const session = await updateSession(String(b.id).trim(), {
+          event_id: eventId || null,
+          date: date || null,
+          time: time || null,
+          duration: Number(b.duration) || null
+        });
+        if (!session) return json(res, 404, { error: "Session not found" });
+        return json(res, 200, { ok: true, session, updated: true });
+      }
 
       if (!eventId) return json(res, 400, { error: "Missing event_id" });
       if (!date) return json(res, 400, { error: "Missing date" });

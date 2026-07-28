@@ -1,0 +1,610 @@
+diff --git a/api/availability.js b/api/availability.js
+index d06736d..a9fa175 100644
+--- a/api/availability.js
++++ b/api/availability.js
+@@ -1,22 +1,28 @@
+-import { getBookedTablesForSession } from "../lib/sheets.js";
++import { getBookedTables } from "../lib/db.js";
+ import { json } from "../lib/utils.js";
+ 
+-// Read-only endpoint for the Tilda seat widget. Given eid + date (both taken
+-// straight from the reserve page URL, e.g. ?eid=film10&date=10-07-2026), it
+-// returns the tables booked for that exact screening - matched against
+-// columns L (eid) and A (Date) in the Bookings sheet. Never writes anything.
+-//
+-// eid alone is not enough: the same eid gets reused across different films
+-// (only the poster/title changes), so eid+date together is what uniquely
+-// identifies one screening.
+-
+-function setCors(res) {
+-  res.setHeader("Access-Control-Allow-Origin", "https://spot-bar.site");
++// Read-only endpoint for the Tilda seat widget. Given ?session_id=s_xxx it
++// returns the tables already booked for that session, from Postgres. The
++// session_id uniquely identifies one screening (date/time are intrinsic to it),
++// so no more eid+date pair.
++
++const ALLOWED_ORIGINS = new Set([
++  "https://spot-bar.site",
++  "https://www.spot-bar.site"
++]);
++
++function setCors(req, res) {
++  const origin = String(req.headers?.origin || "");
++  res.setHeader(
++    "Access-Control-Allow-Origin",
++    ALLOWED_ORIGINS.has(origin) ? origin : "https://spot-bar.site"
++  );
++  res.setHeader("Vary", "Origin");
+   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+ }
+ 
+ export default async function handler(req, res) {
+-  setCors(res);
++  setCors(req, res);
+ 
+   if (req.method === "OPTIONS") {
+     return res.status(200).end();
+@@ -27,19 +33,15 @@ export default async function handler(req, res) {
+   }
+ 
+   try {
+-    const eid = String(req.query?.eid || "").trim();
+-    const date = String(req.query?.date || "").trim();
+-
+-    if (!eid || !date) {
+-      return json(res, 400, { error: "Missing eid or date" });
++    const sessionId = String(req.query?.session_id || "").trim();
++    if (!sessionId) {
++      return json(res, 400, { error: "Missing session_id" });
+     }
+ 
+-    const booked = await getBookedTablesForSession(eid, date);
+-
++    const booked = await getBookedTables(sessionId);
+     return json(res, 200, { ok: true, booked });
+   } catch (error) {
+     console.error("availability.js error", error);
+-
+     return json(res, 500, {
+       error: "Failed to read availability",
+       detail: String(error?.message || error)
+diff --git a/api/callback.js b/api/callback.js
+index 480f817..96e8cb4 100644
+--- a/api/callback.js
++++ b/api/callback.js
+@@ -1,9 +1,9 @@
+ import {
+-  appendBookingRowIfNotExists,
+-  findPaymentRowByBogOrderId,
+-  findPaymentRowByInternalOrderId,
+-  updatePaymentStatus
+-} from "../lib/sheets.js";
++  findPaymentByBogOrderId,
++  findPaymentByInternalOrderId,
++  updatePayment,
++  createBookingIfNotExists
++} from "../lib/db.js";
+ import { sendWhatsappNotification } from "../lib/greenapi.js";
+ import { json } from "../lib/utils.js";
+ 
+@@ -13,9 +13,7 @@ export const config = {
+ 
+ function normalizeBody(body) {
+   let payload = body;
+-
+   if (!payload) return {};
+-
+   if (Buffer.isBuffer(payload)) {
+     try {
+       payload = JSON.parse(payload.toString("utf8"));
+@@ -23,7 +21,6 @@ function normalizeBody(body) {
+       return {};
+     }
+   }
+-
+   if (typeof payload === "string") {
+     try {
+       payload = JSON.parse(payload);
+@@ -31,9 +28,7 @@ function normalizeBody(body) {
+       return {};
+     }
+   }
+-
+   if (typeof payload !== "object") return {};
+-
+   return payload;
+ }
+ 
+@@ -43,7 +38,6 @@ function extractBogOrderId(payload) {
+     payload?.body?.id ??
+     payload?.order_id ??
+     payload?.id;
+-
+   return id ? String(id).trim() : "";
+ }
+ 
+@@ -51,7 +45,6 @@ function extractInternalOrderId(payload) {
+   const id =
+     payload?.body?.external_order_id ??
+     payload?.external_order_id;
+-
+   return id ? String(id).trim() : "";
+ }
+ 
+@@ -63,34 +56,15 @@ function normalizeStatus(payload) {
+     ""
+   ).toLowerCase();
+ 
+-  if (
+-    raw.includes("complete") ||
+-    raw.includes("paid") ||
+-    raw.includes("success")
+-  ) {
++  if (raw.includes("complete") || raw.includes("paid") || raw.includes("success")) {
+     return "paid";
+   }
+-
+-  if (
+-    raw.includes("reject") ||
+-    raw.includes("fail") ||
+-    raw.includes("cancel")
+-  ) {
++  if (raw.includes("reject") || raw.includes("fail") || raw.includes("cancel")) {
+     return "failed";
+   }
+-
+   return "unknown";
+ }
+ 
+-function formatWaStatusOk(date = new Date()) {
+-  const pad = (n) => String(n).padStart(2, "0");
+-  return `OK ${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+-    date.getDate()
+-  )} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
+-    date.getSeconds()
+-  )}`;
+-}
+-
+ export default async function handler(req, res) {
+   if (req.method !== "POST") {
+     return json(res, 405, { error: "Method not allowed" });
+@@ -101,7 +75,6 @@ export default async function handler(req, res) {
+ 
+   try {
+     const payload = normalizeBody(req.body);
+-
+     console.log("BOG RAW CALLBACK", JSON.stringify(payload, null, 2));
+ 
+     bogOrderId = extractBogOrderId(payload);
+@@ -120,96 +93,86 @@ export default async function handler(req, res) {
+       return json(res, 200, { ok: true });
+     }
+ 
+-    let found = null;
+-
++    let payment = null;
+     if (bogOrderId) {
+-      found = await findPaymentRowByBogOrderId(bogOrderId);
++      payment = await findPaymentByBogOrderId(bogOrderId);
+     }
+-
+-    if (!found && internalOrderId) {
+-      found = await findPaymentRowByInternalOrderId(internalOrderId);
++    if (!payment && internalOrderId) {
++      payment = await findPaymentByInternalOrderId(internalOrderId);
+     }
+ 
+-    if (!found) {
+-      console.error("callback payment row not found", {
+-        bogOrderId,
+-        internalOrderId,
+-        payload
+-      });
++    if (!payment) {
++      console.error("callback payment not found", { bogOrderId, internalOrderId });
+       return json(res, 200, { ok: true });
+     }
+ 
+-    const current = found.data;
++    const alreadyPaid = payment.status === "paid";
+ 
+-    const next = {
+-      ...current,
+-      bog_order_id: bogOrderId || current.bog_order_id,
+-      status:
+-        normalizedStatus === "paid"
+-          ? "paid"
+-          : normalizedStatus === "failed"
+-            ? "failed"
+-            : current.status,
+-      raw_callback_status: JSON.stringify(payload)
+-    };
+-
+-    let waStatus = current.green_notified_at || "";
++    if (normalizedStatus === "paid" && !alreadyPaid) {
++      // 1) Notify WhatsApp once. green_notified_at guards against re-sending on
++      //    a duplicate callback.
++      let greenNotifiedAt = payment.green_notified_at;
+ 
+-    if (normalizedStatus === "paid" && current.status !== "paid") {
+-      if (!current.green_notified_at) {
++      if (!greenNotifiedAt) {
+         const text =
+ `✅ Новая оплаченная бронь
+ 
+-Событие: ${current.event_title}
+-ID события: ${current.event_code}
+-Стол: ${current.table_no}
+-Гостей: ${current.guests}
+-Имя: ${current.customer_name}
+-Контакт: ${current.customer_phone}
+-Сумма: ${current.price} GEL
+-BOG order: ${bogOrderId || current.bog_order_id}
+-Booking ID: ${current.internal_order_id}`;
++Событие: ${payment.event_title}
++Стол: ${payment.table_label}
++Гостей: ${payment.guests}
++Имя: ${payment.guest_name}
++Контакт: ${payment.guest_phone}
++Сумма: ${payment.amount} GEL
++BOG order: ${bogOrderId || payment.bog_order_id}
++Booking ID: ${payment.internal_order_id}`;
+ 
+         try {
+           await sendWhatsappNotification(text);
+-          waStatus = formatWaStatusOk(new Date());
+-          next.green_notified_at = new Date().toISOString();
+-
+-          // Persist immediately so a retry of this callback (after a later
+-          // failure below) does not re-send WhatsApp. Status is intentionally
+-          // left unchanged here — it's only flipped to "paid" once the
+-          // booking row is also written, at the bottom of the handler.
+-          await updatePaymentStatus(found.sheetRowNumber, {
+-            ...current,
+-            bog_order_id: bogOrderId || current.bog_order_id,
+-            green_notified_at: next.green_notified_at,
+-            raw_callback_status: JSON.stringify(payload)
++          greenNotifiedAt = new Date().toISOString();
++          // persist the notify timestamp immediately so a retry won't re-send
++          await updatePayment(payment.id, {
++            bog_order_id: bogOrderId || payment.bog_order_id,
++            green_notified_at: greenNotifiedAt,
++            raw_callback: payload
+           });
+         } catch (error) {
+           console.error("whatsapp notification failed", error);
+         }
+       }
+ 
++      // 2) Create the booking (idempotent). Uses the internal_order_id as the
++      //    booking id, so a duplicate callback can't double-book. The unique
++      //    (session_id, table_label) constraint is the final guard.
+       try {
+-        await appendBookingRowIfNotExists({
+-          booking_id: current.internal_order_id,
+-          reserve_url: current.tilda_page,
+-          table_no: current.table_no,
+-          customer_name: current.customer_name,
+-          customer_phone: current.customer_phone,
+-          guests: current.guests,
+-          amount: current.price,
+-          event_code: current.event_code,
+-          wa_status: waStatus,
+-          status: "list"
++        await createBookingIfNotExists({
++          id: payment.internal_order_id,
++          session_id: payment.session_id,
++          table_label: payment.table_label,
++          guest_name: payment.guest_name,
++          guest_phone: payment.guest_phone,
++          guests: payment.guests,
++          amount: payment.amount,
++          payment_status: "paid",
++          source: "online",
++          wa_status: greenNotifiedAt || null
+         });
+       } catch (error) {
+-        console.error("append booking failed", error);
+-        throw error; // propagate so this callback is not marked handled; see outer catch
++        console.error("create booking failed", error);
++        throw error; // don't mark handled; BOG will retry
+       }
+     }
+ 
+-    await updatePaymentStatus(found.sheetRowNumber, next);
++    // 3) Flip payment status last.
++    await updatePayment(payment.id, {
++      bog_order_id: bogOrderId || payment.bog_order_id,
++      status:
++        normalizedStatus === "paid"
++          ? "paid"
++          : normalizedStatus === "failed"
++            ? "failed"
++            : payment.status,
++      raw_callback: payload
++    });
+ 
+     return json(res, 200, { ok: true });
+   } catch (error) {
+@@ -221,4 +184,4 @@ Booking ID: ${current.internal_order_id}`;
+     });
+     return json(res, 500, { ok: false, error: "internal_error" });
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/api/payment.js b/api/payment.js
+index 51944f7..c9e97e0 100644
+--- a/api/payment.js
++++ b/api/payment.js
+@@ -1,7 +1,6 @@
+ import { createBogOrder } from "../lib/bog.js";
+-import { appendPayment, getEventByCode } from "../lib/sheets.js";
++import { getSession, createPayment } from "../lib/db.js";
+ import {
+-  extractReserveInfo,
+   firstNonEmpty,
+   json,
+   makeInternalOrderId,
+@@ -14,9 +13,7 @@ export const config = {
+ };
+ 
+ // The site is reachable on both the apex and the www host (BOG has the
+-// merchant registered as https://www.spot-bar.site), and a single hardcoded
+-// origin meant every visitor arriving on the other host failed CORS preflight
+-// and never got a payment link at all.
++// merchant registered as https://www.spot-bar.site), so allow both origins.
+ const ALLOWED_ORIGINS = new Set([
+   "https://spot-bar.site",
+   "https://www.spot-bar.site"
+@@ -24,7 +21,6 @@ const ALLOWED_ORIGINS = new Set([
+ 
+ function setCors(req, res) {
+   const origin = String(req.headers?.origin || "");
+-
+   res.setHeader(
+     "Access-Control-Allow-Origin",
+     ALLOWED_ORIGINS.has(origin) ? origin : "https://spot-bar.site"
+@@ -37,7 +33,6 @@ function setCors(req, res) {
+ function safeBody(body) {
+   if (!body) return {};
+   if (typeof body === "object") return body;
+-
+   try {
+     return JSON.parse(body);
+   } catch {
+@@ -48,7 +43,6 @@ function safeBody(body) {
+ function isAuthorized(req, body) {
+   const expected = process.env.INCOMING_FORM_TOKEN;
+   if (!expected) return true;
+-
+   const got = req.headers["x-form-token"] || body?.form_token;
+   return String(got || "") === String(expected);
+ }
+@@ -73,6 +67,12 @@ export default async function handler(req, res) {
+   try {
+     console.log("payment request body", body);
+ 
++    const sessionId = firstNonEmpty(body.session_id, body.sessionId);
++    const tableNo = firstNonEmpty(body.table_no, body.table);
++    const guests = parseNumber(body.guests || body.persons || body.people || 1);
++    const customerName = firstNonEmpty(body.customer_name, body.name);
++    const customerPhone = firstNonEmpty(body.customer_phone, body.phone);
++    const comment = firstNonEmpty(body.comment, body.Comment, body.message);
+     const reserveUrl = firstNonEmpty(
+       body.reserve_url,
+       body.tilda_page,
+@@ -81,67 +81,29 @@ export default async function handler(req, res) {
+       body.current_url
+     );
+ 
+-    const reserveInfo = extractReserveInfo(reserveUrl);
+-
+-    const eventCode = firstNonEmpty(
+-      body.event_code,
+-      body.eid,
+-      reserveInfo.eid
+-    );
+-
+-    const tableNo = firstNonEmpty(
+-      body.table_no,
+-      body.table
+-    );
+-
+-    const guests = parseNumber(
+-      body.guests || body.persons || body.people || 1
+-    );
+-
+-    const customerName = firstNonEmpty(
+-      body.customer_name,
+-      body.name
+-    );
+-
+-    const customerPhone = firstNonEmpty(
+-      body.customer_phone,
+-      body.phone
+-    );
+-
+-    const comment = firstNonEmpty(
+-      body.comment,
+-      body.Comment,
+-      body.message
+-    );
+-
+-    if (!eventCode) {
+-      return json(res, 400, { error: "Missing event_code / eid" });
++    if (!sessionId) {
++      return json(res, 400, { error: "Missing session_id" });
+     }
+-
+     if (!tableNo) {
+       return json(res, 400, { error: "Missing table_no" });
+     }
+-
+     if (!customerName) {
+       return json(res, 400, { error: "Missing customer_name" });
+     }
+-
+     if (!customerPhone) {
+       return json(res, 400, { error: "Missing customer_phone" });
+     }
+-
+     if (!Number.isFinite(guests) || guests <= 0) {
+       return json(res, 400, { error: "Invalid guests count" });
+     }
+ 
+-    const event = await getEventByCode(eventCode);
+-
+-    if (!event) {
+-      return json(res, 404, { error: `Event not found: ${eventCode}` });
++    const session = await getSession(sessionId);
++    if (!session) {
++      return json(res, 404, { error: `Session not found: ${sessionId}` });
+     }
+ 
+-    const totalAmount = Number(event.unit_price) * Number(guests);
+-
++    // Deposit = per-seat price * number of guests (same rule as before).
++    const totalAmount = Number(session.price) * Number(guests);
+     if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
+       return json(res, 400, { error: "Invalid total amount" });
+     }
+@@ -150,35 +112,32 @@ export default async function handler(req, res) {
+ 
+     const bog = await createBogOrder({
+       totalAmount,
+-      eventCode: event.event_code,
+-      title: event.title,
++      eventCode: session.event_id,
++      title: session.title,
+       internalOrderId
+     });
+ 
+     if (!bog?.bogOrderId) {
+       throw new Error("BOG returned empty order id");
+     }
+-
+     if (!bog?.redirectUrl) {
+       throw new Error("BOG returned empty redirect URL");
+     }
+ 
+-    await appendPayment({
+-      created_at: nowIso(),
++    // Store a pending payment. The booking row itself is created in the
++    // callback once payment is confirmed (so unpaid attempts don't hold seats).
++    await createPayment({
+       internal_order_id: internalOrderId,
+       bog_order_id: bog.bogOrderId,
+       status: "pending",
+-      event_code: event.event_code,
+-      event_title: event.title,
+-      type: event.type,
+-      price: totalAmount,
+-      table_no: tableNo,
++      session_id: session.id,
++      event_title: session.title,
++      table_label: String(tableNo).replace(/\s+/g, " ").trim(),
+       guests,
+-      customer_name: customerName,
+-      customer_phone: customerPhone,
+-      tilda_page: reserveUrl,
+-      green_notified_at: "",
+-      raw_callback_status: "",
++      amount: totalAmount,
++      guest_name: customerName,
++      guest_phone: customerPhone,
++      reserve_url: reserveUrl,
+       comment
+     });
+ 
+@@ -189,15 +148,14 @@ export default async function handler(req, res) {
+       internal_order_id: internalOrderId,
+       bog_order_id: bog.bogOrderId,
+       total_amount: totalAmount,
+-      event_title: event.title,
+-      deposit_text: event.deposit_text
++      event_title: session.title,
++      deposit_text: session.deposit_text
+     });
+   } catch (error) {
+     console.error("payment.js error", error);
+-
+     return json(res, 500, {
+       error: "Failed to create payment",
+       detail: String(error?.message || error)
+     });
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/api/session-info.js b/api/session-info.js
+new file mode 100644
+index 0000000..22a7e03
+--- /dev/null
++++ b/api/session-info.js
+@@ -0,0 +1,65 @@
++import { getSession } from "../lib/db.js";
++import { json } from "../lib/utils.js";
++
++// Public read-only endpoint for the reserve page. Given ?session_id=s_xxx it
++// returns everything the page needs to render: film title, date, time, price,
++// deposit text, poster, format. Replaces encoding the poster (and implicitly
++// the title/date/price) into the reserve URL - now the link only carries the
++// session_id and the page pulls the rest from the DB.
++
++const ALLOWED_ORIGINS = new Set([
++  "https://spot-bar.site",
++  "https://www.spot-bar.site"
++]);
++
++function setCors(req, res) {
++  const origin = String(req.headers?.origin || "");
++  res.setHeader(
++    "Access-Control-Allow-Origin",
++    ALLOWED_ORIGINS.has(origin) ? origin : "https://spot-bar.site"
++  );
++  res.setHeader("Vary", "Origin");
++  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
++}
++
++export default async function handler(req, res) {
++  setCors(req, res);
++
++  if (req.method === "OPTIONS") {
++    return res.status(200).end();
++  }
++
++  if (req.method !== "GET") {
++    return json(res, 405, { error: "Method not allowed" });
++  }
++
++  const sessionId = String(req.query?.session_id || "").trim();
++  if (!sessionId) {
++    return json(res, 400, { error: "Missing session_id" });
++  }
++
++  try {
++    const s = await getSession(sessionId);
++    if (!s) {
++      return json(res, 404, { error: "Session not found" });
++    }
++
++    return json(res, 200, {
++      ok: true,
++      session_id: s.id,
++      title: s.title,
++      date: s.date,
++      time: s.time,
++      price: Number(s.price),
++      deposit_text: s.deposit_text || "",
++      poster_url: s.poster_url || "",
++      format: s.format
++    });
++  } catch (error) {
++    console.error("session-info.js error", error);
++    return json(res, 500, {
++      error: "Failed to load session",
++      detail: String(error?.message || error)
++    });
++  }
++}

@@ -8,3 +8,4 @@ stage2.patch
 .vercel
 .env*
 stage2df.patch
+.env

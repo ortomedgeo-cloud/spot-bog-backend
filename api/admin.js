@@ -84,6 +84,12 @@ function page() {
   .srow .t { font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .srow .d { font-size:12px; color:#666; }
   .srow.arch { opacity:.5; }
+  .srow input.sel { width:18px; height:18px; flex:none; cursor:pointer; }
+  .batchbar { display:none; gap:8px; align-items:center; flex-wrap:wrap; background:#111; color:#fff; padding:10px 12px; border-radius:10px; margin:10px 0; font-size:13px; }
+  .batchbar.show { display:flex; }
+  .batchbar select, .batchbar input { padding:7px 9px; border-radius:8px; border:none; font-size:13px; }
+  .batchbar .btn.small { background:#fff; color:#111; }
+  .batchbar .btn.small.danger { background:#F44336; color:#fff; }
 
   /* FAB */
   #fab { position:fixed; right:18px; bottom:18px; z-index:40; padding:14px 20px; font-size:15px; font-weight:700; color:#fff; background:#111; border:none; border-radius:99px; box-shadow:0 6px 20px rgba(0,0,0,.25); cursor:pointer; }
@@ -165,6 +171,13 @@ function page() {
     </div>
     <div class="card">
       <label style="font-size:13px;font-weight:600">Существующие события</label>
+      <div class="batchbar" id="ev-batch">
+        <span><b id="ev-batch-n">0</b> выбрано</span>
+        <input id="ev-batch-price" type="number" min="0" step="0.01" placeholder="Цена" style="width:80px">
+        <select id="ev-batch-format"><option value="">формат —</option><option value="mov">mov</option><option value="din">din</option></select>
+        <button class="btn small" id="ev-batch-apply">Применить</button>
+        <button class="btn small danger" id="ev-batch-del">Удалить</button>
+      </div>
       <div id="ev-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
     </div>
   </div>
@@ -183,6 +196,12 @@ function page() {
     </div>
     <div class="card">
       <label style="font-size:13px;font-weight:600">Все сеансы (клик по «Ссылка» — копирование)</label>
+      <div class="batchbar" id="ss-batch">
+        <span><b id="ss-batch-n">0</b> выбрано</span>
+        <select id="ss-batch-event"><option value="">переназначить на… —</option></select>
+        <button class="btn small" id="ss-batch-apply">Применить</button>
+        <button class="btn small danger" id="ss-batch-del">Удалить</button>
+      </div>
       <div id="ss-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
     </div>
   </div>
@@ -390,10 +409,15 @@ async function loadEventsList(){
     const d=await r.json(); const evs=d.events||[];
     box.innerHTML = evs.length ? evs.map((e,i) =>
       '<div class="srow" data-i="'+i+'" style="cursor:pointer" title="Нажми, чтобы редактировать">'+
+      '<input type="checkbox" class="sel" data-id="'+esc(e.id)+'">'+
       (e.poster_url?'<img src="'+esc(e.poster_url)+'">':'<img>')+
       '<div class="info"><div class="t">'+esc(e.title)+'</div><div class="d">'+esc(e.format)+' · '+esc(String(e.price))+' GEL'+(e.poster_url?'':' · без постера')+'</div></div>'+
       '<button class="btn small ghost">Изм.</button></div>'
     ).join('') : '<div class="hint">Событий нет.</div>';
+    box.querySelectorAll('input.sel').forEach(cb=>{
+      cb.addEventListener('click', e=>e.stopPropagation());
+      cb.addEventListener('change', evBatchRefresh);
+    });
     box.querySelectorAll('.srow').forEach(row=>{
       row.onclick=()=>{
         const e=evs[Number(row.dataset.i)];
@@ -465,7 +489,9 @@ async function loadSessionsList(){
     const d=await r.json(); const ss=d.sessions||[];
     box.innerHTML = ss.length ? ss.map((s,i) => {
       const link='https://spot-bar.site/reserve?session_id='+s.id;
-      return '<div class="srow'+(s.is_archived?' arch':'')+'" data-i="'+i+'">'+(s.poster_url?'<img src="'+esc(s.poster_url)+'">':'<img>')+
+      return '<div class="srow'+(s.is_archived?' arch':'')+'" data-i="'+i+'">'+
+        '<input type="checkbox" class="sel" data-id="'+esc(s.id)+'">'+
+        (s.poster_url?'<img src="'+esc(s.poster_url)+'">':'<img>')+
         '<div class="info"><div class="t">'+esc(s.title)+'</div><div class="d">'+esc(s.date)+' · '+esc(s.time)+' · '+esc(String(s.price))+' GEL</div></div>'+
         '<button class="btn small ghost" data-edit="'+esc(s.id)+'">Изм.</button>'+
         '<button class="btn small ghost" data-link="'+esc(link)+'">Ссылка</button></div>';
@@ -475,6 +501,9 @@ async function loadSessionsList(){
         try{ await navigator.clipboard.writeText(b.dataset.link); b.textContent='Скопировано!'; setTimeout(()=>b.textContent='Ссылка',1500); }
         catch(e){ prompt('Скопируй ссылку:', b.dataset.link); }
       };
+    });
+    box.querySelectorAll('input.sel').forEach(cb=>{
+      cb.addEventListener('change', ssBatchRefresh);
     });
     box.querySelectorAll('button[data-edit]').forEach(b=>{
       b.onclick=()=>{
@@ -556,6 +585,74 @@ $('mb-submit').addEventListener('click', async ()=>{
     else msg(m,'Ошибка: '+(d.detail||d.error||'?'),false);
   }catch(e){ msg(m,'Сетевая ошибка.',false); }
   finally{ btn.disabled=false; btn.textContent='Создать бронь'; }
+});
+
+// ---------- BATCH (events) ----------
+function evSelected(){ return Array.from(document.querySelectorAll('#ev-list input.sel:checked')).map(c=>c.dataset.id); }
+function evBatchRefresh(){
+  const n=evSelected().length;
+  $('ev-batch-n').textContent=n;
+  $('ev-batch').classList.toggle('show', n>0);
+}
+$('ev-batch-del').addEventListener('click', async ()=>{
+  const ids=evSelected(); if(!ids.length) return;
+  if(!confirm('Удалить событий: '+ids.length+'?\\n\\n⚠️ Удалятся также ВСЕ их сеансы и ВСЕ брони этих сеансов. Это необратимо.')) return;
+  try{
+    const r=await fetch(api('admin-events'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',ids})});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(r.ok&&d.ok){ loadEventsList(); loadEventOptions(); loadSessionsList(); loadToday(); evBatchRefresh(); }
+    else alert('Ошибка: '+(d.detail||d.error||'?'));
+  }catch(e){ alert('Сетевая ошибка.'); }
+});
+$('ev-batch-apply').addEventListener('click', async ()=>{
+  const ids=evSelected(); if(!ids.length) return;
+  const price=$('ev-batch-price').value.trim();
+  const format=$('ev-batch-format').value;
+  if(!price && !format){ alert('Укажи цену и/или формат.'); return; }
+  try{
+    const r=await fetch(api('admin-events'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'bulk',ids,price:price||null,format:format||null})});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(r.ok&&d.ok){ $('ev-batch-price').value=''; $('ev-batch-format').value=''; loadEventsList(); loadEventOptions(); loadSessionsList(); }
+    else alert('Ошибка: '+(d.detail||d.error||'?'));
+  }catch(e){ alert('Сетевая ошибка.'); }
+});
+
+// ---------- BATCH (sessions) ----------
+function ssSelected(){ return Array.from(document.querySelectorAll('#ss-list input.sel:checked')).map(c=>c.dataset.id); }
+function ssBatchRefresh(){
+  const n=ssSelected().length;
+  $('ss-batch-n').textContent=n;
+  $('ss-batch').classList.toggle('show', n>0);
+  if(n>0){
+    // mirror the event options into the reassign select
+    const opts=$('ss-event').innerHTML.replace('Выбери событие','переназначить на… —');
+    if($('ss-batch-event').options.length<=1) $('ss-batch-event').innerHTML=opts;
+  }
+}
+$('ss-batch-del').addEventListener('click', async ()=>{
+  const ids=ssSelected(); if(!ids.length) return;
+  if(!confirm('Удалить сеансов: '+ids.length+'?\\n\\n⚠️ Удалятся также ВСЕ брони этих сеансов. Это необратимо.')) return;
+  try{
+    const r=await fetch(api('admin-sessions'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',ids})});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(r.ok&&d.ok){ loadSessionsList(); loadToday(); ssBatchRefresh(); }
+    else alert('Ошибка: '+(d.detail||d.error||'?'));
+  }catch(e){ alert('Сетевая ошибка.'); }
+});
+$('ss-batch-apply').addEventListener('click', async ()=>{
+  const ids=ssSelected(); if(!ids.length) return;
+  const event_id=$('ss-batch-event').value;
+  if(!event_id){ alert('Выбери событие для переназначения.'); return; }
+  try{
+    const r=await fetch(api('admin-sessions'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'reassign',ids,event_id})});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(r.ok&&d.ok){ loadSessionsList(); loadToday(); ssBatchRefresh(); }
+    else alert('Ошибка: '+(d.detail||d.error||'?'));
+  }catch(e){ alert('Сетевая ошибка.'); }
 });
 
 // ---------- ERIK ----------

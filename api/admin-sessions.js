@@ -1,4 +1,4 @@
-import { listSessions, createSession, updateSession } from "../lib/db.js";
+import { listSessions, createSession, updateSession, deleteSessionsByIds, reassignSessionsEvent } from "../lib/db.js";
 import { json, isAdminAuthed } from "../lib/utils.js";
 
 // GET  -> all sessions (joined with event) newest first
@@ -21,6 +21,24 @@ export default async function handler(req, res) {
 
     if (req.method === "POST") {
       const b = safeBody(req.body);
+
+      // Batch actions: { action: 'delete'|'reassign', ids: [...], event_id? }
+      if (b.action) {
+        const ids = Array.isArray(b.ids) ? b.ids.map(String).filter(Boolean) : [];
+        if (!ids.length) return json(res, 400, { error: "Missing ids" });
+
+        if (b.action === "delete") {
+          const n = await deleteSessionsByIds(ids);
+          return json(res, 200, { ok: true, deleted: n });
+        }
+        if (b.action === "reassign") {
+          const eid = String(b.event_id || "").trim();
+          if (!eid) return json(res, 400, { error: "Missing event_id" });
+          const n = await reassignSessionsEvent(ids, eid);
+          return json(res, 200, { ok: true, updated: n });
+        }
+        return json(res, 400, { error: "Unknown action" });
+      }
       const eventId = String(b.event_id || "").trim();
       const date = String(b.date || "").trim();
       const time = String(b.time || "").trim();

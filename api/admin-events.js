@@ -1,4 +1,4 @@
-import { listEvents, createEvent, updateEvent } from "../lib/db.js";
+import { listEvents, createEvent, updateEvent, deleteEventsByIds, bulkUpdateEvents } from "../lib/db.js";
 import { json, isAdminAuthed } from "../lib/utils.js";
 
 // GET  -> list all events
@@ -22,6 +22,25 @@ export default async function handler(req, res) {
 
     if (req.method === "POST") {
       const b = safeBody(req.body);
+
+      // Batch actions: { action: 'delete'|'bulk', ids: [...], price?, format? }
+      if (b.action) {
+        const ids = Array.isArray(b.ids) ? b.ids.map(String).filter(Boolean) : [];
+        if (!ids.length) return json(res, 400, { error: "Missing ids" });
+
+        if (b.action === "delete") {
+          const n = await deleteEventsByIds(ids);
+          return json(res, 200, { ok: true, deleted: n });
+        }
+        if (b.action === "bulk") {
+          if (b.price == null && !b.format) {
+            return json(res, 400, { error: "Nothing to update" });
+          }
+          const n = await bulkUpdateEvents(ids, { price: b.price, format: b.format });
+          return json(res, 200, { ok: true, updated: n });
+        }
+        return json(res, 400, { error: "Unknown action" });
+      }
       const payload = {
         tmdb_id: b.tmdb_id || null,
         title: String(b.title || "").trim(),

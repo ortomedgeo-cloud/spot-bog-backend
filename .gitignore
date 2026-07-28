@@ -1,13 +1,6 @@
 node_modules
 .env
 .DS_Store
-pass.patch
-db.patch
-bog.patch
-stage2.patch
 .vercel
 .env*
-stage2df.patch
-.env
-stage4.patch
-stage4fix.patch
+*.patch

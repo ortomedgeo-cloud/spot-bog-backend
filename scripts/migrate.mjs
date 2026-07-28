@@ -62,9 +62,13 @@ async function loadData() {
   const paymentsSheet = process.env.PAYMENTS_SHEET_NAME || "payments";
   const bookingsSheet = process.env.BOOKINGS_SHEET_NAME || "Bookings";
 
-  // FORMATTED_STRING for dates/times so we get 'DD-MM-YYYY'/'HH:MM'-ish text
-  // that migrate-core's toDdMmYyyy/toHhMm already handle.
-  const opts = { dateTimeRenderOption: "FORMATTED_STRING" };
+  // Read dates/times as serial numbers (locale-proof): FORMATTED_STRING gives
+  // '7/14/2026' in the sheet's US locale, which is ambiguous; SERIAL_NUMBER
+  // gives a plain day-count that toDdMmYyyy/toHhMm convert deterministically.
+  const opts = {
+    valueRenderOption: "UNFORMATTED_VALUE",
+    dateTimeRenderOption: "SERIAL_NUMBER"
+  };
 
   const [eventsRows, linksRows, paymentsRows, bookingsRows] = await Promise.all([
     readRows(eventsSheet, "A:E", opts),

@@ -1,71 +1,60 @@
-import { appendManualBooking } from "../lib/sheets.js";
+import { getSession, createBooking } from "../lib/db.js";
 import { json, isAdminAuthed } from "../lib/utils.js";
+import crypto from "crypto";
 
-// Staff-only endpoint for entering bookings made by phone / social / walk-in,
-// so employees never touch the sheet directly. Writes a Bookings row in the
-// same shape as the paid flow (see appendManualBooking).
-//
-// Access is gated by a shared secret in MANUAL_BOOKING_SECRET: the staff page
-// passes it as ?key=... (query) or an X-Manual-Key header. This is what makes
-// the "secret URL" actually private rather than just unlisted.
-
-function setCors(res) {
-  res.setHeader("Access-Control-Allow-Origin", "https://spot-bar.site");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Manual-Key");
-}
+// Staff manual booking (walk-in / phone / social) — writes straight to
+// Postgres. The UNIQUE(session_id, table_label) constraint makes double
+// booking impossible at the DB level (including racing an online payment).
 
 function safeBody(body) {
   if (!body) return {};
   if (typeof body === "object") return body;
-  try {
-    return JSON.parse(body);
-  } catch {
-    return {};
-  }
+  try { return JSON.parse(body); } catch { return {}; }
 }
 
 export default async function handler(req, res) {
-  setCors(res);
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
-  if (req.method !== "POST") {
-    return json(res, 405, { error: "Method not allowed" });
-  }
-
-  if (!isAdminAuthed(req)) {
-    return json(res, 401, { error: "Unauthorized" });
-  }
+  if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
+  if (!isAdminAuthed(req)) return json(res, 401, { error: "Unauthorized" });
 
   try {
-    const body = safeBody(req.body);
+    const b = safeBody(req.body);
+    const sessionId = String(b.session_id || "").trim();
+    const table = String(b.table || b.table_no || "").replace(/\s+/g, " ").trim();
 
-    const result = await appendManualBooking({
-      event_code: body.eid,
-      date: body.date,
-      time: body.time,
-      table_no: body.table,
-      customer_name: body.name,
-      customer_phone: body.phone,
-      guests: body.guests,
-      amount: body.amount,
-      payment_status: body.payment_status
+    if (!sessionId) return json(res, 400, { error: "Missing session_id" });
+    if (!table) return json(res, 400, { error: "Missing table" });
+
+    const session = await getSession(sessionId);
+    if (!session) return json(res, 404, { error: "Session not found" });
+
+    const booking = await createBooking({
+      id: `manual_${Date.now()}_${crypto.randomBytes(3).toString("hex")}`,
+      session_id: sessionId,
+      table_label: table,
+      guest_name: String(b.name || "").trim() || null,
+      guest_phone: String(b.phone || "").trim() || null,
+      guests: Number(b.guests) || null,
+      amount: Number(b.amount) || null,
+      payment_status: ["paid", "deposit", "unpaid"].includes(b.payment_status)
+        ? b.payment_status
+        : "unpaid",
+      source: "manual"
     });
 
-    return json(res, 200, result);
+    return json(res, 200, {
+      ok: true,
+      booking_id: booking.id,
+      table: booking.table_label,
+      session_id: sessionId,
+      title: session.title,
+      date: session.date,
+      time: session.time
+    });
   } catch (error) {
-    console.error("manual-booking.js error", error);
-
     if (error?.code === "TABLE_TAKEN") {
       return json(res, 409, { error: "TABLE_TAKEN", detail: error.message });
     }
-
-    return json(res, 400, {
-      error: "Failed to create booking",
-      detail: String(error?.message || error)
-    });
+    console.error("manual-booking error", error);
+    return json(res, 500, { error: "Failed", detail: String(error?.message || error) });
   }
 }

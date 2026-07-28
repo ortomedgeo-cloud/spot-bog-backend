@@ -1,4 +1,4 @@
-import { json } from "../lib/utils.js";
+import { json, isAdminAuthed } from "../lib/utils.js";
 
 // Server-side proxy for TMDB movie search. Keeps TMDB_API_KEY out of the
 // public Tilda page - the generator form calls this endpoint, never TMDB
@@ -21,6 +21,10 @@ export default async function handler(req, res) {
 
   if (req.method !== "GET") {
     return json(res, 405, { error: "Method not allowed" });
+  }
+
+  if (!isAdminAuthed(req)) {
+    return json(res, 401, { error: "Unauthorized" });
   }
 
   const apiKey = process.env.TMDB_API_KEY;

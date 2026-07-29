@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPOT. — меню</title>
+<meta name="description" content="Меню рутоп-кинобара SPOT. в Батуми: кухня, авторские коктейли, вино, кальяны.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Noto+Sans:wght@400;500&family=Noto+Sans+Georgian:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ink:        #0B0B0B;   /* фон — их чёрный */
+    --ink-soft:   #141312;   /* карточки, шапка */
+    --rule:       #262320;   /* линейки */
+    --text:       #F4F1EC;   /* основной текст */
+    --muted:      #8B857D;   /* описания, служебное */
+    --accent:     #E75228;   /* фирменный оранжевый SPOT. */
+
+    --display: 'Oswald', 'Noto Sans Georgian', sans-serif;
+    --body:    'Noto Sans', 'Noto Sans Georgian', sans-serif;
+
+    --pad: clamp(16px, 4vw, 40px);
+  }
+
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0; background:var(--ink); color:var(--text);
+    font-family:var(--body); font-size:16px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  @media (prefers-reduced-motion: reduce){
+    html{ scroll-behavior:auto; }
+    *{ animation-duration:.01ms !important; transition-duration:.01ms !important; }
+  }
+
+  a{ color:inherit; }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:3px; }
+
+  .wrap{ max-width:960px; margin:0 auto; padding:0 var(--pad); }
+
+  /* ---------- шапка ---------- */
+  header.top{
+    position:sticky; top:0; z-index:20;
+    background:rgba(11,11,11,.92); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--rule);
+  }
+  .top__row{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; padding:14px 0;
+  }
+  .mark{
+    font-family:var(--display); font-weight:600; font-size:20px;
+    letter-spacing:.16em; text-transform:uppercase; text-decoration:none;
+  }
+  .mark b{ color:var(--accent); font-weight:600; }
+
+  .langs{ display:flex; gap:2px; }
+  .langs button{
+    font-family:var(--body); font-size:13px; color:var(--muted);
+    background:none; border:1px solid transparent; border-radius:999px;
+    padding:5px 12px; cursor:pointer; transition:color .18s, border-color .18s;
+  }
+  .langs button:hover{ color:var(--text); }
+  .langs button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); }
+
+  /* ---------- слоган ---------- */
+  .hero{ padding:clamp(38px,8vw,84px) 0 clamp(26px,5vw,44px); }
+  .hero h1{
+    font-family:var(--display); font-weight:500;
+    font-size:clamp(34px,9vw,84px); line-height:.95;
+    letter-spacing:.02em; text-transform:uppercase;
+    margin:0;
+  }
+  .hero h1 span{ display:block; }
+  .hero h1 .taste{ color:var(--accent); }
+  .hero p{
+    color:var(--muted); font-size:14px; margin:20px 0 0;
+    max-width:46ch;
+  }
+
+  /* ---------- рельс категорий ---------- */
+  nav.rail{
+    position:sticky; top:57px; z-index:15;
+    background:rgba(11,11,11,.92); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--rule);
+  }
+  .rail__scroll{
+    display:flex; gap:6px; overflow-x:auto; padding:10px 0;
+    scrollbar-width:none;
+  }
+  .rail__scroll::-webkit-scrollbar{ display:none; }
+  .rail__scroll a{
+    flex:none; text-decoration:none; white-space:nowrap;
+    font-size:13px; color:var(--muted);
+    padding:6px 13px; border:1px solid var(--rule); border-radius:999px;
+    transition:color .18s, border-color .18s;
+  }
+  .rail__scroll a:hover{ color:var(--text); border-color:var(--muted); }
+
+  /* ---------- секции ---------- */
+  section.cat{ padding-top:clamp(34px,6vw,60px); scroll-margin-top:110px; }
+  .cat__head{
+    display:flex; align-items:baseline; gap:14px;
+    padding-bottom:12px; border-bottom:1px solid var(--rule);
+  }
+  .cat__head h2{
+    font-family:var(--display); font-weight:500;
+    font-size:clamp(21px,3.4vw,30px); letter-spacing:.06em;
+    text-transform:uppercase; margin:0;
+  }
+  .cat__count{ color:var(--muted); font-size:12px; letter-spacing:.08em; }
+
+  /* ---------- позиция ---------- */
+  .item{
+    display:grid; grid-template-columns:60px 1fr auto;
+    gap:16px; align-items:start;
+    padding:18px 0; border-bottom:1px solid var(--rule);
+  }
+  .item.no-photo{ grid-template-columns:1fr auto; }
+
+  .item__ph{
+    width:60px; height:60px; border-radius:4px; object-fit:cover;
+    background:var(--ink-soft); display:block;
+  }
+  .item__name{
+    font-family:var(--display); font-weight:400;
+    font-size:17px; letter-spacing:.03em; text-transform:uppercase;
+    margin:0 0 5px;
+  }
+  .item__desc{
+    color:var(--muted); font-size:13.5px; line-height:1.45; margin:0;
+    white-space:pre-line;
+  }
+  .item__price{
+    font-family:var(--display); font-weight:500; font-size:16px;
+    letter-spacing:.04em; white-space:nowrap; padding-top:1px;
+  }
+  .item__price i{ font-style:normal; color:var(--muted); font-size:12px; margin-left:3px; }
+
+  /* ---------- состояния ---------- */
+  .note{ padding:60px 0; color:var(--muted); font-size:15px; }
+  .note b{ color:var(--text); font-weight:500; display:block; margin-bottom:6px; }
+
+  footer.foot{
+    margin-top:clamp(50px,8vw,90px); padding:30px 0 50px;
+    border-top:1px solid var(--rule); color:var(--muted); font-size:13px;
+  }
+  footer.foot a{ color:var(--text); text-decoration:none; border-bottom:1px solid var(--rule); }
+  footer.foot a:hover{ border-color:var(--accent); }
+
+  @media (max-width:560px){
+    nav.rail{ top:53px; }
+    .item{ grid-template-columns:48px 1fr auto; gap:12px; }
+    .item__ph{ width:48px; height:48px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top__row">
+    <a class="mark" href="/">SPOT<b>.</b></a>
+    <div class="langs" id="langs" role="group" aria-label="Language"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <h1>
+      <span>SPOT to watch</span>
+      <span class="taste" id="hero-taste">to taste</span>
+      <span>to feel.</span>
+    </h1>
+    <p id="hero-sub"></p>
+  </div>
+</main>
+
+<nav class="rail" aria-label="Разделы меню"><div class="wrap rail__scroll" id="rail"></div></nav>
+
+<main class="wrap" id="menu">
+  <div class="note" id="state"></div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div id="foot-addr"></div>
+    <p style="margin:10px 0 0">
+      <a href="https://wa.me/995555248432" target="_blank" rel="noopener">WhatsApp</a> ·
+      <a href="https://www.instagram.com/spot.rooftop" target="_blank" rel="noopener">Instagram</a>
+    </p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const API = '/api/menu';
+  const LANGS = [
+    { code:'ka', label:'ქარ' },
+    { code:'ru', label:'рус' },
+    { code:'en', label:'eng' }
+  ];
+
+  // Тексты интерфейса. Названия блюд и разделов приходят из БД.
+  const T = {
+    ru:{ title:'SPOT. — меню', sub:'Рутоп-кинобар в Батуми. Кухня и бар — каждый день с 12:00 до 02:00.',
+         positions:n=>`${n} ${n%10===1&&n%100!==11?'позиция':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'позиции':'позиций')}`,
+         loading:'Загружаем меню…', empty:'Меню пока пустое.',
+         error:'Не удалось загрузить меню. Обновите страницу.',
+         addr:'ул. Реджеба Ниджарадзе 18, Батуми — тремя ступенями выше 15-го этажа.', gel:'GEL' },
+    ka:{ title:'SPOT. — მენიუ', sub:'რუფთოფ კინობარი ბათუმში. სამზარეულო და ბარი — ყოველდღე 12:00-დან 02:00-მდე.',
+         positions:n=>`${n} პოზიცია`,
+         loading:'მენიუ იტვირთება…', empty:'მენიუ ჯერ ცარიელია.',
+         error:'მენიუ ვერ ჩაიტვირთა. განაახლეთ გვერდი.',
+         addr:'რეჯებ ნიჟარაძის 18, ბათუმი — მე-15 სართულზე სამი საფეხურით მაღლა.', gel:'GEL' },
+    en:{ title:'SPOT. — menu', sub:'Rooftop cinema bar in Batumi. Kitchen and bar, every day 12 pm – 2 am.',
+         positions:n=>`${n} ${n===1?'item':'items'}`,
+         loading:'Loading the menu…', empty:'The menu is empty for now.',
+         error:'Could not load the menu. Please refresh.',
+         addr:'18 Rejeb Nijaradze, Batumi — three steps above the 15th floor.', gel:'GEL' }
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const slug = (s, i) => 'c' + i;
+
+  function pickLang(){
+    const u = new URL(location.href).searchParams.get('lang');
+    if (LANGS.some(l => l.code === u)) return u;
+    try { const s = localStorage.getItem('spot_lang'); if (LANGS.some(l => l.code === s)) return s; } catch {}
+    const nav = (navigator.language || 'ru').slice(0,2);
+    return LANGS.some(l => l.code === nav) ? nav : 'ru';
+  }
+
+  let lang = pickLang();
+
+  function renderLangs(){
+    $('langs').innerHTML = LANGS.map(l =>
+      `<button type="button" data-l="${l.code}" aria-pressed="${l.code===lang}">${l.label}</button>`
+    ).join('');
+    $('langs').querySelectorAll('button').forEach(b => {
+      b.onclick = () => {
+        lang = b.dataset.l;
+        try { localStorage.setItem('spot_lang', lang); } catch {}
+        const u = new URL(location.href); u.searchParams.set('lang', lang);
+        history.replaceState(null, '', u);
+        renderLangs(); applyStatic(); load();
+      };
+    });
+  }
+
+  function applyStatic(){
+    const t = T[lang];
+    document.documentElement.lang = lang;
+    document.title = t.title;
+    $('hero-sub').textContent = t.sub;
+    $('foot-addr').textContent = t.addr;
+  }
+
+  function state(msg, strongFirst){
+    $('menu').innerHTML = `<div class="note">${strongFirst ? `<b>${esc(strongFirst)}</b>` : ''}${esc(msg)}</div>`;
+    $('rail').innerHTML = '';
+  }
+
+  async function load(){
+    const t = T[lang];
+    state(t.loading);
+    try{
+      const r = await fetch(`${API}?lang=${encodeURIComponent(lang)}`);
+      const d = await r.json();
+      if(!r.ok || !d.ok) throw new Error(d.error || 'bad response');
+
+      const cats = (d.menu || []).filter(c => (c.items || []).length);
+      if(!cats.length){ state(t.empty); return; }
+
+      $('rail').innerHTML = cats.map((c,i) =>
+        `<a href="#${slug(c.title,i)}">${esc(c.title)}</a>`
+      ).join('');
+
+      $('menu').innerHTML = cats.map((c,i) => `
+        <section class="cat" id="${slug(c.title,i)}">
+          <div class="cat__head">
+            <h2>${esc(c.title)}</h2>
+            <span class="cat__count">${esc(t.positions(c.items.length))}</span>
+          </div>
+          ${c.items.map(it => `
+            <article class="item${it.photo_url ? '' : ' no-photo'}">
+              ${it.photo_url ? `<img class="item__ph" src="${esc(it.photo_url)}" alt="" loading="lazy" decoding="async">` : ''}
+              <div>
+                <h3 class="item__name">${esc(it.title)}</h3>
+                ${it.description ? `<p class="item__desc">${esc(it.description)}</p>` : ''}
+              </div>
+              <div class="item__price">${esc(String(it.price))}<i>${esc(t.gel)}</i></div>
+            </article>
+          `).join('')}
+        </section>
+      `).join('');
+    }catch(e){
+      console.error(e);
+      state(T[lang].error);
+    }
+  }
+
+  renderLangs(); applyStatic(); load();
+})();
+</script>
+</body>
+</html>

@@ -163,6 +163,7 @@ function page() {
     <div class="tab active" data-tab="today">Сегодня</div>
     <div class="tab" data-tab="events">События</div>
     <div class="tab" data-tab="sessions">Сеансы</div>
+    <div class="tab" data-tab="menu">Меню</div>
   </div>
 
   <!-- ===== TODAY ===== -->
@@ -226,6 +227,60 @@ function page() {
         <button class="btn small danger" id="ss-batch-del">Удалить</button>
       </div>
       <div id="ss-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
+    </div>
+  </div>
+
+  <!-- ===== MENU ===== -->
+  <div class="panel" id="panel-menu">
+    <div class="card">
+      <label style="font-size:13px;font-weight:600">Категория</label>
+      <div class="row two" style="margin-top:8px">
+        <div><label>Название (RU) *</label><input id="mc-ru" placeholder="Кухня"></div>
+        <div><label>Порядок</label><input id="mc-sort" type="number" value="0"></div>
+      </div>
+      <div class="row two">
+        <div><label>ქართული</label><input id="mc-ka" placeholder="სამზარეულო"></div>
+        <div><label>English</label><input id="mc-en" placeholder="Kitchen"></div>
+      </div>
+      <button class="btn" id="mc-save">Добавить категорию</button>
+      <button class="btn ghost" id="mc-cancel" style="display:none;margin-left:8px">Отмена</button>
+      <div class="msg" id="mc-msg"></div>
+    </div>
+
+    <div class="card">
+      <label style="font-size:13px;font-weight:600">Позиция меню</label>
+      <div class="row" style="margin-top:8px"><label>Категория *</label><select id="mi-cat"><option value="">—</option></select></div>
+      <div class="row two">
+        <div><label>Название (RU) *</label><input id="mi-ru" placeholder="Хачапури"></div>
+        <div><label>Цена (GEL) *</label><input id="mi-price" type="number" min="0" step="0.01"></div>
+      </div>
+      <div class="row two">
+        <div><label>ქართული</label><input id="mi-ka"></div>
+        <div><label>English</label><input id="mi-en"></div>
+      </div>
+      <div class="row"><label>Описание (RU)</label><textarea id="mi-dru" style="min-height:56px"></textarea></div>
+      <div class="row two">
+        <div><label>Описание ქარ</label><textarea id="mi-dka" style="min-height:56px"></textarea></div>
+        <div><label>Описание EN</label><textarea id="mi-den" style="min-height:56px"></textarea></div>
+      </div>
+      <div class="row two">
+        <div><label>Фото (URL)</label><input id="mi-photo" placeholder="https://..."></div>
+        <div><label>Порядок</label><input id="mi-sort" type="number" value="0"></div>
+      </div>
+      <button class="btn" id="mi-save">Добавить позицию</button>
+      <button class="btn ghost" id="mi-cancel" style="display:none;margin-left:8px">Отмена</button>
+      <div class="msg" id="mi-msg"></div>
+    </div>
+
+    <div class="card">
+      <label style="font-size:13px;font-weight:600">Меню</label>
+      <div class="batchbar" id="mi-batch">
+        <span><b id="mi-batch-n">0</b> выбрано</span>
+        <button class="btn small" id="mi-batch-on">В наличии</button>
+        <button class="btn small" id="mi-batch-off">Нет в наличии</button>
+        <button class="btn small danger" id="mi-batch-del">Удалить</button>
+      </div>
+      <div id="menu-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
     </div>
   </div>
 
@@ -328,6 +383,7 @@ document.querySelectorAll('#main-tabs .tab').forEach(t => t.addEventListener('cl
   if(t.dataset.tab==='today') loadToday();
   if(t.dataset.tab==='events') { loadEventsList(); }
   if(t.dataset.tab==='sessions') { loadEventOptions(); loadSessionsList(); }
+  if(t.dataset.tab==='menu') loadMenu();
 }));
 
 let BOOTED=false;
@@ -338,6 +394,7 @@ function boot(){
   loadEventOptions();
   loadSessionsList();
   $('ev-deposit').value = CFG.depositMov;
+  loadMenu();
 }
 
 // ---------- CALENDAR ----------
@@ -705,6 +762,151 @@ $('mb-submit').addEventListener('click', async ()=>{
     else msg(m,'Ошибка: '+(d.detail||d.error||'?'),false);
   }catch(e){ msg(m,'Сетевая ошибка.',false); }
   finally{ btn.disabled=false; btn.textContent='Создать бронь'; }
+});
+
+// ---------- MENU ----------
+let MENU = { categories:[], items:[] };
+let MC_EDIT = null, MI_EDIT = null;
+
+async function loadMenu(){
+  const box=$('menu-list');
+  try{
+    const r=await fetch(api('admin-menu'), F);
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json();
+    MENU={ categories:d.categories||[], items:d.items||[] };
+
+    // category select for the item form
+    $('mi-cat').innerHTML='<option value="">Выбери категорию</option>'+
+      MENU.categories.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.title_ru)+'</option>').join('');
+
+    if(!MENU.categories.length){ box.innerHTML='<div class="hint">Категорий нет. Создай первую сверху.</div>'; return; }
+
+    box.innerHTML = MENU.categories.map(c=>{
+      const items = MENU.items.filter(i=>i.category_id===c.id);
+      const rows = items.map(i=>
+        '<div class="srow"'+(i.available?'':' style="opacity:.45"')+'>'+
+          '<input type="checkbox" class="sel" data-id="'+esc(i.id)+'">'+
+          (i.photo_url?'<img src="'+esc(i.photo_url)+'">':'<img>')+
+          '<div class="info"><div class="t">'+esc(i.title_ru)+'</div>'+
+          '<div class="d">'+esc(String(i.price))+' GEL'+(i.available?'':' · нет в наличии')+
+          (i.title_ka?'':' · нет ქარ')+(i.title_en?'':' · нет EN')+'</div></div>'+
+          '<button class="btn small ghost" data-mi="'+esc(i.id)+'">Изм.</button>'+
+        '</div>'
+      ).join('') || '<div class="hint" style="padding:6px 0">Пусто</div>';
+
+      return '<div style="margin-bottom:16px">'+
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+
+          '<input type="checkbox" class="selcat" data-id="'+esc(c.id)+'" style="width:18px;height:18px">'+
+          '<b style="font-size:15px"'+(c.visible?'':' style="opacity:.5"')+'>'+esc(c.title_ru)+'</b>'+
+          '<span class="hint">'+(c.visible?'':'скрыта · ')+items.length+' поз.</span>'+
+          '<button class="btn small ghost" data-mc="'+esc(c.id)+'" style="margin-left:auto">Изм.</button>'+
+        '</div>'+rows+'</div>';
+    }).join('');
+
+    box.querySelectorAll('input.sel').forEach(cb=>cb.addEventListener('change', miBatchRefresh));
+    box.querySelectorAll('button[data-mi]').forEach(b=>{
+      b.onclick=()=>{
+        const i=MENU.items.find(x=>x.id===b.dataset.mi); if(!i) return;
+        MI_EDIT=i.id;
+        $('mi-cat').value=i.category_id; $('mi-ru').value=i.title_ru||'';
+        $('mi-ka').value=i.title_ka||''; $('mi-en').value=i.title_en||'';
+        $('mi-dru').value=i.desc_ru||''; $('mi-dka').value=i.desc_ka||''; $('mi-den').value=i.desc_en||'';
+        $('mi-price').value=i.price; $('mi-photo').value=i.photo_url||''; $('mi-sort').value=i.sort;
+        $('mi-save').textContent='Сохранить позицию'; $('mi-cancel').style.display='inline-block';
+        window.scrollTo({top:0,behavior:'smooth'});
+      };
+    });
+    box.querySelectorAll('button[data-mc]').forEach(b=>{
+      b.onclick=()=>{
+        const c=MENU.categories.find(x=>x.id===b.dataset.mc); if(!c) return;
+        MC_EDIT=c.id;
+        $('mc-ru').value=c.title_ru||''; $('mc-ka').value=c.title_ka||'';
+        $('mc-en').value=c.title_en||''; $('mc-sort').value=c.sort;
+        $('mc-save').textContent='Сохранить категорию'; $('mc-cancel').style.display='inline-block';
+        window.scrollTo({top:0,behavior:'smooth'});
+      };
+    });
+  }catch(e){ box.innerHTML='<div class="hint">Ошибка загрузки меню.</div>'; }
+}
+
+function mcReset(){
+  MC_EDIT=null; ['mc-ru','mc-ka','mc-en'].forEach(id=>$(id).value=''); $('mc-sort').value='0';
+  $('mc-save').textContent='Добавить категорию'; $('mc-cancel').style.display='none';
+}
+function miReset(){
+  MI_EDIT=null; ['mi-ru','mi-ka','mi-en','mi-dru','mi-dka','mi-den','mi-price','mi-photo'].forEach(id=>$(id).value='');
+  $('mi-sort').value='0';
+  $('mi-save').textContent='Добавить позицию'; $('mi-cancel').style.display='none';
+}
+$('mc-cancel').addEventListener('click', mcReset);
+$('mi-cancel').addEventListener('click', miReset);
+
+$('mc-save').addEventListener('click', async ()=>{
+  const m=$('mc-msg'); m.style.display='none';
+  const title_ru=$('mc-ru').value.trim();
+  if(!title_ru){ msg(m,'Укажи название на русском.',false); return; }
+  const body={ kind:'category', title_ru, title_ka:$('mc-ka').value.trim(), title_en:$('mc-en').value.trim(), sort:$('mc-sort').value };
+  if(MC_EDIT) body.id=MC_EDIT;
+  try{
+    const r=await fetch(api('admin-menu'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(r.ok&&d.ok){ msg(m,MC_EDIT?'Категория обновлена.':'Категория создана.',true); mcReset(); loadMenu(); }
+    else msg(m,'Ошибка: '+(d.detail||d.error||'?'),false);
+  }catch(e){ msg(m,'Сетевая ошибка.',false); }
+});
+
+$('mi-save').addEventListener('click', async ()=>{
+  const m=$('mi-msg'); m.style.display='none';
+  const title_ru=$('mi-ru').value.trim(), category_id=$('mi-cat').value, price=$('mi-price').value.trim();
+  if(!category_id){ msg(m,'Выбери категорию.',false); return; }
+  if(!title_ru){ msg(m,'Укажи название на русском.',false); return; }
+  if(price===''){ msg(m,'Укажи цену.',false); return; }
+  const body={ kind:'item', category_id, title_ru, price,
+    title_ka:$('mi-ka').value.trim(), title_en:$('mi-en').value.trim(),
+    desc_ru:$('mi-dru').value.trim(), desc_ka:$('mi-dka').value.trim(), desc_en:$('mi-den').value.trim(),
+    photo_url:$('mi-photo').value.trim(), sort:$('mi-sort').value };
+  if(MI_EDIT) body.id=MI_EDIT;
+  try{
+    const r=await fetch(api('admin-menu'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(r.ok&&d.ok){ msg(m,MI_EDIT?'Позиция обновлена.':'Позиция создана.',true); miReset(); loadMenu(); }
+    else msg(m,'Ошибка: '+(d.detail||d.error||'?'),false);
+  }catch(e){ msg(m,'Сетевая ошибка.',false); }
+});
+
+function miSelected(){ return Array.from(document.querySelectorAll('#menu-list input.sel:checked')).map(c=>c.dataset.id); }
+function mcSelected(){ return Array.from(document.querySelectorAll('#menu-list input.selcat:checked')).map(c=>c.dataset.id); }
+function miBatchRefresh(){
+  const n=miSelected().length;
+  $('mi-batch-n').textContent=n;
+  $('mi-batch').classList.toggle('show', n>0);
+}
+async function menuBatch(body){
+  try{
+    const r=await fetch(api('admin-menu'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(r.ok&&d.ok){ loadMenu(); miBatchRefresh(); }
+    else alert('Ошибка: '+(d.detail||d.error||'?'));
+  }catch(e){ alert('Сетевая ошибка.'); }
+}
+$('mi-batch-on').addEventListener('click', ()=>{ const ids=miSelected(); if(ids.length) menuBatch({action:'available',ids,available:true}); });
+$('mi-batch-off').addEventListener('click', ()=>{ const ids=miSelected(); if(ids.length) menuBatch({action:'available',ids,available:false}); });
+$('mi-batch-del').addEventListener('click', ()=>{
+  const ids=miSelected(); if(!ids.length) return;
+  if(!confirm('Удалить позиций: '+ids.length+'? Это необратимо.')) return;
+  menuBatch({action:'delete',kind:'item',ids});
+});
+document.addEventListener('change', (e)=>{
+  if(e.target && e.target.classList && e.target.classList.contains('selcat')){
+    const ids=mcSelected();
+    if(ids.length && confirm('Удалить категорий: '+ids.length+'?\\n\\nВместе с ними удалятся ВСЕ позиции внутри. Необратимо.')){
+      menuBatch({action:'delete',kind:'category',ids});
+    } else { document.querySelectorAll('#menu-list input.selcat').forEach(c=>c.checked=false); }
+  }
 });
 
 // ---------- BATCH (events) ----------

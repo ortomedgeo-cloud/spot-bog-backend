@@ -1,7 +1,17 @@
 {
   "cleanUrls": false,
   "rewrites": [
-    { "source": "/admin", "destination": "/api/admin" },
-    { "source": "/menu", "destination": "/menu.html" }
+    {
+      "source": "/admin",
+      "destination": "/api/admin"
+    },
+    {
+      "source": "/menu",
+      "destination": "/menu.html"
+    },
+    {
+      "source": "/table",
+      "destination": "/table.html"
+    }
   ]
 }

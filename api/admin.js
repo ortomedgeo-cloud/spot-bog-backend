@@ -84,6 +84,41 @@ function page() {
   .srow .t { font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .srow .d { font-size:12px; color:#666; }
   .srow.arch { opacity:.5; }
+
+  /* обслуживание */
+  #svc-badge { display:none; margin-left:6px; background:#F44336; color:#fff; border-radius:99px; font-size:11px; padding:1px 6px; }
+  #svc-badge.on { display:inline-block; }
+  .svc { background:#fff; border-radius:12px; padding:14px 16px; margin-bottom:10px; border-left:4px solid #ddd; }
+  .svc.new { border-left-color:#F44336; }
+  .svc.accepted { border-left-color:#f59e0b; }
+  .svc.done { border-left-color:#4CAF50; opacity:.6; }
+  .svc.cancelled { opacity:.45; text-decoration:line-through; }
+  .svc__top { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .svc__seat { font-weight:700; font-size:16px; }
+  .svc__when { font-size:12px; color:#888; white-space:nowrap; }
+  .svc__body { font-size:14px; margin-top:6px; }
+  .svc__body .li { display:flex; justify-content:space-between; padding:2px 0; }
+  .svc__total { font-weight:700; margin-top:6px; }
+  .svc__note { font-size:13px; color:#555; margin-top:6px; font-style:italic; }
+  .svc__acts { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+  .svc__kind { font-weight:700; font-size:15px; }
+
+  /* каналы уведомлений */
+  .nch { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #eee; }
+  .nch:last-child { border-bottom:none; }
+  .nch__main { flex:1; min-width:0; }
+  .nch__name { font-weight:600; font-size:14px; }
+  .nch__hint { font-size:12px; color:#888; margin-top:2px; }
+  .nch__hint.off { color:#f59e0b; }
+  .nch__hint.missing { color:#F44336; }
+  .nch__test-msg { font-size:12px; margin-left:8px; }
+  .tgl { position:relative; display:inline-block; width:40px; height:22px; flex:none; }
+  .tgl input { opacity:0; width:0; height:0; }
+  .tgl span { position:absolute; inset:0; background:#ccc; border-radius:22px; cursor:pointer; transition:.15s; }
+  .tgl span:before { content:''; position:absolute; width:16px; height:16px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.15s; }
+  .tgl input:checked + span { background:#4CAF50; }
+  .tgl input:checked + span:before { transform:translateX(18px); }
+  .tgl input:disabled + span { opacity:.4; cursor:default; }
   .srow input.sel { width:18px; height:18px; flex:none; cursor:pointer; }
   .batchbar { display:none; gap:8px; align-items:center; flex-wrap:wrap; background:#111; color:#fff; padding:10px 12px; border-radius:10px; margin:10px 0; font-size:13px; }
   .batchbar.show { display:flex; }
@@ -164,6 +199,7 @@ function page() {
     <div class="tab" data-tab="events">События</div>
     <div class="tab" data-tab="sessions">Сеансы</div>
     <div class="tab" data-tab="menu">Меню</div>
+    <div class="tab" data-tab="svc">Обслуживание<span id="svc-badge"></span></div>
   </div>
 
   <!-- ===== TODAY ===== -->
@@ -284,6 +320,34 @@ function page() {
     </div>
   </div>
 
+  <!-- ===== SERVICE ===== -->
+  <div class="panel" id="panel-svc">
+    <div class="card" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:13px;font-weight:600">Период:</label>
+      <select id="svc-hours" style="padding:8px;border:1px solid #ccc;border-radius:8px">
+        <option value="6">6 часов</option>
+        <option value="24" selected>сутки</option>
+        <option value="72">3 дня</option>
+      </select>
+      <label style="font-size:13px;display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="svc-auto" checked style="width:16px;height:16px"> автообновление
+      </label>
+      <button class="btn small ghost" id="svc-reload">Обновить</button>
+      <span class="hint" id="svc-stamp"></span>
+    </div>
+
+    <div class="card" id="notify-card">
+      <label style="font-size:13px;font-weight:600">Каналы уведомлений</label>
+      <div id="notify-list" style="margin-top:10px"><div class="hint">Загрузка…</div></div>
+    </div>
+
+    <label style="font-size:13px;font-weight:600">Просьбы</label>
+    <div id="svc-reqs" style="margin:8px 0 22px"><div class="hint">Загрузка…</div></div>
+
+    <label style="font-size:13px;font-weight:600">Заказы</label>
+    <div id="svc-orders" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
+  </div>
+
   <!-- ===== ERIK ===== -->
   <div id="erik-area">
     <div class="card" id="erik-gate">
@@ -384,6 +448,7 @@ document.querySelectorAll('#main-tabs .tab').forEach(t => t.addEventListener('cl
   if(t.dataset.tab==='events') { loadEventsList(); }
   if(t.dataset.tab==='sessions') { loadEventOptions(); loadSessionsList(); }
   if(t.dataset.tab==='menu') loadMenu();
+  if(t.dataset.tab==='svc') { loadSvc(); loadNotify(); }
 }));
 
 let BOOTED=false;
@@ -395,6 +460,9 @@ function boot(){
   loadSessionsList();
   $('ev-deposit').value = CFG.depositMov;
   loadMenu();
+  loadSvc();
+  loadNotify();
+  startSvcPoll();
 }
 
 // ---------- CALENDAR ----------
@@ -763,6 +831,169 @@ $('mb-submit').addEventListener('click', async ()=>{
   }catch(e){ msg(m,'Сетевая ошибка.',false); }
   finally{ btn.disabled=false; btn.textContent='Создать бронь'; }
 });
+
+// ---------- ОБСЛУЖИВАНИЕ ----------
+// Дашборд — основной канал: он не зависит от мессенджера. Если бот отвалится,
+// заказы всё равно видны здесь, поэтому лента сама подтягивается каждые 15 с,
+// а в заголовке вкладки висит счётчик непринятых.
+
+const SVC_KIND = { waiter:'Официант', bill:'Счёт', blanket:'Плед', charger:'Зарядка', ashtray:'Пепельница' };
+let SVC_TIMER = null;
+
+function ago(iso){
+  const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime())/1000));
+  if(s < 60) return s + ' сек назад';
+  const m = Math.floor(s/60);
+  if(m < 60) return m + ' мин назад';
+  const h = Math.floor(m/60);
+  if(h < 24) return h + ' ч назад';
+  return new Date(iso).toLocaleString('ru-RU');
+}
+
+function startSvcPoll(){
+  if(SVC_TIMER) clearInterval(SVC_TIMER);
+  SVC_TIMER = setInterval(()=>{ if($('svc-auto')?.checked) loadSvc(true); }, 15000);
+}
+
+async function loadSvc(quiet){
+  const reqBox = $('svc-reqs'), ordBox = $('svc-orders');
+  if(!quiet){ reqBox.innerHTML='<div class="hint">Загрузка…</div>'; ordBox.innerHTML='<div class="hint">Загрузка…</div>'; }
+  try{
+    const u = new URL(api('admin-service'), location.origin);
+    u.searchParams.set('hours', $('svc-hours').value);
+    const r = await fetch(u, F);
+    if(r.status===401){ handle401(); return; }
+    const d = await r.json();
+
+    const reqs = d.requests || [], orders = d.orders || [];
+
+    // счётчик непринятых
+    const pending = reqs.filter(x=>x.status==='new').length + orders.filter(o=>o.status==='new').length;
+    const badge = $('svc-badge');
+    if(badge){ badge.textContent = pending || ''; badge.classList.toggle('on', pending>0); }
+    document.title = pending ? ('(' + pending + ') SPOT. — админ') : 'SPOT. — админ';
+    $('svc-stamp').textContent = 'обновлено ' + new Date().toLocaleTimeString('ru-RU');
+
+    reqBox.innerHTML = reqs.length ? reqs.map(x =>
+      '<div class="svc '+esc(x.status)+'">'+
+        '<div class="svc__top"><span class="svc__seat">'+esc(x.table_label)+'</span>'+
+          '<span class="svc__when">'+esc(ago(x.created_at))+'</span></div>'+
+        '<div class="svc__kind">'+esc(SVC_KIND[x.kind]||x.kind)+'</div>'+
+        (x.comment?'<div class="svc__note">'+esc(x.comment)+'</div>':'')+
+        (x.status==='new'
+          ? '<div class="svc__acts"><button class="btn small" data-rq="'+esc(x.id)+'" data-st="done">Выполнено</button></div>'
+          : '')+
+      '</div>'
+    ).join('') : '<div class="hint">Просьб нет.</div>';
+
+    ordBox.innerHTML = orders.length ? orders.map(o => {
+      const lines = (o.items||[]).map(i =>
+        '<div class="li"><span>'+esc(i.title)+' × '+esc(String(i.qty))+'</span><span>'+esc(String(Number(i.price)*i.qty))+' GEL</span></div>'
+      ).join('');
+      const acts = o.status==='new'
+        ? '<button class="btn small" data-or="'+esc(o.id)+'" data-st="accepted">Принять</button>'+
+          '<button class="btn small ghost" data-or="'+esc(o.id)+'" data-st="cancelled">Отменить</button>'
+        : (o.status==='accepted'
+            ? '<button class="btn small" data-or="'+esc(o.id)+'" data-st="done">Готово</button>'
+            : '');
+      return '<div class="svc '+esc(o.status)+'">'+
+        '<div class="svc__top"><span class="svc__seat">'+esc(o.table_label)+
+          (o.mode==='takeaway'?' <span class="badge manual">с собой</span>':'')+
+          (o.guest_name?' · '+esc(o.guest_name):'')+'</span>'+
+          '<span class="svc__when">'+esc(ago(o.created_at))+'</span></div>'+
+        '<div class="svc__body">'+lines+'<div class="svc__total">Итого: '+esc(String(Number(o.total)))+' GEL</div></div>'+
+        (o.comment?'<div class="svc__note">'+esc(o.comment)+'</div>':'')+
+        (acts?'<div class="svc__acts">'+acts+'</div>':'')+
+      '</div>';
+    }).join('') : '<div class="hint">Заказов нет.</div>';
+
+    ordBox.querySelectorAll('button[data-or]').forEach(b=>{
+      b.onclick=()=>svcSet({ kind:'order', id:b.dataset.or, status:b.dataset.st });
+    });
+    reqBox.querySelectorAll('button[data-rq]').forEach(b=>{
+      b.onclick=()=>svcSet({ kind:'request', id:b.dataset.rq, status:b.dataset.st });
+    });
+  }catch(e){
+    if(!quiet){ ordBox.innerHTML='<div class="hint">Ошибка загрузки.</div>'; }
+  }
+}
+
+async function svcSet(payload){
+  try{
+    const r=await fetch(api('admin-service'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(r.ok&&d.ok) loadSvc(true);
+    else alert('Ошибка: '+(d.detail||d.error||'?'));
+  }catch(e){ alert('Сетевая ошибка.'); }
+}
+
+$('svc-reload').addEventListener('click', ()=>loadSvc());
+$('svc-hours').addEventListener('change', ()=>loadSvc());
+
+// ---------- КАНАЛЫ УВЕДОМЛЕНИЙ ----------
+
+async function loadNotify(){
+  const box = $('notify-list');
+  try{
+    const r = await fetch(api('admin-notify'), F);
+    if(r.status===401){ handle401(); return; }
+    const d = await r.json();
+    const channels = d.channels || [];
+
+    box.innerHTML = channels.map(function(ch){
+      const hintClass = !ch.configured ? 'missing' : (!ch.enabled ? 'off' : '');
+      const hintText = !ch.configured
+        ? 'не настроен — не хватает: ' + ch.missing.join(', ')
+        : (!ch.enabled ? 'настроен, но выключен' : 'настроен, уведомления идут');
+      const testPart = (ch.configured && ch.enabled)
+        ? '<button class="btn small ghost" data-test="'+esc(ch.channel)+'">Проверить</button><span class="nch__test-msg" data-testmsg="'+esc(ch.channel)+'"></span>'
+        : '';
+      return '<div class="nch">'+
+        '<label class="tgl"><input type="checkbox" data-ch="'+esc(ch.channel)+'"'+(ch.enabled?' checked':'')+(ch.configured?'':' disabled')+'><span></span></label>'+
+        '<div class="nch__main">'+
+          '<div class="nch__name">'+esc(ch.title)+'</div>'+
+          '<div class="nch__hint '+hintClass+'">'+esc(hintText)+'</div>'+
+        '</div>'+
+        testPart+
+      '</div>';
+    }).join('');
+
+    box.querySelectorAll('input[data-ch]').forEach(function(inp){
+      inp.addEventListener('change', function(){ setNotifyChannel(inp.dataset.ch, inp.checked); });
+    });
+    box.querySelectorAll('button[data-test]').forEach(function(btn){
+      btn.addEventListener('click', function(){ testNotifyChannel(btn.dataset.test); });
+    });
+  }catch(e){
+    box.innerHTML = '<div class="hint">Ошибка загрузки.</div>';
+  }
+}
+
+async function setNotifyChannel(channel, enabled){
+  try{
+    const r = await fetch(api('admin-notify'), {method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify({channel:channel, enabled:enabled})});
+    if(r.status===401){ handle401(); return; }
+    loadNotify();
+  }catch(e){ alert('Сетевая ошибка.'); loadNotify(); }
+}
+
+async function testNotifyChannel(channel){
+  const msgEl = document.querySelector('[data-testmsg="'+channel+'"]');
+  if(msgEl){ msgEl.textContent = 'Проверяем…'; msgEl.style.color = '#888'; }
+  try{
+    const r = await fetch(api('admin-notify'), {method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify({test:channel})});
+    if(r.status===401){ handle401(); return; }
+    const d = await r.json().catch(()=>({}));
+    if(r.ok && d.ok){
+      if(msgEl){ msgEl.textContent = 'Дошло ✓'; msgEl.style.color = '#4CAF50'; }
+    } else {
+      if(msgEl){ msgEl.textContent = 'Ошибка: ' + (d.detail || d.error || '?'); msgEl.style.color = '#F44336'; }
+    }
+  }catch(e){
+    if(msgEl){ msgEl.textContent = 'Сетевая ошибка.'; msgEl.style.color = '#F44336'; }
+  }
+}
 
 // ---------- MENU ----------
 let MENU = { categories:[], items:[] };

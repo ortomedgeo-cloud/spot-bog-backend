@@ -4,7 +4,7 @@ import {
   updatePayment,
   createBookingIfNotExists
 } from "../lib/db.js";
-import { sendWhatsappNotification } from "../lib/greenapi.js";
+import { notify } from "../lib/notify.js";
 import { json } from "../lib/utils.js";
 
 export const config = {
@@ -127,7 +127,7 @@ BOG order: ${bogOrderId || payment.bog_order_id}
 Booking ID: ${payment.internal_order_id}`;
 
         try {
-          await sendWhatsappNotification(text);
+          await notify(text);
           greenNotifiedAt = new Date().toISOString();
           // persist the notify timestamp immediately so a retry won't re-send
           await updatePayment(payment.id, {

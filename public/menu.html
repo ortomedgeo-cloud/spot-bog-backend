@@ -16,143 +16,195 @@
     --text:#F4F1EC; --muted:#8B857D; --accent:#E75228;
     --display:'Oswald','Noto Sans Georgian',sans-serif;
     --body:'Noto Sans','Noto Sans Georgian',sans-serif;
-    --pad:clamp(14px,4vw,32px);
+    --pad:clamp(16px,4.5vw,32px);
+    --hh:56px;              /* высота шапки, уточняется скриптом */
     --r:14px;
   }
   *{ box-sizing:border-box; }
-  html{ scroll-behavior:smooth; }
+  html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
   body{
     margin:0; background:var(--ink); color:var(--text);
     font-family:var(--body); font-size:16px; line-height:1.5;
     -webkit-font-smoothing:antialiased;
-    padding-bottom:calc(84px + env(safe-area-inset-bottom));
+    overflow-x:hidden;
+    padding-bottom:calc(96px + env(safe-area-inset-bottom));
   }
   @media (prefers-reduced-motion:reduce){ html{scroll-behavior:auto} *{transition-duration:.01ms!important;animation-duration:.01ms!important} }
   :focus-visible{ outline:2px solid var(--accent); outline-offset:3px; }
-  img{ display:block; }
-  .wrap{ max-width:1080px; margin:0 auto; padding:0 var(--pad); }
+  img{ display:block; max-width:100%; }
+  button{ font-family:inherit; }
+  .wrap{ max-width:1080px; margin:0 auto; padding-inline:var(--pad); }
+
+  /* Горизонтальные ленты тянутся до краёв экрана, но первый элемент
+     остаётся на общей сетке — иначе на телефоне они выглядят обрезанными. */
+  .bleed{
+    display:flex; gap:8px; overflow-x:auto; scrollbar-width:none;
+    margin-inline:calc(var(--pad) * -1);
+    padding-inline:var(--pad);
+    -webkit-overflow-scrolling:touch;
+    scroll-snap-type:x proximity;
+  }
+  .bleed::-webkit-scrollbar{ display:none; }
+  .bleed > *{ flex:none; scroll-snap-align:start; }
 
   /* ---------- шапка ---------- */
   header.top{ position:sticky; top:0; z-index:30; background:rgba(11,11,11,.94); backdrop-filter:blur(10px); border-bottom:1px solid var(--rule); }
-  .top__row{ display:flex; align-items:center; gap:12px; padding:12px 0; }
-  .mark{ font-family:var(--display); font-weight:600; font-size:20px; letter-spacing:.16em; text-transform:uppercase; text-decoration:none; margin-right:auto; }
+  .top__row{ display:flex; align-items:center; gap:12px; padding:11px 0; }
+  .mark{ font-family:var(--display); font-weight:600; font-size:19px; letter-spacing:.16em; text-transform:uppercase; text-decoration:none; margin-right:auto; }
   .mark b{ color:var(--accent); }
   .langs{ display:flex; gap:2px; }
-  .langs button{ font-family:var(--body); font-size:13px; color:var(--muted); background:none; border:1px solid transparent; border-radius:999px; padding:5px 11px; cursor:pointer; }
+  .langs button{ font-size:13px; color:var(--muted); background:none; border:1px solid transparent; border-radius:999px; padding:7px 12px; cursor:pointer; min-height:36px; }
   .langs button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); }
 
   /* ---------- слоган ---------- */
-  .hero{ padding:clamp(26px,5vw,48px) 0 clamp(18px,3vw,28px); }
-  .hero h1{ font-family:var(--display); font-weight:500; font-size:clamp(28px,7vw,60px); line-height:.98; letter-spacing:.02em; text-transform:uppercase; margin:0; }
+  .hero{ padding:clamp(22px,5vw,48px) 0 clamp(16px,3vw,26px); }
+  .hero h1{ font-family:var(--display); font-weight:500; font-size:clamp(30px,8.5vw,60px); line-height:1; letter-spacing:.02em; text-transform:uppercase; margin:0; }
   .hero h1 span{ display:block; }
   .hero h1 .taste{ color:var(--accent); }
   .hero p{ color:var(--muted); font-size:14px; margin:14px 0 0; max-width:46ch; }
 
-  /* ---------- быстрые просьбы ---------- */
-  .asks{ display:flex; gap:8px; overflow-x:auto; padding:6px 0 2px; scrollbar-width:none; }
-  .asks::-webkit-scrollbar{ display:none; }
+  /* ---------- просьбы ---------- */
+  .asks{ padding:4px 0 2px; }
   .ask{
-    flex:none; font-family:var(--body); font-size:13.5px; color:var(--text);
-    background:var(--card); border:1px solid var(--rule); border-radius:999px;
-    padding:9px 16px; cursor:pointer; white-space:nowrap; transition:border-color .18s,color .18s;
+    font-size:13.5px; color:var(--text); background:var(--card);
+    border:1px solid var(--rule); border-radius:999px;
+    padding:11px 18px; cursor:pointer; white-space:nowrap; min-height:44px;
+    transition:border-color .18s,color .18s;
   }
   .ask:hover{ border-color:var(--muted); }
   .ask.sent{ border-color:var(--accent); color:var(--accent); }
   .ask:disabled{ opacity:.45; cursor:default; }
 
-  h2.sec{ font-family:var(--display); font-weight:500; font-size:clamp(19px,3vw,26px); letter-spacing:.07em; text-transform:uppercase; margin:clamp(30px,5vw,46px) 0 16px; }
+  h2.sec{ font-family:var(--display); font-weight:500; font-size:clamp(20px,4vw,26px); letter-spacing:.07em; text-transform:uppercase; margin:clamp(28px,5vw,46px) 0 14px; }
 
   /* ---------- плитки категорий ---------- */
-  .tiles{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+  .tiles{ display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:10px; }
   .tile{
     position:relative; border:none; padding:0; cursor:pointer; overflow:hidden;
     border-radius:var(--r); background:var(--card); aspect-ratio:4/3; text-align:left;
   }
   .tile img{ width:100%; height:100%; object-fit:cover; opacity:.62; transition:opacity .25s, transform .35s; }
-  .tile:hover img{ opacity:.8; transform:scale(1.04); }
+  @media (hover:hover){ .tile:hover img{ opacity:.82; transform:scale(1.05); } }
   .tile__cap{
-    position:absolute; inset:auto 0 0 0; padding:12px 12px 11px;
-    background:linear-gradient(to top, rgba(0,0,0,.86), rgba(0,0,0,0));
-    font-family:var(--display); font-size:15px; letter-spacing:.05em; text-transform:uppercase; color:#fff;
+    position:absolute; inset:auto 0 0 0; padding:26px 11px 10px;
+    background:linear-gradient(to top, rgba(0,0,0,.9) 30%, rgba(0,0,0,0));
+    font-family:var(--display); font-size:14.5px; line-height:1.15; letter-spacing:.04em; text-transform:uppercase; color:#fff;
   }
-  .tile__cap small{ display:block; font-family:var(--body); font-size:11.5px; letter-spacing:0; text-transform:none; color:#cfc9c1; margin-top:2px; }
+  .tile__cap small{ display:block; font-family:var(--body); font-size:11px; letter-spacing:0; text-transform:none; color:#c8c2ba; margin-top:3px; }
   .tile[aria-pressed="true"]{ outline:2px solid var(--accent); outline-offset:-2px; }
 
   /* ---------- рельс разделов ---------- */
-  nav.rail{ position:sticky; top:57px; z-index:25; background:rgba(11,11,11,.94); backdrop-filter:blur(10px); border-bottom:1px solid var(--rule); }
-  .rail__in{ display:flex; gap:6px; overflow-x:auto; padding:10px 0; scrollbar-width:none; }
-  .rail__in::-webkit-scrollbar{ display:none; }
-  .rail__in button{ flex:none; white-space:nowrap; font-size:13px; color:var(--muted); background:none; border:1px solid var(--rule); border-radius:999px; padding:6px 14px; cursor:pointer; }
+  nav.rail{ position:sticky; top:var(--hh); z-index:25; background:rgba(11,11,11,.94); backdrop-filter:blur(10px); border-bottom:1px solid var(--rule); }
+  .rail__in{ padding:9px 0; }
+  .rail__in button{ white-space:nowrap; font-size:13px; color:var(--muted); background:none; border:1px solid var(--rule); border-radius:999px; padding:9px 15px; cursor:pointer; min-height:40px; }
   .rail__in button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); }
 
+  /* ---------- подкатегории ---------- */
+  .subs{ padding:2px 0 4px; margin-bottom:14px; }
+  .subs button{
+    white-space:nowrap; font-size:12.5px; color:var(--muted);
+    background:var(--card); border:1px solid var(--rule); border-radius:999px;
+    padding:8px 14px; cursor:pointer; min-height:38px;
+  }
+  .subs button[aria-pressed="true"]{ color:#fff; background:var(--accent); border-color:var(--accent); }
+
   /* ---------- карточки блюд ---------- */
-  .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; }
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); gap:14px; }
   .dish{ background:var(--card); border-radius:var(--r); overflow:hidden; display:flex; flex-direction:column; }
-  .dish__ph{ width:100%; aspect-ratio:1/1; object-fit:cover; background:var(--card-2); }
-  .dish__ph--none{ aspect-ratio:1/1; background:var(--card-2); display:flex; align-items:center; justify-content:center; color:#3a3632; font-family:var(--display); font-size:30px; letter-spacing:.1em; }
+  .dish__ph{ position:relative; aspect-ratio:1/1; background:var(--card-2); overflow:hidden; }
+  .dish__ph img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .dish__ph img.alt{ opacity:0; transition:opacity .3s ease; }
+  @media (hover:hover){ .dish:hover .dish__ph img.alt{ opacity:1; } }
+  .dish__ph.flip img.alt{ opacity:1; }          /* тап на телефоне */
+  .dish__ph .swap{
+    position:absolute; right:7px; bottom:7px; z-index:2;
+    background:rgba(0,0,0,.55); color:#fff; border:none; border-radius:8px;
+    font-size:11px; padding:5px 8px; cursor:pointer; backdrop-filter:blur(4px);
+  }
+  @media (hover:hover){ .dish__ph .swap{ display:none; } }
+  .dish__ph--none{ aspect-ratio:1/1; background:var(--card-2); display:flex; align-items:center; justify-content:center; color:#3a3632; font-family:var(--display); font-size:28px; letter-spacing:.1em; }
   .dish__in{ padding:12px 13px 13px; display:flex; flex-direction:column; flex:1; gap:6px; }
-  .dish__t{ font-family:var(--display); font-weight:400; font-size:15.5px; letter-spacing:.03em; text-transform:uppercase; margin:0; }
+  .dish__t{ font-family:var(--display); font-weight:400; font-size:15px; line-height:1.2; letter-spacing:.03em; text-transform:uppercase; margin:0; overflow-wrap:anywhere; }
   .dish__d{ color:var(--muted); font-size:12.5px; line-height:1.4; margin:0; white-space:pre-line;
             display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-  .dish__foot{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:auto; padding-top:6px; }
+  .dish__foot{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:auto; padding-top:6px; }
   .dish__p{ font-family:var(--display); font-weight:500; font-size:16px; letter-spacing:.03em; white-space:nowrap; }
   .dish__p i{ font-style:normal; font-size:12px; color:var(--muted); margin-left:3px; }
-  .add{ width:36px; height:36px; flex:none; border:none; border-radius:10px; background:var(--accent); color:#fff; font-size:21px; line-height:1; cursor:pointer; font-family:var(--body); }
-  .qty{ display:flex; align-items:center; gap:9px; }
-  .qty button{ width:30px; height:30px; border-radius:8px; border:1px solid var(--rule); background:var(--card-2); color:var(--text); cursor:pointer; font-size:16px; line-height:1; }
+  .add{ width:40px; height:40px; flex:none; border:none; border-radius:11px; background:var(--accent); color:#fff; font-size:22px; line-height:1; cursor:pointer; }
+  .qty{ display:flex; align-items:center; gap:8px; }
+  .qty button{ width:34px; height:34px; border-radius:9px; border:1px solid var(--rule); background:var(--card-2); color:var(--text); cursor:pointer; font-size:17px; line-height:1; }
   .qty span{ font-family:var(--display); font-size:15px; min-width:14px; text-align:center; }
 
-  /* ---------- нижняя панель корзины ---------- */
+  /* ---------- панель корзины ---------- */
   .cartbar{
     position:fixed; left:0; right:0; bottom:0; z-index:40;
     background:rgba(11,11,11,.97); backdrop-filter:blur(12px);
     border-top:1px solid var(--rule);
-    padding:12px 0 calc(14px + env(safe-area-inset-bottom));
-    transform:translateY(130%); transition:transform .24s ease;
+    padding:11px 0 calc(13px + env(safe-area-inset-bottom));
+    transform:translateY(140%); transition:transform .24s ease;
   }
   .cartbar.show{ transform:none; }
-  .cartbar__row{ display:flex; align-items:center; gap:12px; }
-  .cartbar__s{ flex:1; font-size:13px; color:var(--muted); }
-  .cartbar__s b{ display:block; color:var(--text); font-family:var(--display); font-size:20px; letter-spacing:.04em; }
-  .btn{ font-family:var(--display); font-weight:500; font-size:15px; letter-spacing:.07em; text-transform:uppercase; color:#fff; background:var(--accent); border:none; border-radius:11px; padding:14px 24px; cursor:pointer; }
+  .cartbar__row{ display:flex; align-items:center; gap:10px; }
+  .cartbar__s{ flex:1; min-width:0; font-size:12.5px; color:var(--muted); }
+  .cartbar__s b{ display:block; color:var(--text); font-family:var(--display); font-size:19px; letter-spacing:.04em; }
+  .btn{ font-family:var(--display); font-weight:500; font-size:15px; letter-spacing:.07em; text-transform:uppercase; color:#fff; background:var(--accent); border:none; border-radius:11px; padding:14px 22px; cursor:pointer; min-height:48px; }
   .btn.ghost{ background:var(--card); color:var(--text); border:1px solid var(--rule); }
   .btn:disabled{ opacity:.5; cursor:default; }
+  .cartbar .btn.ghost{ padding:14px 16px; }
 
-  /* ---------- корзина ---------- */
-  .sheet{ position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.62); display:none; align-items:flex-end; justify-content:center; }
+  /* ---------- шторка заказа ---------- */
+  .sheet{ position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.66); display:none; align-items:flex-end; justify-content:center; }
   .sheet.show{ display:flex; }
-  .sheet__in{ background:var(--ink); width:100%; max-width:560px; max-height:92vh; overflow:auto; border-radius:18px 18px 0 0; border-top:1px solid var(--rule); padding:18px var(--pad) calc(26px + env(safe-area-inset-bottom)); }
-  @media (min-width:760px){ .sheet{ align-items:center } .sheet__in{ border-radius:18px; max-height:86vh } }
-  .sheet h3{ font-family:var(--display); font-weight:500; font-size:20px; letter-spacing:.07em; text-transform:uppercase; margin:0 0 16px; display:flex; justify-content:space-between; align-items:center; }
-  .sheet h3 button{ background:none; border:none; color:var(--muted); font-size:26px; line-height:1; cursor:pointer; }
-  .crow{ display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid var(--rule); }
-  .crow__t{ flex:1; font-size:14px; }
-  .crow__t small{ display:block; color:var(--muted); font-size:12px; }
-  .crow__p{ font-family:var(--display); font-size:15px; white-space:nowrap; }
-  .fld{ margin-top:15px; }
+  .sheet__in{
+    background:var(--ink); width:100%; max-width:560px;
+    max-height:92dvh; overflow:auto; overscroll-behavior:contain;
+    border-radius:18px 18px 0 0; border-top:1px solid var(--rule);
+    padding:16px var(--pad) 0;
+  }
+  @media (min-width:760px){ .sheet{ align-items:center } .sheet__in{ border-radius:18px; max-height:86dvh } }
+  .sheet h3{ font-family:var(--display); font-weight:500; font-size:19px; letter-spacing:.07em; text-transform:uppercase; margin:0 0 14px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .sheet h3 button{ background:none; border:none; color:var(--muted); font-size:28px; line-height:1; cursor:pointer; padding:0 4px; }
+  .crow{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--rule); }
+  .crow__t{ flex:1; min-width:0; font-size:13.5px; }
+  .crow__t b{ display:block; font-weight:500; overflow-wrap:anywhere; }
+  .crow__t small{ display:block; color:var(--muted); font-size:11.5px; }
+  .crow__p{ font-family:var(--display); font-size:14.5px; white-space:nowrap; }
+  .fld{ margin-top:14px; }
   .fld label{ display:block; font-size:12.5px; color:var(--muted); margin-bottom:6px; }
-  .fld input,.fld textarea{ width:100%; padding:11px 13px; font-size:15px; font-family:var(--body); color:var(--text); background:var(--card); border:1px solid var(--rule); border-radius:10px; }
+  .fld input,.fld textarea{ width:100%; padding:13px; font-size:16px; font-family:var(--body); color:var(--text); background:var(--card); border:1px solid var(--rule); border-radius:10px; }
   .fld input.bad{ border-color:var(--accent); }
-  .fld .hint{ font-size:12px; color:var(--muted); margin-top:5px; }
+  .fld .hint{ font-size:12px; color:var(--muted); margin-top:6px; }
   .fld .hint b{ color:var(--text); font-weight:500; }
-  .modes{ display:flex; gap:8px; margin-top:15px; }
-  .modes button{ flex:1; padding:12px; font-size:14px; font-family:var(--body); color:var(--muted); background:var(--card); border:1px solid var(--rule); border-radius:10px; cursor:pointer; }
+  .modes{ display:flex; gap:8px; margin-top:14px; }
+  .modes button{ flex:1; padding:13px 8px; font-size:13.5px; font-family:var(--body); color:var(--muted); background:var(--card); border:1px solid var(--rule); border-radius:10px; cursor:pointer; min-height:46px; }
   .modes button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); }
-  .total{ display:flex; justify-content:space-between; align-items:baseline; margin-top:18px; font-family:var(--display); font-size:20px; letter-spacing:.05em; text-transform:uppercase; }
-  .msg{ margin-top:13px; padding:11px 13px; border-radius:10px; font-size:14px; display:none; }
+  .total{ display:flex; justify-content:space-between; align-items:baseline; margin-top:16px; font-family:var(--display); font-size:19px; letter-spacing:.05em; text-transform:uppercase; }
+  /* Кнопка отправки всегда под рукой, даже если список длинный */
+  .sheet__foot{ position:sticky; bottom:0; background:var(--ink); padding:12px 0 calc(18px + env(safe-area-inset-bottom)); margin-top:8px; }
+  .msg{ margin-top:12px; padding:11px 13px; border-radius:10px; font-size:13.5px; display:none; }
   .msg.ok{ display:block; background:#10251a; border:1px solid #1f5136; color:#8ee0ae; }
   .msg.err{ display:block; background:#2a1412; border:1px solid #5a241d; color:#f0a49a; }
 
-  .note{ color:var(--muted); font-size:15px; padding:50px 0; }
-  footer.foot{ margin-top:clamp(44px,7vw,80px); padding:28px 0 44px; border-top:1px solid var(--rule); color:var(--muted); font-size:13px; }
+  .note{ color:var(--muted); font-size:15px; padding:44px 0; }
+  footer.foot{ margin-top:clamp(40px,7vw,80px); padding:26px 0 40px; border-top:1px solid var(--rule); color:var(--muted); font-size:13px; }
   footer.foot a{ color:var(--text); text-decoration:none; border-bottom:1px solid var(--rule); }
   footer.foot a:hover{ border-color:var(--accent); }
 
-  @media (max-width:560px){
-    nav.rail{ top:53px; }
-    .grid{ grid-template-columns:repeat(2,1fr); gap:10px; }
-    .tiles{ grid-template-columns:repeat(2,1fr); }
-    .dish__t{ font-size:14px; }
+  @media (max-width:600px){
+    .grid{ grid-template-columns:repeat(2,1fr); gap:9px; }
+    .tiles{ grid-template-columns:repeat(2,1fr); gap:9px; }
+    .dish__in{ padding:10px 10px 11px; gap:5px; }
+    .dish__t{ font-size:13.5px; }
+    .dish__d{ -webkit-line-clamp:2; font-size:12px; }
+    .dish__p{ font-size:15px; }
+    .add{ width:36px; height:36px; font-size:20px; border-radius:10px; }
+    .qty button{ width:30px; height:30px; }
+    .cartbar__s b{ font-size:17px; }
+    .btn{ padding:13px 16px; font-size:14px; }
+  }
+  /* На очень узких экранах убираем «Очистить» с панели — оно есть в шторке */
+  @media (max-width:400px){
+    .cartbar .btn.ghost{ display:none; }
   }
 </style>
 </head>
@@ -171,15 +223,16 @@
     <p id="hero-sub"></p>
   </div>
 
-  <div class="asks" id="asks"></div>
+  <div class="asks bleed" id="asks"></div>
 
   <h2 class="sec" id="tiles-title"></h2>
   <div class="tiles" id="tiles"></div>
 </main>
 
-<nav class="rail" aria-label="Разделы меню"><div class="wrap rail__in" id="rail"></div></nav>
+<nav class="rail" aria-label="Разделы меню"><div class="wrap"><div class="rail__in bleed" id="rail"></div></div></nav>
 
 <main class="wrap">
+  <div class="subs bleed" id="subs"></div>
   <div id="menu"><div class="note" id="state"></div></div>
 </main>
 
@@ -217,8 +270,10 @@
     <div class="fld"><label for="f-comment" id="lbl-comment"></label><textarea id="f-comment" rows="2"></textarea></div>
 
     <div class="total"><span id="total-label"></span><span id="total-val"></span></div>
-    <button class="btn" style="width:100%;margin-top:16px" id="submit"></button>
-    <div class="msg" id="sheet-msg"></div>
+    <div class="sheet__foot">
+      <button class="btn" style="width:100%" id="submit"></button>
+      <div class="msg" id="sheet-msg"></div>
+    </div>
   </div>
 </div>
 
@@ -229,7 +284,7 @@
 
   const T = {
     ru:{ sub:'Рутоп-кинобар в Батуми. Кухня и бар — каждый день с 12:00 до 02:00.',
-         tiles:'Меню', all:'Всё меню',
+         tiles:'Меню', all:'Всё меню', allSub:'Всё', swap:'Ещё фото',
          waiter:'Официант', bill:'Счёт', blanket:'Плед', charger:'Зарядка', ashtray:'Пепельница',
          sent:'Готово', tooSoon:'Уже передали',
          cart:'Ваш заказ', clear:'Очистить', checkout:'Заказать', send:'Отправить заказ',
@@ -243,7 +298,7 @@
          loading:'Загружаем меню…', empty:'Меню пока пустое.',
          addr:'ул. Реджеба Ниджарадзе 18, Батуми — тремя ступенями выше 15-го этажа.', gel:'GEL' },
     ka:{ sub:'რუფთოფ კინობარი ბათუმში. სამზარეულო და ბარი — ყოველდღე 12:00-დან 02:00-მდე.',
-         tiles:'მენიუ', all:'სრული მენიუ',
+         tiles:'მენიუ', all:'სრული მენიუ', allSub:'ყველა', swap:'კიდევ ფოტო',
          waiter:'მიმტანი', bill:'ანგარიში', blanket:'პლედი', charger:'დამტენი', ashtray:'საფერფლე',
          sent:'მზადაა', tooSoon:'უკვე გადავეცით',
          cart:'თქვენი შეკვეთა', clear:'გასუფთავება', checkout:'შეკვეთა', send:'შეკვეთის გაგზავნა',
@@ -256,7 +311,7 @@
          loading:'მენიუ იტვირთება…', empty:'მენიუ ჯერ ცარიელია.',
          addr:'რეჯებ ნიჟარაძის 18, ბათუმი — მე-15 სართულზე სამი საფეხურით მაღლა.', gel:'GEL' },
     en:{ sub:'Rooftop cinema bar in Batumi. Kitchen and bar, every day 12 pm – 2 am.',
-         tiles:'Menu', all:'Everything',
+         tiles:'Menu', all:'Everything', allSub:'All', swap:'More photo',
          waiter:'Waiter', bill:'Bill', blanket:'Blanket', charger:'Charger', ashtray:'Ashtray',
          sent:'Done', tooSoon:'Already sent',
          cart:'Your order', clear:'Clear', checkout:'Order', send:'Send the order',
@@ -293,6 +348,7 @@
 
   let MENU = [];
   let active = -1;   // -1 = показать все разделы
+  let activeSub = null;   // выбранная подкатегория внутри категории
   let seat = null;
   let mode = 'in_venue';
   const cart = new Map();
@@ -304,7 +360,17 @@
       lang=b.dataset.l;
       try{ localStorage.setItem('spot_lang',lang); }catch{}
       const u=new URL(location.href); u.searchParams.set('lang',lang); history.replaceState(null,'',u);
-      renderLangs(); applyStatic(); renderAsks(); load();
+      // Рельс липнет ровно под шапкой: высоту меряем, а не хардкодим —
+  // она разная на телефоне и десктопе и зависит от шрифта.
+  function syncHeaderHeight(){
+    const h = document.querySelector('header.top');
+    if(h) document.documentElement.style.setProperty('--hh', Math.round(h.getBoundingClientRect().height)+'px');
+  }
+  window.addEventListener('resize', syncHeaderHeight);
+  window.addEventListener('orientationchange', syncHeaderHeight);
+  syncHeaderHeight();
+
+  renderLangs(); applyStatic(); renderAsks(); load();
     });
   }
 
@@ -356,8 +422,8 @@
       const r=await fetch('/api/menu?lang='+encodeURIComponent(lang));
       const d=await r.json();
       MENU=(d.menu||[]).filter(c=>(c.items||[]).length);
-      if(!MENU.length){ $('tiles').innerHTML=''; $('rail').innerHTML=''; $('menu').innerHTML='<div class="note">'+esc(t.empty)+'</div>'; return; }
-      renderTiles(); renderRail(); renderDishes();
+      if(!MENU.length){ $('tiles').innerHTML=''; $('rail').innerHTML=''; $('subs').innerHTML=''; $('menu').innerHTML='<div class="note">'+esc(t.empty)+'</div>'; return; }
+      renderTiles(); renderRail(); renderSubs(); renderDishes();
     }catch(e){ $('menu').innerHTML='<div class="note">'+esc(T[lang].fail)+'</div>'; }
   }
 
@@ -386,32 +452,67 @@
 
   function select(i){
     active = (active===i ? -1 : i);
-    renderTiles(); renderRail(); renderDishes();
-    const y = $('rail').getBoundingClientRect().top + window.scrollY - 56;
+    activeSub = null;
+    renderTiles(); renderRail(); renderSubs(); renderDishes();
+    const hh = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--hh')) || 56;
+    const y = $('rail').getBoundingClientRect().top + window.scrollY - hh;
     window.scrollTo({ top:y, behavior:'smooth' });
+  }
+
+  // Фильтры подкатегорий показываем только внутри выбранной категории:
+  // в режиме «всё меню» они бессмысленны, разделы там и так разделены.
+  function renderSubs(){
+    const box=$('subs');
+    const cat = active===-1 ? null : MENU[active];
+    const subs = cat && cat.subcategories ? cat.subcategories : [];
+    if(!subs.length){ box.innerHTML=''; box.style.display='none'; return; }
+    box.style.display='';
+    const t=T[lang];
+    box.innerHTML =
+      '<button type="button" data-s="" aria-pressed="'+(activeSub===null)+'">'+esc(t.allSub)+'</button>'+
+      subs.map(sc=>'<button type="button" data-s="'+esc(sc.id)+'" aria-pressed="'+(activeSub===sc.id)+'">'+esc(sc.title)+'</button>').join('');
+    box.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+      activeSub = b.dataset.s || null;
+      renderSubs(); renderDishes();
+    });
   }
 
   function renderDishes(){
     const t=T[lang];
     const cats = active===-1 ? MENU : [MENU[active]];
-    $('menu').innerHTML = cats.map(c=>
-      '<h2 class="sec">'+esc(c.title)+'</h2><div class="grid">'+
-      c.items.map(it=>{
+    $('menu').innerHTML = cats.map(c=>{
+      const list = (active!==-1 && activeSub)
+        ? c.items.filter(i=>i.subcategory_id===activeSub)
+        : c.items;
+      return '<h2 class="sec">'+esc(c.title)+'</h2><div class="grid">'+
+      list.map(it=>{
         const inCart=cart.get(it.id);
         const ctl = inCart
           ? '<div class="qty"><button type="button" data-m="'+esc(it.id)+'" aria-label="−">−</button><span>'+inCart.qty+'</span><button type="button" data-p="'+esc(it.id)+'" aria-label="+">+</button></div>'
           : '<button class="add" type="button" data-a="'+esc(it.id)+'" aria-label="+">+</button>';
-        return '<article class="dish">'+
-          (it.photo_url
-            ? '<img class="dish__ph" src="'+esc(it.photo_url)+'" alt="" loading="lazy" decoding="async">'
-            : '<div class="dish__ph--none">SPOT.</div>')+
+        // Вторая фотография: на мышке — по наведению, на телефоне — по кнопке.
+        const ph = it.photo_url
+          ? '<div class="dish__ph"'+(it.photo_hover_url?' data-flip="1"':'')+'>'+
+              '<img src="'+esc(it.photo_url)+'" alt="" loading="lazy" decoding="async">'+
+              (it.photo_hover_url
+                ? '<img class="alt" src="'+esc(it.photo_hover_url)+'" alt="" loading="lazy" decoding="async">'+
+                  '<button class="swap" type="button">'+esc(t.swap)+'</button>'
+                : '')+
+            '</div>'
+          : '<div class="dish__ph--none">SPOT.</div>';
+        return '<article class="dish">'+ph+
           '<div class="dish__in">'+
             '<h3 class="dish__t">'+esc(it.title)+'</h3>'+
             (it.description?'<p class="dish__d">'+esc(it.description)+'</p>':'')+
             '<div class="dish__foot"><span class="dish__p">'+esc(String(it.price))+'<i>'+esc(t.gel)+'</i></span>'+ctl+'</div>'+
           '</div></article>';
-      }).join('')+'</div>'
-    ).join('');
+      }).join('')+'</div>';
+    }).join('');
+
+    $('menu').querySelectorAll('.dish__ph .swap').forEach(b=>b.onclick=e=>{
+      e.preventDefault(); e.stopPropagation();
+      b.parentElement.classList.toggle('flip');
+    });
 
     const find=(id)=>MENU.flatMap(c=>c.items).find(x=>x.id===id);
     $('menu').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>addItem(find(b.dataset.a),1));

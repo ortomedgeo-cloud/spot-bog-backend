@@ -1,6 +1,9 @@
 import {
   getAdminMenu,
   reorderMenu,
+  createMenuSubcategory,
+  updateMenuSubcategory,
+  deleteMenuSubcategories,
   createMenuCategory,
   updateMenuCategory,
   createMenuItem,
@@ -16,6 +19,7 @@ import { json, isAdminAuthed } from "../lib/utils.js";
 // GET                                 -> { categories, items } (everything)
 // POST { kind:'category', ... }       -> create category (or update when id given)
 // POST { kind:'item', ... }           -> create item (or update when id given)
+// POST { kind:'subcategory', ... }   -> create/update subcategory inside a category
 // POST { action:'delete', kind, ids } -> batch delete (category delete cascades)
 // POST { action:'available', ids, available } -> batch in/out of stock
 // POST { action:'reorder', categories:[{id,sort}], items:[{id,category_id,sort}] }
@@ -42,11 +46,12 @@ export default async function handler(req, res) {
       // порядок позиций и их принадлежность категориям.
       if (b.action === "reorder") {
         const cats = Array.isArray(b.categories) ? b.categories : [];
+        const subs = Array.isArray(b.subcategories) ? b.subcategories : [];
         const its = Array.isArray(b.items) ? b.items : [];
-        if (!cats.length && !its.length) {
+        if (!cats.length && !subs.length && !its.length) {
           return json(res, 400, { error: "Nothing to reorder" });
         }
-        const n = await reorderMenu({ categories: cats, items: its });
+        const n = await reorderMenu({ categories: cats, subcategories: subs, items: its });
         return json(res, 200, { ok: true, ...n });
       }
 
@@ -55,7 +60,9 @@ export default async function handler(req, res) {
         if (!ids.length) return json(res, 400, { error: "Missing ids" });
         const n = b.kind === "category"
           ? await deleteMenuCategories(ids)
-          : await deleteMenuItems(ids);
+          : b.kind === "subcategory"
+            ? await deleteMenuSubcategories(ids)
+            : await deleteMenuItems(ids);
         return json(res, 200, { ok: true, deleted: n });
       }
 
@@ -77,6 +84,22 @@ export default async function handler(req, res) {
         }
         const cat = await createMenuCategory(b);
         return json(res, 200, { ok: true, category: cat });
+      }
+
+      if (b.kind === "subcategory") {
+        if (b.id) {
+          const sc = await updateMenuSubcategory(String(b.id), b);
+          if (!sc) return json(res, 404, { error: "Subcategory not found" });
+          return json(res, 200, { ok: true, subcategory: sc });
+        }
+        if (!String(b.category_id || "").trim()) {
+          return json(res, 400, { error: "Missing category_id" });
+        }
+        if (!String(b.title_ru || "").trim()) {
+          return json(res, 400, { error: "Missing title_ru" });
+        }
+        const sc = await createMenuSubcategory(b);
+        return json(res, 200, { ok: true, subcategory: sc });
       }
 
       if (b.kind === "item") {

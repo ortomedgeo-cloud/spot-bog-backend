@@ -183,6 +183,35 @@ function page() {
   .verdict.good { background:#eefaf0; color:#166534; }
   .verdict.bad { background:#fdecec; color:#991b1b; }
   .verdict.meh { background:#fff7e6; color:#92400e; }
+
+  .btn.small.danger { background:#F44336; color:#fff; }
+
+  /* конструктор меню */
+  .mb-cat { background:#fff; border-radius:12px; margin-bottom:10px; overflow:hidden; }
+  .mb-cat.drag-over { outline:2px dashed #E75228; outline-offset:-2px; }
+  .mb-cat__h { display:flex; align-items:center; gap:8px; padding:11px 13px; background:#fafafa; border-bottom:1px solid #eee; }
+  .mb-cat__h.hidden-cat { opacity:.5; }
+  .mb-cat__t { flex:1; font-weight:700; font-size:15px; }
+  .mb-cat__t small { display:block; font-weight:400; font-size:12px; color:#888; }
+  .mb-items { padding:4px 8px 8px; min-height:14px; }
+  .mb-it { display:flex; align-items:center; gap:9px; padding:8px 6px; border-bottom:1px solid #f2f2f2; background:#fff; }
+  .mb-it:last-child { border-bottom:none; }
+  .mb-it.out { opacity:.45; }
+  .mb-it.dragging { opacity:.35; }
+  .mb-it img { width:34px; height:34px; border-radius:6px; object-fit:cover; background:#eee; flex:none; }
+  .mb-it__t { flex:1; font-size:13.5px; min-width:0; }
+  .mb-it__t b { display:block; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mb-it__t small { color:#888; font-size:11.5px; }
+  .grab { cursor:grab; color:#bbb; font-size:15px; user-select:none; flex:none; padding:0 2px; letter-spacing:-2px; }
+  .grab:active { cursor:grabbing; }
+  .arrows { display:flex; flex-direction:column; gap:2px; flex:none; }
+  .arrows button { width:22px; height:16px; line-height:1; font-size:10px; padding:0; border:1px solid #ddd; background:#fff; border-radius:4px; cursor:pointer; color:#666; }
+  .arrows button:disabled { opacity:.3; cursor:default; }
+  .mb-move { font-size:11.5px; padding:4px 6px; border:1px solid #ddd; border-radius:6px; max-width:118px; }
+  .mb-save { position:sticky; bottom:0; background:#111; color:#fff; border-radius:10px; padding:10px 14px; display:none; align-items:center; gap:12px; font-size:13px; margin-top:10px; }
+  .mb-save.show { display:flex; }
+  .mb-save span { flex:1; }
+  .mb-eye { background:none; border:none; cursor:pointer; font-size:15px; padding:2px 4px; flex:none; }
 </style>
 </head>
 <body>
@@ -317,13 +346,7 @@ function page() {
 
     <div class="card">
       <label style="font-size:13px;font-weight:600">Меню</label>
-      <div class="batchbar" id="mi-batch">
-        <span><b id="mi-batch-n">0</b> выбрано</span>
-        <button class="btn small" id="mi-batch-on">В наличии</button>
-        <button class="btn small" id="mi-batch-off">Нет в наличии</button>
-        <button class="btn small danger" id="mi-batch-del">Удалить</button>
-      </div>
-      <div id="menu-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
+      <div class="hint" style="margin:6px 0 10px">Перетаскивай за ⠿ или двигай стрелками. Позицию можно перенести в другую категорию выпадающим списком. Глаз скрывает категорию с сайта, кружок снимает позицию с продажи.</div><div id="menu-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div><div class="mb-save" id="mb-save"><span id="mb-save-t">Порядок изменён</span><button class="btn small" id="mb-save-btn">Сохранить</button><button class="btn small ghost" id="mb-undo-btn">Отменить</button></div>
     </div>
   </div>
 
@@ -1057,6 +1080,35 @@ async function clearSecretField(channel, name){
 let MENU = { categories:[], items:[] };
 let MC_EDIT = null, MI_EDIT = null;
 
+// Конструктор меню: порядок категорий и позиций правится перетаскиванием или
+// стрелками, позиция переносится между категориями выпадающим списком.
+// Изменения копятся локально и уходят одним запросом по кнопке «Сохранить» —
+// так случайное движение мышью не улетает в базу мгновенно, а отмена ничего
+// не стоит.
+
+let MB_DIRTY = false;
+let MB_SNAPSHOT = null;   // состояние до правок, для «Отменить»
+let MB_DRAG = null;       // id перетаскиваемой позиции
+
+function mbOrderedCats(){
+  return MENU.categories.slice().sort((a,b)=>(a.sort-b.sort)||a.title_ru.localeCompare(b.title_ru));
+}
+function mbItemsOf(catId){
+  return MENU.items.filter(i=>i.category_id===catId).sort((a,b)=>(a.sort-b.sort)||a.title_ru.localeCompare(b.title_ru));
+}
+function mbMarkDirty(){
+  MB_DIRTY = true;
+  $('mb-save').classList.add('show');
+}
+function mbResequence(){
+  // Пересчитываем sort с шагом 10: в базу уходят ровные значения, между
+  // которыми потом легко вставить новое, не трогая соседей.
+  mbOrderedCats().forEach((c,i)=>{ c.sort = i*10; });
+  MENU.categories.forEach(c=>{
+    mbItemsOf(c.id).forEach((it,i)=>{ it.sort = i*10; });
+  });
+}
+
 async function loadMenu(){
   const box=$('menu-list');
   try{
@@ -1064,60 +1116,239 @@ async function loadMenu(){
     if(r.status===401){ handle401(); return; }
     const d=await r.json();
     MENU={ categories:d.categories||[], items:d.items||[] };
+    MB_SNAPSHOT = JSON.stringify(MENU);
+    MB_DIRTY = false;
+    $('mb-save').classList.remove('show');
 
-    // category select for the item form
     $('mi-cat').innerHTML='<option value="">Выбери категорию</option>'+
       MENU.categories.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.title_ru)+'</option>').join('');
 
     if(!MENU.categories.length){ box.innerHTML='<div class="hint">Категорий нет. Создай первую сверху.</div>'; return; }
-
-    box.innerHTML = MENU.categories.map(c=>{
-      const items = MENU.items.filter(i=>i.category_id===c.id);
-      const rows = items.map(i=>
-        '<div class="srow"'+(i.available?'':' style="opacity:.45"')+'>'+
-          '<input type="checkbox" class="sel" data-id="'+esc(i.id)+'">'+
-          (i.photo_url?'<img src="'+esc(i.photo_url)+'">':'<img>')+
-          '<div class="info"><div class="t">'+esc(i.title_ru)+'</div>'+
-          '<div class="d">'+esc(String(i.price))+' GEL'+(i.available?'':' · нет в наличии')+
-          (i.title_ka?'':' · нет ქარ')+(i.title_en?'':' · нет EN')+'</div></div>'+
-          '<button class="btn small ghost" data-mi="'+esc(i.id)+'">Изм.</button>'+
-        '</div>'
-      ).join('') || '<div class="hint" style="padding:6px 0">Пусто</div>';
-
-      return '<div style="margin-bottom:16px">'+
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+
-          '<input type="checkbox" class="selcat" data-id="'+esc(c.id)+'" style="width:18px;height:18px">'+
-          '<b style="font-size:15px"'+(c.visible?'':' style="opacity:.5"')+'>'+esc(c.title_ru)+'</b>'+
-          '<span class="hint">'+(c.visible?'':'скрыта · ')+items.length+' поз.</span>'+
-          '<button class="btn small ghost" data-mc="'+esc(c.id)+'" style="margin-left:auto">Изм.</button>'+
-        '</div>'+rows+'</div>';
-    }).join('');
-
-    box.querySelectorAll('input.sel').forEach(cb=>cb.addEventListener('change', miBatchRefresh));
-    box.querySelectorAll('button[data-mi]').forEach(b=>{
-      b.onclick=()=>{
-        const i=MENU.items.find(x=>x.id===b.dataset.mi); if(!i) return;
-        MI_EDIT=i.id;
-        $('mi-cat').value=i.category_id; $('mi-ru').value=i.title_ru||'';
-        $('mi-ka').value=i.title_ka||''; $('mi-en').value=i.title_en||'';
-        $('mi-dru').value=i.desc_ru||''; $('mi-dka').value=i.desc_ka||''; $('mi-den').value=i.desc_en||'';
-        $('mi-price').value=i.price; $('mi-photo').value=i.photo_url||''; $('mi-sort').value=i.sort;
-        $('mi-save').textContent='Сохранить позицию'; $('mi-cancel').style.display='inline-block';
-        window.scrollTo({top:0,behavior:'smooth'});
-      };
-    });
-    box.querySelectorAll('button[data-mc]').forEach(b=>{
-      b.onclick=()=>{
-        const c=MENU.categories.find(x=>x.id===b.dataset.mc); if(!c) return;
-        MC_EDIT=c.id;
-        $('mc-ru').value=c.title_ru||''; $('mc-ka').value=c.title_ka||'';
-        $('mc-en').value=c.title_en||''; $('mc-sort').value=c.sort;
-        $('mc-save').textContent='Сохранить категорию'; $('mc-cancel').style.display='inline-block';
-        window.scrollTo({top:0,behavior:'smooth'});
-      };
-    });
+    mbRender();
   }catch(e){ box.innerHTML='<div class="hint">Ошибка загрузки меню.</div>'; }
 }
+
+function mbRender(){
+  const box=$('menu-list');
+  const cats=mbOrderedCats();
+
+  const catOpts = (curId) => cats.map(c=>
+    '<option value="'+esc(c.id)+'"'+(c.id===curId?' selected':'')+'>'+esc(c.title_ru)+'</option>'
+  ).join('');
+
+  box.innerHTML = cats.map((c,ci)=>{
+    const items = mbItemsOf(c.id);
+    const rows = items.map((i,ii)=>
+      '<div class="mb-it'+(i.available?'':' out')+'" draggable="true" data-item="'+esc(i.id)+'">'+
+        '<span class="grab" aria-hidden="true">⠿</span>'+
+        (i.photo_url?'<img src="'+esc(i.photo_url)+'" alt="">':'<img alt="">')+
+        '<span class="mb-it__t"><b>'+esc(i.title_ru)+'</b>'+
+          '<small>'+esc(String(i.price))+' GEL'+
+          (i.title_ka?'':' · нет ქარ')+(i.title_en?'':' · нет EN')+'</small></span>'+
+        '<button class="mb-eye" data-av="'+esc(i.id)+'" title="'+(i.available?'В наличии':'Снято с продажи')+'">'+
+          (i.available?'●':'○')+'</button>'+
+        '<select class="mb-move" data-mv="'+esc(i.id)+'">'+catOpts(c.id)+'</select>'+
+        '<span class="arrows"><button data-iu="'+esc(i.id)+'"'+(ii===0?' disabled':'')+'>▲</button>'+
+          '<button data-idn="'+esc(i.id)+'"'+(ii===items.length-1?' disabled':'')+'>▼</button></span>'+
+        '<button class="btn small ghost" data-mi="'+esc(i.id)+'">Изм.</button>'+
+        '<button class="btn small danger" data-di="'+esc(i.id)+'" title="Удалить">✕</button>'+
+      '</div>'
+    ).join('') || '<div class="hint" style="padding:8px 6px">Пусто — перетащи сюда позицию</div>';
+
+    return '<div class="mb-cat" data-cat="'+esc(c.id)+'">'+
+      '<div class="mb-cat__h'+(c.visible?'':' hidden-cat')+'">'+
+        '<span class="grab" aria-hidden="true">⠿</span>'+
+        '<span class="mb-cat__t">'+esc(c.title_ru)+
+          '<small>'+items.length+' поз.'+(c.visible?'':' · скрыта с сайта')+'</small></span>'+
+        '<button class="mb-eye" data-cv="'+esc(c.id)+'" title="'+(c.visible?'Видна на сайте':'Скрыта')+'">'+
+          (c.visible?'👁':'🚫')+'</button>'+
+        '<span class="arrows"><button data-cu="'+esc(c.id)+'"'+(ci===0?' disabled':'')+'>▲</button>'+
+          '<button data-cd="'+esc(c.id)+'"'+(ci===cats.length-1?' disabled':'')+'>▼</button></span>'+
+        '<button class="btn small ghost" data-mc="'+esc(c.id)+'">Изм.</button>'+
+        '<button class="btn small danger" data-dc="'+esc(c.id)+'" title="Удалить">✕</button>'+
+      '</div>'+
+      '<div class="mb-items" data-drop="'+esc(c.id)+'">'+rows+'</div>'+
+    '</div>';
+  }).join('');
+
+  mbBind();
+}
+
+function mbBind(){
+  const box=$('menu-list');
+
+  // --- перемещение стрелками ---
+  const swapCats=(id,dir)=>{
+    const cats=mbOrderedCats(); const i=cats.findIndex(c=>c.id===id); const j=i+dir;
+    if(i<0||j<0||j>=cats.length) return;
+    const a=cats[i].sort; cats[i].sort=cats[j].sort; cats[j].sort=a;
+    mbMarkDirty(); mbRender();
+  };
+  box.querySelectorAll('[data-cu]').forEach(b=>b.onclick=()=>swapCats(b.dataset.cu,-1));
+  box.querySelectorAll('[data-cd]').forEach(b=>b.onclick=()=>swapCats(b.dataset.cd, 1));
+
+  const swapItems=(id,dir)=>{
+    const it=MENU.items.find(x=>x.id===id); if(!it) return;
+    const list=mbItemsOf(it.category_id); const i=list.findIndex(x=>x.id===id); const j=i+dir;
+    if(i<0||j<0||j>=list.length) return;
+    const a=list[i].sort; list[i].sort=list[j].sort; list[j].sort=a;
+    mbMarkDirty(); mbRender();
+  };
+  box.querySelectorAll('[data-iu]').forEach(b=>b.onclick=()=>swapItems(b.dataset.iu,-1));
+  box.querySelectorAll('[data-idn]').forEach(b=>b.onclick=()=>swapItems(b.dataset.idn, 1));
+
+  // --- перенос позиции в другую категорию ---
+  box.querySelectorAll('[data-mv]').forEach(sel=>sel.onchange=()=>{
+    const it=MENU.items.find(x=>x.id===sel.dataset.mv); if(!it) return;
+    if(it.category_id===sel.value) return;
+    it.category_id=sel.value;
+    it.sort=(mbItemsOf(sel.value).length+1)*10;
+    mbMarkDirty(); mbRender();
+  });
+
+  // --- видимость категории и наличие позиции (сохраняются сразу) ---
+  box.querySelectorAll('[data-cv]').forEach(b=>b.onclick=async()=>{
+    const c=MENU.categories.find(x=>x.id===b.dataset.cv); if(!c) return;
+    const next=!c.visible;
+    b.disabled=true;
+    try{
+      const r=await fetch(api('admin-menu'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ kind:'category', id:c.id, visible:next })});
+      if(r.status===401){ handle401(); return; }
+      c.visible=next; mbRender();
+    }catch(e){ alert('Сетевая ошибка.'); b.disabled=false; }
+  });
+
+  box.querySelectorAll('[data-av]').forEach(b=>b.onclick=async()=>{
+    const it=MENU.items.find(x=>x.id===b.dataset.av); if(!it) return;
+    const next=!it.available;
+    b.disabled=true;
+    try{
+      const r=await fetch(api('admin-menu'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ action:'available', ids:[it.id], available:next })});
+      if(r.status===401){ handle401(); return; }
+      it.available=next; mbRender();
+    }catch(e){ alert('Сетевая ошибка.'); b.disabled=false; }
+  });
+
+  // --- редактирование через существующие формы ---
+  box.querySelectorAll('[data-mc]').forEach(b=>b.onclick=()=>{
+    const c=MENU.categories.find(x=>x.id===b.dataset.mc); if(!c) return;
+    MC_EDIT=c.id;
+    $('mc-ru').value=c.title_ru||''; $('mc-ka').value=c.title_ka||'';
+    $('mc-en').value=c.title_en||''; $('mc-sort').value=c.sort;
+    $('mc-save').textContent='Сохранить категорию'; $('mc-cancel').style.display='inline-block';
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+  box.querySelectorAll('[data-mi]').forEach(b=>b.onclick=()=>{
+    const i=MENU.items.find(x=>x.id===b.dataset.mi); if(!i) return;
+    MI_EDIT=i.id;
+    $('mi-cat').value=i.category_id; $('mi-ru').value=i.title_ru||'';
+    $('mi-ka').value=i.title_ka||''; $('mi-en').value=i.title_en||'';
+    $('mi-dru').value=i.desc_ru||''; $('mi-dka').value=i.desc_ka||''; $('mi-den').value=i.desc_en||'';
+    $('mi-price').value=i.price; $('mi-photo').value=i.photo_url||''; $('mi-sort').value=i.sort;
+    $('mi-save').textContent='Сохранить позицию'; $('mi-cancel').style.display='inline-block';
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+
+  // --- удаление ---
+  box.querySelectorAll('[data-di]').forEach(b=>b.onclick=async()=>{
+    const it=MENU.items.find(x=>x.id===b.dataset.di); if(!it) return;
+    if(!confirm('Удалить позицию «'+it.title_ru+'»? Это необратимо.')) return;
+    await mbDelete('item',[it.id]);
+  });
+  box.querySelectorAll('[data-dc]').forEach(b=>b.onclick=async()=>{
+    const c=MENU.categories.find(x=>x.id===b.dataset.dc); if(!c) return;
+    const n=mbItemsOf(c.id).length;
+    if(!confirm('Удалить категорию «'+c.title_ru+'»?\\n\\nВместе с ней удалятся все позиции внутри ('+n+'). Необратимо.')) return;
+    await mbDelete('category',[c.id]);
+  });
+
+  // --- перетаскивание ---
+  box.querySelectorAll('.mb-it').forEach(el=>{
+    el.addEventListener('dragstart', e=>{
+      MB_DRAG = el.dataset.item;
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      try{ e.dataTransfer.setData('text/plain', MB_DRAG); }catch(_){}
+    });
+    el.addEventListener('dragend', ()=>{ el.classList.remove('dragging'); MB_DRAG=null; });
+    el.addEventListener('dragover', e=>{ e.preventDefault(); });
+    el.addEventListener('drop', e=>{
+      e.preventDefault(); e.stopPropagation();
+      mbDrop(el.dataset.item);
+    });
+  });
+
+  box.querySelectorAll('.mb-items').forEach(zone=>{
+    zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.parentElement.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', ()=>zone.parentElement.classList.remove('drag-over'));
+    zone.addEventListener('drop', e=>{
+      e.preventDefault();
+      zone.parentElement.classList.remove('drag-over');
+      mbDropToCat(zone.dataset.drop);
+    });
+  });
+}
+
+async function mbDelete(kind, ids){
+  try{
+    const r=await fetch(api('admin-menu'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ action:'delete', kind:kind, ids:ids })});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(r.ok&&d.ok) loadMenu();
+    else alert('Ошибка: '+(d.detail||d.error||'?'));
+  }catch(e){ alert('Сетевая ошибка.'); }
+}
+
+// Бросили на другую позицию — встаём на её место.
+function mbDrop(targetId){
+  if(!MB_DRAG || MB_DRAG===targetId) return;
+  const src=MENU.items.find(x=>x.id===MB_DRAG);
+  const dst=MENU.items.find(x=>x.id===targetId);
+  if(!src||!dst) return;
+  src.category_id=dst.category_id;
+  src.sort=dst.sort-1;   // чуть выше цели; ровные значения вернёт mbResequence
+  mbResequence(); mbMarkDirty(); mbRender();
+}
+
+// Бросили в пустое место категории — уходим в её конец.
+function mbDropToCat(catId){
+  if(!MB_DRAG) return;
+  const src=MENU.items.find(x=>x.id===MB_DRAG);
+  if(!src || src.category_id===catId) return;
+  src.category_id=catId;
+  src.sort=(mbItemsOf(catId).length+1)*10;
+  mbResequence(); mbMarkDirty(); mbRender();
+}
+
+$('mb-save-btn').addEventListener('click', async ()=>{
+  if(!MB_DIRTY) return;
+  mbResequence();
+  const btn=$('mb-save-btn'); btn.disabled=true; btn.textContent='Сохраняю…';
+  try{
+    const r=await fetch(api('admin-menu'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        action:'reorder',
+        categories:MENU.categories.map(c=>({ id:c.id, sort:c.sort })),
+        items:MENU.items.map(i=>({ id:i.id, category_id:i.category_id, sort:i.sort }))
+      })});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(r.ok&&d.ok){ loadMenu(); }
+    else alert('Ошибка: '+(d.detail||d.error||'?'));
+  }catch(e){ alert('Сетевая ошибка.'); }
+  finally{ btn.disabled=false; btn.textContent='Сохранить'; }
+});
+
+$('mb-undo-btn').addEventListener('click', ()=>{
+  if(!MB_SNAPSHOT) return;
+  MENU=JSON.parse(MB_SNAPSHOT);
+  MB_DIRTY=false;
+  $('mb-save').classList.remove('show');
+  mbRender();
+});
 
 function mcReset(){
   MC_EDIT=null; ['mc-ru','mc-ka','mc-en'].forEach(id=>$(id).value=''); $('mc-sort').value='0';
@@ -1164,38 +1395,6 @@ $('mi-save').addEventListener('click', async ()=>{
     if(r.ok&&d.ok){ msg(m,MI_EDIT?'Позиция обновлена.':'Позиция создана.',true); miReset(); loadMenu(); }
     else msg(m,'Ошибка: '+(d.detail||d.error||'?'),false);
   }catch(e){ msg(m,'Сетевая ошибка.',false); }
-});
-
-function miSelected(){ return Array.from(document.querySelectorAll('#menu-list input.sel:checked')).map(c=>c.dataset.id); }
-function mcSelected(){ return Array.from(document.querySelectorAll('#menu-list input.selcat:checked')).map(c=>c.dataset.id); }
-function miBatchRefresh(){
-  const n=miSelected().length;
-  $('mi-batch-n').textContent=n;
-  $('mi-batch').classList.toggle('show', n>0);
-}
-async function menuBatch(body){
-  try{
-    const r=await fetch(api('admin-menu'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(r.status===401){ handle401(); return; }
-    const d=await r.json().catch(()=>({}));
-    if(r.ok&&d.ok){ loadMenu(); miBatchRefresh(); }
-    else alert('Ошибка: '+(d.detail||d.error||'?'));
-  }catch(e){ alert('Сетевая ошибка.'); }
-}
-$('mi-batch-on').addEventListener('click', ()=>{ const ids=miSelected(); if(ids.length) menuBatch({action:'available',ids,available:true}); });
-$('mi-batch-off').addEventListener('click', ()=>{ const ids=miSelected(); if(ids.length) menuBatch({action:'available',ids,available:false}); });
-$('mi-batch-del').addEventListener('click', ()=>{
-  const ids=miSelected(); if(!ids.length) return;
-  if(!confirm('Удалить позиций: '+ids.length+'? Это необратимо.')) return;
-  menuBatch({action:'delete',kind:'item',ids});
-});
-document.addEventListener('change', (e)=>{
-  if(e.target && e.target.classList && e.target.classList.contains('selcat')){
-    const ids=mcSelected();
-    if(ids.length && confirm('Удалить категорий: '+ids.length+'?\\n\\nВместе с ними удалятся ВСЕ позиции внутри. Необратимо.')){
-      menuBatch({action:'delete',kind:'category',ids});
-    } else { document.querySelectorAll('#menu-list input.selcat').forEach(c=>c.checked=false); }
-  }
 });
 
 // ---------- BATCH (events) ----------

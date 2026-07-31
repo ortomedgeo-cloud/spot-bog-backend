@@ -1,5 +1,6 @@
 import {
   getAdminMenu,
+  reorderMenu,
   createMenuCategory,
   updateMenuCategory,
   createMenuItem,
@@ -17,6 +18,7 @@ import { json, isAdminAuthed } from "../lib/utils.js";
 // POST { kind:'item', ... }           -> create item (or update when id given)
 // POST { action:'delete', kind, ids } -> batch delete (category delete cascades)
 // POST { action:'available', ids, available } -> batch in/out of stock
+// POST { action:'reorder', categories:[{id,sort}], items:[{id,category_id,sort}] }
 
 function safeBody(body) {
   if (!body) return {};
@@ -35,6 +37,18 @@ export default async function handler(req, res) {
 
     if (req.method === "POST") {
       const b = safeBody(req.body);
+
+      // Конструктор меню присылает состояние целиком: порядок категорий,
+      // порядок позиций и их принадлежность категориям.
+      if (b.action === "reorder") {
+        const cats = Array.isArray(b.categories) ? b.categories : [];
+        const its = Array.isArray(b.items) ? b.items : [];
+        if (!cats.length && !its.length) {
+          return json(res, 400, { error: "Nothing to reorder" });
+        }
+        const n = await reorderMenu({ categories: cats, items: its });
+        return json(res, 200, { ok: true, ...n });
+      }
 
       if (b.action === "delete") {
         const ids = Array.isArray(b.ids) ? b.ids.map(String).filter(Boolean) : [];

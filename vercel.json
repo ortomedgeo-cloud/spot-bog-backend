@@ -11,7 +11,7 @@
     },
     {
       "source": "/table",
-      "destination": "/table.html"
+      "destination": "/menu.html"
     }
   ]
 }

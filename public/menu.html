@@ -2,160 +2,157 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SPOT. — меню</title>
-<meta name="description" content="Меню рутоп-кинобара SPOT. в Батуми: кухня, авторские коктейли, вино, кальяны.">
+<meta name="description" content="Меню рутоп-кинобара SPOT. в Батуми: кухня, авторские коктейли, вино, кальяны. Закажите прямо со столика.">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Noto+Sans:wght@400;500&family=Noto+Sans+Georgian:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Noto+Sans:wght@400;500;600&family=Noto+Sans+Georgian:wght@400;500;600&display=swap" rel="stylesheet">
 
 <style>
   :root{
-    --ink:        #0B0B0B;   /* фон — их чёрный */
-    --ink-soft:   #141312;   /* карточки, шапка */
-    --rule:       #262320;   /* линейки */
-    --text:       #F4F1EC;   /* основной текст */
-    --muted:      #8B857D;   /* описания, служебное */
-    --accent:     #E75228;   /* фирменный оранжевый SPOT. */
-
-    --display: 'Oswald', 'Noto Sans Georgian', sans-serif;
-    --body:    'Noto Sans', 'Noto Sans Georgian', sans-serif;
-
-    --pad: clamp(16px, 4vw, 40px);
+    --ink:#0B0B0B; --card:#151312; --card-2:#1D1A18; --rule:#2A2724;
+    --text:#F4F1EC; --muted:#8B857D; --accent:#E75228;
+    --display:'Oswald','Noto Sans Georgian',sans-serif;
+    --body:'Noto Sans','Noto Sans Georgian',sans-serif;
+    --pad:clamp(14px,4vw,32px);
+    --r:14px;
   }
-
   *{ box-sizing:border-box; }
   html{ scroll-behavior:smooth; }
   body{
     margin:0; background:var(--ink); color:var(--text);
     font-family:var(--body); font-size:16px; line-height:1.5;
     -webkit-font-smoothing:antialiased;
+    padding-bottom:calc(84px + env(safe-area-inset-bottom));
   }
-  @media (prefers-reduced-motion: reduce){
-    html{ scroll-behavior:auto; }
-    *{ animation-duration:.01ms !important; transition-duration:.01ms !important; }
-  }
-
-  a{ color:inherit; }
+  @media (prefers-reduced-motion:reduce){ html{scroll-behavior:auto} *{transition-duration:.01ms!important;animation-duration:.01ms!important} }
   :focus-visible{ outline:2px solid var(--accent); outline-offset:3px; }
-
-  .wrap{ max-width:960px; margin:0 auto; padding:0 var(--pad); }
+  img{ display:block; }
+  .wrap{ max-width:1080px; margin:0 auto; padding:0 var(--pad); }
 
   /* ---------- шапка ---------- */
-  header.top{
-    position:sticky; top:0; z-index:20;
-    background:rgba(11,11,11,.92); backdrop-filter:blur(8px);
-    border-bottom:1px solid var(--rule);
-  }
-  .top__row{
-    display:flex; align-items:center; justify-content:space-between;
-    gap:16px; padding:14px 0;
-  }
-  .mark{
-    font-family:var(--display); font-weight:600; font-size:20px;
-    letter-spacing:.16em; text-transform:uppercase; text-decoration:none;
-  }
-  .mark b{ color:var(--accent); font-weight:600; }
-
+  header.top{ position:sticky; top:0; z-index:30; background:rgba(11,11,11,.94); backdrop-filter:blur(10px); border-bottom:1px solid var(--rule); }
+  .top__row{ display:flex; align-items:center; gap:12px; padding:12px 0; }
+  .mark{ font-family:var(--display); font-weight:600; font-size:20px; letter-spacing:.16em; text-transform:uppercase; text-decoration:none; margin-right:auto; }
+  .mark b{ color:var(--accent); }
   .langs{ display:flex; gap:2px; }
-  .langs button{
-    font-family:var(--body); font-size:13px; color:var(--muted);
-    background:none; border:1px solid transparent; border-radius:999px;
-    padding:5px 12px; cursor:pointer; transition:color .18s, border-color .18s;
-  }
-  .langs button:hover{ color:var(--text); }
+  .langs button{ font-family:var(--body); font-size:13px; color:var(--muted); background:none; border:1px solid transparent; border-radius:999px; padding:5px 11px; cursor:pointer; }
   .langs button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); }
 
   /* ---------- слоган ---------- */
-  .hero{ padding:clamp(38px,8vw,84px) 0 clamp(26px,5vw,44px); }
-  .hero h1{
-    font-family:var(--display); font-weight:500;
-    font-size:clamp(34px,9vw,84px); line-height:.95;
-    letter-spacing:.02em; text-transform:uppercase;
-    margin:0;
-  }
+  .hero{ padding:clamp(26px,5vw,48px) 0 clamp(18px,3vw,28px); }
+  .hero h1{ font-family:var(--display); font-weight:500; font-size:clamp(28px,7vw,60px); line-height:.98; letter-spacing:.02em; text-transform:uppercase; margin:0; }
   .hero h1 span{ display:block; }
   .hero h1 .taste{ color:var(--accent); }
-  .hero p{
-    color:var(--muted); font-size:14px; margin:20px 0 0;
-    max-width:46ch;
-  }
+  .hero p{ color:var(--muted); font-size:14px; margin:14px 0 0; max-width:46ch; }
 
-  /* ---------- рельс категорий ---------- */
-  nav.rail{
-    position:sticky; top:57px; z-index:15;
-    background:rgba(11,11,11,.92); backdrop-filter:blur(8px);
-    border-bottom:1px solid var(--rule);
+  /* ---------- быстрые просьбы ---------- */
+  .asks{ display:flex; gap:8px; overflow-x:auto; padding:6px 0 2px; scrollbar-width:none; }
+  .asks::-webkit-scrollbar{ display:none; }
+  .ask{
+    flex:none; font-family:var(--body); font-size:13.5px; color:var(--text);
+    background:var(--card); border:1px solid var(--rule); border-radius:999px;
+    padding:9px 16px; cursor:pointer; white-space:nowrap; transition:border-color .18s,color .18s;
   }
-  .rail__scroll{
-    display:flex; gap:6px; overflow-x:auto; padding:10px 0;
-    scrollbar-width:none;
-  }
-  .rail__scroll::-webkit-scrollbar{ display:none; }
-  .rail__scroll a{
-    flex:none; text-decoration:none; white-space:nowrap;
-    font-size:13px; color:var(--muted);
-    padding:6px 13px; border:1px solid var(--rule); border-radius:999px;
-    transition:color .18s, border-color .18s;
-  }
-  .rail__scroll a:hover{ color:var(--text); border-color:var(--muted); }
+  .ask:hover{ border-color:var(--muted); }
+  .ask.sent{ border-color:var(--accent); color:var(--accent); }
+  .ask:disabled{ opacity:.45; cursor:default; }
 
-  /* ---------- секции ---------- */
-  section.cat{ padding-top:clamp(34px,6vw,60px); scroll-margin-top:110px; }
-  .cat__head{
-    display:flex; align-items:baseline; gap:14px;
-    padding-bottom:12px; border-bottom:1px solid var(--rule);
-  }
-  .cat__head h2{
-    font-family:var(--display); font-weight:500;
-    font-size:clamp(21px,3.4vw,30px); letter-spacing:.06em;
-    text-transform:uppercase; margin:0;
-  }
-  .cat__count{ color:var(--muted); font-size:12px; letter-spacing:.08em; }
+  h2.sec{ font-family:var(--display); font-weight:500; font-size:clamp(19px,3vw,26px); letter-spacing:.07em; text-transform:uppercase; margin:clamp(30px,5vw,46px) 0 16px; }
 
-  /* ---------- позиция ---------- */
-  .item{
-    display:grid; grid-template-columns:60px 1fr auto;
-    gap:16px; align-items:start;
-    padding:18px 0; border-bottom:1px solid var(--rule);
+  /* ---------- плитки категорий ---------- */
+  .tiles{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+  .tile{
+    position:relative; border:none; padding:0; cursor:pointer; overflow:hidden;
+    border-radius:var(--r); background:var(--card); aspect-ratio:4/3; text-align:left;
   }
-  .item.no-photo{ grid-template-columns:1fr auto; }
+  .tile img{ width:100%; height:100%; object-fit:cover; opacity:.62; transition:opacity .25s, transform .35s; }
+  .tile:hover img{ opacity:.8; transform:scale(1.04); }
+  .tile__cap{
+    position:absolute; inset:auto 0 0 0; padding:12px 12px 11px;
+    background:linear-gradient(to top, rgba(0,0,0,.86), rgba(0,0,0,0));
+    font-family:var(--display); font-size:15px; letter-spacing:.05em; text-transform:uppercase; color:#fff;
+  }
+  .tile__cap small{ display:block; font-family:var(--body); font-size:11.5px; letter-spacing:0; text-transform:none; color:#cfc9c1; margin-top:2px; }
+  .tile[aria-pressed="true"]{ outline:2px solid var(--accent); outline-offset:-2px; }
 
-  .item__ph{
-    width:60px; height:60px; border-radius:4px; object-fit:cover;
-    background:var(--ink-soft); display:block;
-  }
-  .item__name{
-    font-family:var(--display); font-weight:400;
-    font-size:17px; letter-spacing:.03em; text-transform:uppercase;
-    margin:0 0 5px;
-  }
-  .item__desc{
-    color:var(--muted); font-size:13.5px; line-height:1.45; margin:0;
-    white-space:pre-line;
-  }
-  .item__price{
-    font-family:var(--display); font-weight:500; font-size:16px;
-    letter-spacing:.04em; white-space:nowrap; padding-top:1px;
-  }
-  .item__price i{ font-style:normal; color:var(--muted); font-size:12px; margin-left:3px; }
+  /* ---------- рельс разделов ---------- */
+  nav.rail{ position:sticky; top:57px; z-index:25; background:rgba(11,11,11,.94); backdrop-filter:blur(10px); border-bottom:1px solid var(--rule); }
+  .rail__in{ display:flex; gap:6px; overflow-x:auto; padding:10px 0; scrollbar-width:none; }
+  .rail__in::-webkit-scrollbar{ display:none; }
+  .rail__in button{ flex:none; white-space:nowrap; font-size:13px; color:var(--muted); background:none; border:1px solid var(--rule); border-radius:999px; padding:6px 14px; cursor:pointer; }
+  .rail__in button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); }
 
-  /* ---------- состояния ---------- */
-  .note{ padding:60px 0; color:var(--muted); font-size:15px; }
-  .note b{ color:var(--text); font-weight:500; display:block; margin-bottom:6px; }
+  /* ---------- карточки блюд ---------- */
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; }
+  .dish{ background:var(--card); border-radius:var(--r); overflow:hidden; display:flex; flex-direction:column; }
+  .dish__ph{ width:100%; aspect-ratio:1/1; object-fit:cover; background:var(--card-2); }
+  .dish__ph--none{ aspect-ratio:1/1; background:var(--card-2); display:flex; align-items:center; justify-content:center; color:#3a3632; font-family:var(--display); font-size:30px; letter-spacing:.1em; }
+  .dish__in{ padding:12px 13px 13px; display:flex; flex-direction:column; flex:1; gap:6px; }
+  .dish__t{ font-family:var(--display); font-weight:400; font-size:15.5px; letter-spacing:.03em; text-transform:uppercase; margin:0; }
+  .dish__d{ color:var(--muted); font-size:12.5px; line-height:1.4; margin:0; white-space:pre-line;
+            display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .dish__foot{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:auto; padding-top:6px; }
+  .dish__p{ font-family:var(--display); font-weight:500; font-size:16px; letter-spacing:.03em; white-space:nowrap; }
+  .dish__p i{ font-style:normal; font-size:12px; color:var(--muted); margin-left:3px; }
+  .add{ width:36px; height:36px; flex:none; border:none; border-radius:10px; background:var(--accent); color:#fff; font-size:21px; line-height:1; cursor:pointer; font-family:var(--body); }
+  .qty{ display:flex; align-items:center; gap:9px; }
+  .qty button{ width:30px; height:30px; border-radius:8px; border:1px solid var(--rule); background:var(--card-2); color:var(--text); cursor:pointer; font-size:16px; line-height:1; }
+  .qty span{ font-family:var(--display); font-size:15px; min-width:14px; text-align:center; }
 
-  footer.foot{
-    margin-top:clamp(50px,8vw,90px); padding:30px 0 50px;
-    border-top:1px solid var(--rule); color:var(--muted); font-size:13px;
+  /* ---------- нижняя панель корзины ---------- */
+  .cartbar{
+    position:fixed; left:0; right:0; bottom:0; z-index:40;
+    background:rgba(11,11,11,.97); backdrop-filter:blur(12px);
+    border-top:1px solid var(--rule);
+    padding:12px 0 calc(14px + env(safe-area-inset-bottom));
+    transform:translateY(130%); transition:transform .24s ease;
   }
+  .cartbar.show{ transform:none; }
+  .cartbar__row{ display:flex; align-items:center; gap:12px; }
+  .cartbar__s{ flex:1; font-size:13px; color:var(--muted); }
+  .cartbar__s b{ display:block; color:var(--text); font-family:var(--display); font-size:20px; letter-spacing:.04em; }
+  .btn{ font-family:var(--display); font-weight:500; font-size:15px; letter-spacing:.07em; text-transform:uppercase; color:#fff; background:var(--accent); border:none; border-radius:11px; padding:14px 24px; cursor:pointer; }
+  .btn.ghost{ background:var(--card); color:var(--text); border:1px solid var(--rule); }
+  .btn:disabled{ opacity:.5; cursor:default; }
+
+  /* ---------- корзина ---------- */
+  .sheet{ position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.62); display:none; align-items:flex-end; justify-content:center; }
+  .sheet.show{ display:flex; }
+  .sheet__in{ background:var(--ink); width:100%; max-width:560px; max-height:92vh; overflow:auto; border-radius:18px 18px 0 0; border-top:1px solid var(--rule); padding:18px var(--pad) calc(26px + env(safe-area-inset-bottom)); }
+  @media (min-width:760px){ .sheet{ align-items:center } .sheet__in{ border-radius:18px; max-height:86vh } }
+  .sheet h3{ font-family:var(--display); font-weight:500; font-size:20px; letter-spacing:.07em; text-transform:uppercase; margin:0 0 16px; display:flex; justify-content:space-between; align-items:center; }
+  .sheet h3 button{ background:none; border:none; color:var(--muted); font-size:26px; line-height:1; cursor:pointer; }
+  .crow{ display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid var(--rule); }
+  .crow__t{ flex:1; font-size:14px; }
+  .crow__t small{ display:block; color:var(--muted); font-size:12px; }
+  .crow__p{ font-family:var(--display); font-size:15px; white-space:nowrap; }
+  .fld{ margin-top:15px; }
+  .fld label{ display:block; font-size:12.5px; color:var(--muted); margin-bottom:6px; }
+  .fld input,.fld textarea{ width:100%; padding:11px 13px; font-size:15px; font-family:var(--body); color:var(--text); background:var(--card); border:1px solid var(--rule); border-radius:10px; }
+  .fld input.bad{ border-color:var(--accent); }
+  .fld .hint{ font-size:12px; color:var(--muted); margin-top:5px; }
+  .fld .hint b{ color:var(--text); font-weight:500; }
+  .modes{ display:flex; gap:8px; margin-top:15px; }
+  .modes button{ flex:1; padding:12px; font-size:14px; font-family:var(--body); color:var(--muted); background:var(--card); border:1px solid var(--rule); border-radius:10px; cursor:pointer; }
+  .modes button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); }
+  .total{ display:flex; justify-content:space-between; align-items:baseline; margin-top:18px; font-family:var(--display); font-size:20px; letter-spacing:.05em; text-transform:uppercase; }
+  .msg{ margin-top:13px; padding:11px 13px; border-radius:10px; font-size:14px; display:none; }
+  .msg.ok{ display:block; background:#10251a; border:1px solid #1f5136; color:#8ee0ae; }
+  .msg.err{ display:block; background:#2a1412; border:1px solid #5a241d; color:#f0a49a; }
+
+  .note{ color:var(--muted); font-size:15px; padding:50px 0; }
+  footer.foot{ margin-top:clamp(44px,7vw,80px); padding:28px 0 44px; border-top:1px solid var(--rule); color:var(--muted); font-size:13px; }
   footer.foot a{ color:var(--text); text-decoration:none; border-bottom:1px solid var(--rule); }
   footer.foot a:hover{ border-color:var(--accent); }
 
   @media (max-width:560px){
     nav.rail{ top:53px; }
-    .item{ grid-template-columns:48px 1fr auto; gap:12px; }
-    .item__ph{ width:48px; height:48px; }
+    .grid{ grid-template-columns:repeat(2,1fr); gap:10px; }
+    .tiles{ grid-template-columns:repeat(2,1fr); }
+    .dish__t{ font-size:14px; }
   }
 </style>
 </head>
@@ -170,19 +167,20 @@
 
 <main class="wrap">
   <div class="hero">
-    <h1>
-      <span>SPOT to watch</span>
-      <span class="taste" id="hero-taste">to taste</span>
-      <span>to feel.</span>
-    </h1>
+    <h1><span>SPOT to watch</span><span class="taste">to taste</span><span>to feel.</span></h1>
     <p id="hero-sub"></p>
   </div>
+
+  <div class="asks" id="asks"></div>
+
+  <h2 class="sec" id="tiles-title"></h2>
+  <div class="tiles" id="tiles"></div>
 </main>
 
-<nav class="rail" aria-label="Разделы меню"><div class="wrap rail__scroll" id="rail"></div></nav>
+<nav class="rail" aria-label="Разделы меню"><div class="wrap rail__in" id="rail"></div></nav>
 
-<main class="wrap" id="menu">
-  <div class="note" id="state"></div>
+<main class="wrap">
+  <div id="menu"><div class="note" id="state"></div></div>
 </main>
 
 <footer class="foot">
@@ -195,116 +193,322 @@
   </div>
 </footer>
 
+<div class="cartbar" id="cartbar">
+  <div class="wrap cartbar__row">
+    <div class="cartbar__s" id="cart-sum"></div>
+    <button class="btn ghost" id="cart-clear"></button>
+    <button class="btn" id="cart-open"></button>
+  </div>
+</div>
+
+<div class="sheet" id="sheet">
+  <div class="sheet__in">
+    <h3><span id="sheet-title"></span><button type="button" id="sheet-close" aria-label="Закрыть">×</button></h3>
+    <div id="cart-lines"></div>
+
+    <div class="modes" id="modes"></div>
+
+    <div class="fld">
+      <label for="f-seat" id="lbl-seat"></label>
+      <input id="f-seat" inputmode="numeric" autocomplete="off">
+      <div class="hint" id="seat-hint"></div>
+    </div>
+    <div class="fld"><label for="f-name" id="lbl-name"></label><input id="f-name" autocomplete="name"></div>
+    <div class="fld"><label for="f-comment" id="lbl-comment"></label><textarea id="f-comment" rows="2"></textarea></div>
+
+    <div class="total"><span id="total-label"></span><span id="total-val"></span></div>
+    <button class="btn" style="width:100%;margin-top:16px" id="submit"></button>
+    <div class="msg" id="sheet-msg"></div>
+  </div>
+</div>
+
 <script>
 (() => {
-  const API = '/api/menu';
-  const LANGS = [
-    { code:'ka', label:'ქარ' },
-    { code:'ru', label:'рус' },
-    { code:'en', label:'eng' }
-  ];
+  const LANGS = [{c:'ka',l:'ქარ'},{c:'ru',l:'рус'},{c:'en',l:'eng'}];
+  const KINDS = ['waiter','bill','blanket','charger','ashtray'];
 
-  // Тексты интерфейса. Названия блюд и разделов приходят из БД.
   const T = {
-    ru:{ title:'SPOT. — меню', sub:'Рутоп-кинобар в Батуми. Кухня и бар — каждый день с 12:00 до 02:00.',
-         positions:n=>`${n} ${n%10===1&&n%100!==11?'позиция':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'позиции':'позиций')}`,
+    ru:{ sub:'Рутоп-кинобар в Батуми. Кухня и бар — каждый день с 12:00 до 02:00.',
+         tiles:'Меню', all:'Всё меню',
+         waiter:'Официант', bill:'Счёт', blanket:'Плед', charger:'Зарядка', ashtray:'Пепельница',
+         sent:'Готово', tooSoon:'Уже передали',
+         cart:'Ваш заказ', clear:'Очистить', checkout:'Заказать', send:'Отправить заказ',
+         seat:'Номер столика', seatPh:'номер написан на кубике', seatOk:t=>'это '+t, seatBad:'нет такого столика',
+         name:'Ваше имя', comment:'Комментарий',
+         inVenue:'В заведении', takeaway:'С собой', total:'Итого',
+         items:n=>n+' '+(n%10===1&&n%100!==11?'позиция':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'позиции':'позиций')),
+         cnt:n=>n+' '+(n%10===1&&n%100!==11?'блюдо':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'блюда':'блюд')),
+         needSeat:'Укажите номер столика — он написан на кубике.',
+         okOrder:'Заказ принят, уже готовим.', fail:'Не отправилось. Попробуйте ещё раз.',
          loading:'Загружаем меню…', empty:'Меню пока пустое.',
-         error:'Не удалось загрузить меню. Обновите страницу.',
          addr:'ул. Реджеба Ниджарадзе 18, Батуми — тремя ступенями выше 15-го этажа.', gel:'GEL' },
-    ka:{ title:'SPOT. — მენიუ', sub:'რუფთოფ კინობარი ბათუმში. სამზარეულო და ბარი — ყოველდღე 12:00-დან 02:00-მდე.',
-         positions:n=>`${n} პოზიცია`,
+    ka:{ sub:'რუფთოფ კინობარი ბათუმში. სამზარეულო და ბარი — ყოველდღე 12:00-დან 02:00-მდე.',
+         tiles:'მენიუ', all:'სრული მენიუ',
+         waiter:'მიმტანი', bill:'ანგარიში', blanket:'პლედი', charger:'დამტენი', ashtray:'საფერფლე',
+         sent:'მზადაა', tooSoon:'უკვე გადავეცით',
+         cart:'თქვენი შეკვეთა', clear:'გასუფთავება', checkout:'შეკვეთა', send:'შეკვეთის გაგზავნა',
+         seat:'მაგიდის ნომერი', seatPh:'ნომერი კუბიკზეა', seatOk:t=>'ეს არის '+t, seatBad:'ასეთი მაგიდა არ არსებობს',
+         name:'თქვენი სახელი', comment:'კომენტარი',
+         inVenue:'დაწესებულებაში', takeaway:'თან წასაღებად', total:'ჯამი',
+         items:n=>n+' პოზიცია', cnt:n=>n+' კერძი',
+         needSeat:'მიუთითეთ მაგიდის ნომერი — ის კუბიკზეა დაწერილი.',
+         okOrder:'შეკვეთა მიღებულია, უკვე ვამზადებთ.', fail:'ვერ გაიგზავნა. სცადეთ ხელახლა.',
          loading:'მენიუ იტვირთება…', empty:'მენიუ ჯერ ცარიელია.',
-         error:'მენიუ ვერ ჩაიტვირთა. განაახლეთ გვერდი.',
          addr:'რეჯებ ნიჟარაძის 18, ბათუმი — მე-15 სართულზე სამი საფეხურით მაღლა.', gel:'GEL' },
-    en:{ title:'SPOT. — menu', sub:'Rooftop cinema bar in Batumi. Kitchen and bar, every day 12 pm – 2 am.',
-         positions:n=>`${n} ${n===1?'item':'items'}`,
+    en:{ sub:'Rooftop cinema bar in Batumi. Kitchen and bar, every day 12 pm – 2 am.',
+         tiles:'Menu', all:'Everything',
+         waiter:'Waiter', bill:'Bill', blanket:'Blanket', charger:'Charger', ashtray:'Ashtray',
+         sent:'Done', tooSoon:'Already sent',
+         cart:'Your order', clear:'Clear', checkout:'Order', send:'Send the order',
+         seat:'Table number', seatPh:'printed on the cube', seatOk:t=>"that's "+t, seatBad:'no such table',
+         name:'Your name', comment:'Comment',
+         inVenue:'Dine in', takeaway:'Takeaway', total:'Total',
+         items:n=>n+' item'+(n===1?'':'s'), cnt:n=>n+' dish'+(n===1?'':'es'),
+         needSeat:'Enter your table number — it is printed on the cube.',
+         okOrder:'Order received, we are on it.', fail:'Could not send. Please try again.',
          loading:'Loading the menu…', empty:'The menu is empty for now.',
-         error:'Could not load the menu. Please refresh.',
          addr:'18 Rejeb Nijaradze, Batumi — three steps above the 15th floor.', gel:'GEL' }
   };
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const slug = (s, i) => 'c' + i;
 
-  function pickLang(){
-    const u = new URL(location.href).searchParams.get('lang');
-    if (LANGS.some(l => l.code === u)) return u;
-    try { const s = localStorage.getItem('spot_lang'); if (LANGS.some(l => l.code === s)) return s; } catch {}
-    const nav = (navigator.language || 'ru').slice(0,2);
-    return LANGS.some(l => l.code === nav) ? nav : 'ru';
+  const TABLES = [1,2,3,4,5,6,7,8,9,10];
+  function normSeat(raw){
+    const s = String(raw||'').trim().toLowerCase();
+    if(!s) return null;
+    const n = Number((s.match(/\d+/)||[])[0]);
+    if(!Number.isFinite(n) || n <= 0) return null;
+    if(/бар|bar|ბარი/.test(s)) return n <= 4 ? 'Бар ' + n : null;
+    return TABLES.includes(n) ? 'Стол ' + n : null;
   }
 
-  let lang = pickLang();
+  let lang = (() => {
+    const u = new URL(location.href).searchParams.get('lang');
+    if(LANGS.some(l=>l.c===u)) return u;
+    try{ const s=localStorage.getItem('spot_lang'); if(LANGS.some(l=>l.c===s)) return s; }catch{}
+    const n=(navigator.language||'ru').slice(0,2);
+    return LANGS.some(l=>l.c===n)?n:'ru';
+  })();
 
+  let MENU = [];
+  let active = -1;   // -1 = показать все разделы
+  let seat = null;
+  let mode = 'in_venue';
+  const cart = new Map();
+
+  /* ---------- статика ---------- */
   function renderLangs(){
-    $('langs').innerHTML = LANGS.map(l =>
-      `<button type="button" data-l="${l.code}" aria-pressed="${l.code===lang}">${l.label}</button>`
-    ).join('');
-    $('langs').querySelectorAll('button').forEach(b => {
-      b.onclick = () => {
-        lang = b.dataset.l;
-        try { localStorage.setItem('spot_lang', lang); } catch {}
-        const u = new URL(location.href); u.searchParams.set('lang', lang);
-        history.replaceState(null, '', u);
-        renderLangs(); applyStatic(); load();
-      };
+    $('langs').innerHTML = LANGS.map(l=>'<button type="button" data-l="'+l.c+'" aria-pressed="'+(l.c===lang)+'">'+l.l+'</button>').join('');
+    $('langs').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+      lang=b.dataset.l;
+      try{ localStorage.setItem('spot_lang',lang); }catch{}
+      const u=new URL(location.href); u.searchParams.set('lang',lang); history.replaceState(null,'',u);
+      renderLangs(); applyStatic(); renderAsks(); load();
     });
   }
 
   function applyStatic(){
-    const t = T[lang];
-    document.documentElement.lang = lang;
-    document.title = t.title;
-    $('hero-sub').textContent = t.sub;
-    $('foot-addr').textContent = t.addr;
+    const t=T[lang];
+    document.documentElement.lang=lang;
+    $('hero-sub').textContent=t.sub;
+    $('tiles-title').textContent=t.tiles;
+    $('foot-addr').textContent=t.addr;
+    $('cart-clear').textContent=t.clear;
+    $('cart-open').textContent=t.checkout;
+    $('sheet-title').textContent=t.cart;
+    $('lbl-seat').textContent=t.seat;
+    $('f-seat').placeholder=t.seatPh;
+    $('lbl-name').textContent=t.name;
+    $('lbl-comment').textContent=t.comment;
+    $('total-label').textContent=t.total;
+    $('submit').textContent=t.send;
+    renderModes(); renderSeat(); renderCart();
   }
 
-  function state(msg, strongFirst){
-    $('menu').innerHTML = `<div class="note">${strongFirst ? `<b>${esc(strongFirst)}</b>` : ''}${esc(msg)}</div>`;
-    $('rail').innerHTML = '';
+  /* ---------- быстрые просьбы ---------- */
+  function renderAsks(){
+    const t=T[lang];
+    $('asks').innerHTML = KINDS.map(k=>'<button class="ask" type="button" data-k="'+k+'">'+esc(t[k])+'</button>').join('');
+    $('asks').querySelectorAll('button').forEach(b=>b.onclick=()=>sendAsk(b));
   }
 
-  async function load(){
-    const t = T[lang];
-    state(t.loading);
+  async function sendAsk(btn){
+    const t=T[lang], kind=btn.dataset.k;
+    // Без номера столика просьбу отправить некуда — открываем корзину и просим номер.
+    if(!seat){ openSheet(true); return; }
+    btn.disabled=true;
     try{
-      const r = await fetch(`${API}?lang=${encodeURIComponent(lang)}`);
-      const d = await r.json();
-      if(!r.ok || !d.ok) throw new Error(d.error || 'bad response');
-
-      const cats = (d.menu || []).filter(c => (c.items || []).length);
-      if(!cats.length){ state(t.empty); return; }
-
-      $('rail').innerHTML = cats.map((c,i) =>
-        `<a href="#${slug(c.title,i)}">${esc(c.title)}</a>`
-      ).join('');
-
-      $('menu').innerHTML = cats.map((c,i) => `
-        <section class="cat" id="${slug(c.title,i)}">
-          <div class="cat__head">
-            <h2>${esc(c.title)}</h2>
-            <span class="cat__count">${esc(t.positions(c.items.length))}</span>
-          </div>
-          ${c.items.map(it => `
-            <article class="item${it.photo_url ? '' : ' no-photo'}">
-              ${it.photo_url ? `<img class="item__ph" src="${esc(it.photo_url)}" alt="" loading="lazy" decoding="async">` : ''}
-              <div>
-                <h3 class="item__name">${esc(it.title)}</h3>
-                ${it.description ? `<p class="item__desc">${esc(it.description)}</p>` : ''}
-              </div>
-              <div class="item__price">${esc(String(it.price))}<i>${esc(t.gel)}</i></div>
-            </article>
-          `).join('')}
-        </section>
-      `).join('');
-    }catch(e){
-      console.error(e);
-      state(T[lang].error);
-    }
+      const r=await fetch('/api/service-request',{ method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ table:seat, kind:kind, lang:lang }) });
+      const d=await r.json().catch(()=>({}));
+      btn.textContent = r.ok ? t.sent : (d.error==='TOO_SOON' ? t.tooSoon : t.fail);
+      btn.classList.add('sent');
+    }catch(e){ btn.textContent=t.fail; }
+    setTimeout(()=>{ btn.textContent=T[lang][kind]; btn.classList.remove('sent'); btn.disabled=false; }, 2600);
   }
 
-  renderLangs(); applyStatic(); load();
+  /* ---------- меню ---------- */
+  async function load(){
+    const t=T[lang];
+    $('menu').innerHTML='<div class="note">'+esc(t.loading)+'</div>';
+    try{
+      const r=await fetch('/api/menu?lang='+encodeURIComponent(lang));
+      const d=await r.json();
+      MENU=(d.menu||[]).filter(c=>(c.items||[]).length);
+      if(!MENU.length){ $('tiles').innerHTML=''; $('rail').innerHTML=''; $('menu').innerHTML='<div class="note">'+esc(t.empty)+'</div>'; return; }
+      renderTiles(); renderRail(); renderDishes();
+    }catch(e){ $('menu').innerHTML='<div class="note">'+esc(T[lang].fail)+'</div>'; }
+  }
+
+  // Обложкой плитки берём первое фото из категории: отдельных картинок для
+  // разделов в базе нет, а так плитки живут сами и не требуют ручной работы.
+  function renderTiles(){
+    const t=T[lang];
+    $('tiles').innerHTML = MENU.map((c,i)=>{
+      const ph=(c.items.find(x=>x.photo_url)||{}).photo_url;
+      return '<button class="tile" type="button" data-i="'+i+'" aria-pressed="'+(i===active)+'">'+
+        (ph?'<img src="'+esc(ph)+'" alt="" loading="lazy" decoding="async">'
+           :'<div style="width:100%;height:100%;background:var(--card-2)"></div>')+
+        '<span class="tile__cap">'+esc(c.title)+'<small>'+esc(t.cnt(c.items.length))+'</small></span>'+
+      '</button>';
+    }).join('');
+    $('tiles').querySelectorAll('.tile').forEach(b=>b.onclick=()=>select(Number(b.dataset.i)));
+  }
+
+  function renderRail(){
+    const t=T[lang];
+    $('rail').innerHTML =
+      '<button type="button" data-i="-1" aria-pressed="'+(active===-1)+'">'+esc(t.all)+'</button>'+
+      MENU.map((c,i)=>'<button type="button" data-i="'+i+'" aria-pressed="'+(i===active)+'">'+esc(c.title)+'</button>').join('');
+    $('rail').querySelectorAll('button').forEach(b=>b.onclick=()=>select(Number(b.dataset.i)));
+  }
+
+  function select(i){
+    active = (active===i ? -1 : i);
+    renderTiles(); renderRail(); renderDishes();
+    const y = $('rail').getBoundingClientRect().top + window.scrollY - 56;
+    window.scrollTo({ top:y, behavior:'smooth' });
+  }
+
+  function renderDishes(){
+    const t=T[lang];
+    const cats = active===-1 ? MENU : [MENU[active]];
+    $('menu').innerHTML = cats.map(c=>
+      '<h2 class="sec">'+esc(c.title)+'</h2><div class="grid">'+
+      c.items.map(it=>{
+        const inCart=cart.get(it.id);
+        const ctl = inCart
+          ? '<div class="qty"><button type="button" data-m="'+esc(it.id)+'" aria-label="−">−</button><span>'+inCart.qty+'</span><button type="button" data-p="'+esc(it.id)+'" aria-label="+">+</button></div>'
+          : '<button class="add" type="button" data-a="'+esc(it.id)+'" aria-label="+">+</button>';
+        return '<article class="dish">'+
+          (it.photo_url
+            ? '<img class="dish__ph" src="'+esc(it.photo_url)+'" alt="" loading="lazy" decoding="async">'
+            : '<div class="dish__ph--none">SPOT.</div>')+
+          '<div class="dish__in">'+
+            '<h3 class="dish__t">'+esc(it.title)+'</h3>'+
+            (it.description?'<p class="dish__d">'+esc(it.description)+'</p>':'')+
+            '<div class="dish__foot"><span class="dish__p">'+esc(String(it.price))+'<i>'+esc(t.gel)+'</i></span>'+ctl+'</div>'+
+          '</div></article>';
+      }).join('')+'</div>'
+    ).join('');
+
+    const find=(id)=>MENU.flatMap(c=>c.items).find(x=>x.id===id);
+    $('menu').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>addItem(find(b.dataset.a),1));
+    $('menu').querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>addItem(find(b.dataset.p),1));
+    $('menu').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>addItem(find(b.dataset.m),-1));
+  }
+
+  /* ---------- корзина ---------- */
+  function addItem(item, delta){
+    if(!item) return;
+    const cur=cart.get(item.id);
+    const qty=(cur?cur.qty:0)+delta;
+    if(qty<=0) cart.delete(item.id);
+    else cart.set(item.id,{ id:item.id, title:item.title, price:Number(item.price), qty:Math.min(50,qty) });
+    renderDishes(); renderCart();
+  }
+
+  const total = () => [...cart.values()].reduce((s,l)=>s+l.price*l.qty,0);
+  const count = () => [...cart.values()].reduce((s,l)=>s+l.qty,0);
+
+  function renderCart(){
+    const t=T[lang], n=count();
+    $('cartbar').classList.toggle('show', n>0);
+    $('cart-sum').innerHTML = esc(t.items(n))+'<b>'+total()+' '+esc(t.gel)+'</b>';
+    $('total-val').textContent = total()+' '+t.gel;
+    $('cart-lines').innerHTML = [...cart.values()].map(l=>
+      '<div class="crow"><span class="crow__t">'+esc(l.title)+'<small>'+l.price+' '+esc(t.gel)+' × '+l.qty+'</small></span>'+
+      '<span class="crow__p">'+(l.price*l.qty)+' '+esc(t.gel)+'</span>'+
+      '<div class="qty"><button type="button" data-cm="'+esc(l.id)+'">−</button><span>'+l.qty+'</span><button type="button" data-cp="'+esc(l.id)+'">+</button></div></div>'
+    ).join('');
+    const find=(id)=>MENU.flatMap(c=>c.items).find(x=>x.id===id);
+    $('cart-lines').querySelectorAll('[data-cp]').forEach(b=>b.onclick=()=>addItem(find(b.dataset.cp),1));
+    $('cart-lines').querySelectorAll('[data-cm]').forEach(b=>b.onclick=()=>addItem(find(b.dataset.cm),-1));
+  }
+
+  function renderModes(){
+    const t=T[lang];
+    $('modes').innerHTML =
+      '<button type="button" data-m="in_venue" aria-pressed="'+(mode==='in_venue')+'">'+esc(t.inVenue)+'</button>'+
+      '<button type="button" data-m="takeaway" aria-pressed="'+(mode==='takeaway')+'">'+esc(t.takeaway)+'</button>';
+    $('modes').querySelectorAll('button').forEach(b=>b.onclick=()=>{ mode=b.dataset.m; renderModes(); });
+  }
+
+  /* ---------- столик ---------- */
+  try{ const s=localStorage.getItem('spot_seat'); if(s){ $('f-seat').value=s; seat=normSeat(s); } }catch{}
+
+  $('f-seat').addEventListener('input', ()=>{
+    const raw=$('f-seat').value;
+    seat=normSeat(raw);
+    try{ raw ? localStorage.setItem('spot_seat',raw) : localStorage.removeItem('spot_seat'); }catch{}
+    renderSeat();
+  });
+
+  function renderSeat(){
+    const t=T[lang], raw=$('f-seat').value.trim();
+    $('f-seat').classList.toggle('bad', !!raw && !seat);
+    $('seat-hint').innerHTML = seat ? t.seatOk('<b>'+esc(seat)+'</b>') : (raw ? esc(t.seatBad) : esc(t.seatPh));
+  }
+
+  /* ---------- оформление ---------- */
+  function openSheet(focusSeat){
+    $('sheet-msg').className='msg';
+    $('sheet').classList.add('show');
+    if(focusSeat) setTimeout(()=>$('f-seat').focus(), 80);
+  }
+  $('cart-open').onclick=()=>openSheet(!seat);
+  $('cart-clear').onclick=()=>{ cart.clear(); renderDishes(); renderCart(); };
+  $('sheet-close').onclick=()=>$('sheet').classList.remove('show');
+  $('sheet').addEventListener('click', e=>{ if(e.target===$('sheet')) $('sheet').classList.remove('show'); });
+
+  $('submit').onclick=async ()=>{
+    const t=T[lang], m=$('sheet-msg');
+    if(!cart.size) return;
+    if(!seat){ m.textContent=t.needSeat; m.className='msg err'; $('f-seat').focus(); return; }
+    $('submit').disabled=true;
+    try{
+      const r=await fetch('/api/order',{ method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          table:seat, lang:lang, mode:mode,
+          name:$('f-name').value.trim(),
+          comment:$('f-comment').value.trim(),
+          items:[...cart.values()].map(l=>({ id:l.id, qty:l.qty }))
+        }) });
+      const d=await r.json().catch(()=>({}));
+      if(r.ok && d.ok){
+        m.textContent=t.okOrder; m.className='msg ok';
+        cart.clear(); renderDishes(); renderCart();
+        $('f-comment').value='';
+        setTimeout(()=>$('sheet').classList.remove('show'), 1800);
+      }else{
+        m.textContent=t.fail; m.className='msg err';
+      }
+    }catch(e){ m.textContent=t.fail; m.className='msg err'; }
+    finally{ $('submit').disabled=false; }
+  };
+
+  renderLangs(); applyStatic(); renderAsks(); load();
 })();
 </script>
 </body>

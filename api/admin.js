@@ -104,8 +104,9 @@ function page() {
   .svc__kind { font-weight:700; font-size:15px; }
 
   /* каналы уведомлений */
-  .nch { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #eee; }
+  .nch { padding:10px 0; border-bottom:1px solid #eee; }
   .nch:last-child { border-bottom:none; }
+  .nch__row { display:flex; align-items:center; gap:12px; }
   .nch__main { flex:1; min-width:0; }
   .nch__name { font-weight:600; font-size:14px; }
   .nch__hint { font-size:12px; color:#888; margin-top:2px; }
@@ -119,6 +120,12 @@ function page() {
   .tgl input:checked + span { background:#4CAF50; }
   .tgl input:checked + span:before { transform:translateX(18px); }
   .tgl input:disabled + span { opacity:.4; cursor:default; }
+  .nch__keys { margin-top:8px; }
+  .nch__keys summary { cursor:pointer; font-size:12px; color:#666; }
+  .nfld { display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .nfld label { font-size:12px; color:#666; width:170px; flex:none; }
+  .nfld input { flex:1; min-width:160px; padding:6px 8px; border:1px solid #ccc; border-radius:6px; font-size:13px; }
+  .nsecret-banner { font-size:12px; color:#92400e; background:#fff7e6; border-radius:8px; padding:8px 10px; margin-bottom:10px; }
   .srow input.sel { width:18px; height:18px; flex:none; cursor:pointer; }
   .batchbar { display:none; gap:8px; align-items:center; flex-wrap:wrap; background:#111; color:#fff; padding:10px 12px; border-radius:10px; margin:10px 0; font-size:13px; }
   .batchbar.show { display:flex; }
@@ -933,6 +940,16 @@ $('svc-hours').addEventListener('change', ()=>loadSvc());
 
 // ---------- КАНАЛЫ УВЕДОМЛЕНИЙ ----------
 
+function nchFieldRow(channel, f){
+  const placeholder = !f.set ? 'не задано' : (f.source==='db' ? 'сохранено, введите новое чтобы заменить' : 'из переменной окружения');
+  return '<div class="nfld">'+
+    '<label>'+esc(f.label)+'</label>'+
+    '<input type="password" autocomplete="off" data-secret-input data-ch="'+esc(channel)+'" data-name="'+esc(f.name)+'" placeholder="'+esc(placeholder)+'">'+
+    '<button class="btn small ghost" data-secret-save data-ch="'+esc(channel)+'" data-name="'+esc(f.name)+'">Сохранить</button>'+
+    (f.source==='db' ? '<button class="btn small ghost" data-secret-clear data-ch="'+esc(channel)+'" data-name="'+esc(f.name)+'">Очистить</button>' : '')+
+  '</div>';
+}
+
 async function loadNotify(){
   const box = $('notify-list');
   try{
@@ -941,7 +958,10 @@ async function loadNotify(){
     const d = await r.json();
     const channels = d.channels || [];
 
-    box.innerHTML = channels.map(function(ch){
+    const banner = d.secretsAvailable ? '' :
+      '<div class="nsecret-banner">Чтобы вводить токены и ключи прямо здесь, добавьте NOTIFY_SECRET_KEY в переменные окружения (любая случайная строка, используется для шифрования). Пока переменные окружения задаются как обычно.</div>';
+
+    box.innerHTML = banner + channels.map(function(ch){
       const hintClass = !ch.configured ? 'missing' : (!ch.enabled ? 'off' : '');
       const hintText = !ch.configured
         ? 'не настроен — не хватает: ' + ch.missing.join(', ')
@@ -949,13 +969,19 @@ async function loadNotify(){
       const testPart = (ch.configured && ch.enabled)
         ? '<button class="btn small ghost" data-test="'+esc(ch.channel)+'">Проверить</button><span class="nch__test-msg" data-testmsg="'+esc(ch.channel)+'"></span>'
         : '';
+      const keysPart = d.secretsAvailable
+        ? '<details class="nch__keys"><summary>Ключи</summary>'+(ch.fields||[]).map(function(f){ return nchFieldRow(ch.channel, f); }).join('')+'</details>'
+        : '';
       return '<div class="nch">'+
-        '<label class="tgl"><input type="checkbox" data-ch="'+esc(ch.channel)+'"'+(ch.enabled?' checked':'')+(ch.configured?'':' disabled')+'><span></span></label>'+
-        '<div class="nch__main">'+
-          '<div class="nch__name">'+esc(ch.title)+'</div>'+
-          '<div class="nch__hint '+hintClass+'">'+esc(hintText)+'</div>'+
+        '<div class="nch__row">'+
+          '<label class="tgl"><input type="checkbox" data-ch="'+esc(ch.channel)+'"'+(ch.enabled?' checked':'')+(ch.configured?'':' disabled')+'><span></span></label>'+
+          '<div class="nch__main">'+
+            '<div class="nch__name">'+esc(ch.title)+'</div>'+
+            '<div class="nch__hint '+hintClass+'">'+esc(hintText)+'</div>'+
+          '</div>'+
+          testPart+
         '</div>'+
-        testPart+
+        keysPart+
       '</div>';
     }).join('');
 
@@ -964,6 +990,12 @@ async function loadNotify(){
     });
     box.querySelectorAll('button[data-test]').forEach(function(btn){
       btn.addEventListener('click', function(){ testNotifyChannel(btn.dataset.test); });
+    });
+    box.querySelectorAll('button[data-secret-save]').forEach(function(btn){
+      btn.addEventListener('click', function(){ saveSecretField(btn.dataset.ch, btn.dataset.name, btn); });
+    });
+    box.querySelectorAll('button[data-secret-clear]').forEach(function(btn){
+      btn.addEventListener('click', function(){ clearSecretField(btn.dataset.ch, btn.dataset.name); });
     });
   }catch(e){
     box.innerHTML = '<div class="hint">Ошибка загрузки.</div>';
@@ -993,6 +1025,32 @@ async function testNotifyChannel(channel){
   }catch(e){
     if(msgEl){ msgEl.textContent = 'Сетевая ошибка.'; msgEl.style.color = '#F44336'; }
   }
+}
+
+async function saveSecretField(channel, name, btn){
+  const box = $('notify-list');
+  const input = box.querySelector('input[data-secret-input][data-ch="'+channel+'"][data-name="'+name+'"]');
+  const value = input.value.trim();
+  if(!value) return;
+  btn.disabled = true;
+  try{
+    const r = await fetch(api('admin-notify'), {method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify({channel:channel, secrets:{ [name]: value }})});
+    if(r.status===401){ handle401(); return; }
+    const d = await r.json().catch(()=>({}));
+    if(r.ok && d.ok) loadNotify();
+    else { alert('Ошибка: ' + (d.detail || d.error || '?')); btn.disabled = false; }
+  }catch(e){ alert('Сетевая ошибка.'); btn.disabled = false; }
+}
+
+async function clearSecretField(channel, name){
+  if(!confirm('Удалить сохранённое значение? Канал вернётся к переменной окружения (если она задана).')) return;
+  try{
+    const r = await fetch(api('admin-notify'), {method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify({channel:channel, clearSecret:name})});
+    if(r.status===401){ handle401(); return; }
+    const d = await r.json().catch(()=>({}));
+    if(r.ok && d.ok) loadNotify();
+    else alert('Ошибка: ' + (d.detail || d.error || '?'));
+  }catch(e){ alert('Сетевая ошибка.'); }
 }
 
 // ---------- MENU ----------

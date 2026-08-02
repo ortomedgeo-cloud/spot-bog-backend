@@ -269,6 +269,8 @@ function page() {
         <div><label>Формат *</label><select id="ev-format"><option value="mov">mov — фильм</option><option value="din">din — киноужин</option></select></div>
         <div><label>Цена (GEL, с человека) *</label><input id="ev-price" type="number" min="0" step="0.01" placeholder="30"></div>
       </div>
+      <div class="row"><label>Постер (URL)</label><input id="ev-poster" placeholder="оставь пустым — возьмётся из TMDB">
+        <div class="hint">Своя картинка вместо найденной в TMDB. Нужна для того, чего в TMDB нет: футбол, концерты, вечеринки.</div></div>
       <div class="row"><label>DepositText (шаблон по формату, можно править)</label><textarea id="ev-deposit"></textarea></div>
       <button class="btn" id="ev-create">Создать событие</button>
       <button class="btn ghost" id="ev-cancel" style="display:none;margin-left:8px">Отмена</button>
@@ -295,6 +297,8 @@ function page() {
         <div><label>Дата *</label><input id="ss-date" readonly placeholder="выбери в календаре"></div>
         <div><label>Время * (ЧЧ:ММ)</label><input id="ss-time" placeholder="21:00"></div>
       </div>
+      <div class="row"><label>Постер сеанса (URL)</label><input id="ss-poster" placeholder="пусто — берётся постер события">
+        <div class="hint">Перекрывает постер события только для этого сеанса — удобно для особых показов.</div></div>
       <button class="btn" id="ss-create">Создать сеанс</button>
       <button class="btn ghost" id="ss-cancel" style="display:none;margin-left:8px">Отмена</button>
       <div class="msg" id="ss-msg"></div>
@@ -617,7 +621,7 @@ let EV_EDIT = null; // event being edited: {id,title,poster_url}
 
 function evResetForm(){
   EV_EDIT=null; EV_PICK={ title:'', poster:'', tmdb_id:null };
-  $('ev-picked').textContent=''; $('ev-price').value='';
+  $('ev-picked').textContent=''; $('ev-price').value=''; $('ev-poster').value='';
   $('ev-results').innerHTML='';
   $('ev-deposit').value = $('ev-format').value==='din' ? CFG.depositDin : CFG.depositMov;
   $('ev-create').textContent='Создать событие';
@@ -645,6 +649,7 @@ async function evSearch(){
         document.querySelectorAll('#ev-results .mcard').forEach(k=>k.classList.remove('picked'));
         c.classList.add('picked');
         EV_PICK={ title:m.title, poster:m.poster||'', tmdb_id:m.tmdb_id||null };
+        $('ev-poster').value=m.poster||'';   // подставили, но можно заменить своей
         $('ev-picked').textContent='Выбрано: '+m.title+yr;
       };
       box.appendChild(c);
@@ -666,7 +671,11 @@ $('ev-create').addEventListener('click', async ()=>{
   // In edit mode a new TMDB pick is optional: keep the existing title/poster
   // unless a new film was picked.
   const title = EV_PICK.title || (EV_EDIT && EV_EDIT.title) || '';
-  const poster = EV_PICK.title ? EV_PICK.poster : (EV_EDIT ? (EV_EDIT.poster_url||'') : '');
+  // Приоритет у поля: если туда вписали свой URL — используем его,
+  // иначе постер выбранного в TMDB фильма, иначе прежний у события.
+  const poster = $('ev-poster').value.trim()
+    || (EV_PICK.title ? EV_PICK.poster : '')
+    || (EV_EDIT ? (EV_EDIT.poster_url||'') : '');
   if(!title){ msg(m,'Найди и выбери фильм.',false); return; }
   const price=$('ev-price').value.trim();
   if(!price){ msg(m,'Укажи цену.',false); return; }
@@ -711,6 +720,7 @@ async function loadEventsList(){
         EV_PICK={ title:'', poster:'', tmdb_id:null };
         $('ev-format').value=e.format||'mov';
         $('ev-price').value=e.price;
+        $('ev-poster').value=e.poster_url||'';
         $('ev-deposit').value=e.deposit_text||($('ev-format').value==='din'?CFG.depositDin:CFG.depositMov);
         $('ev-picked').textContent='Редактирование: '+e.title+(e.poster_url?'':' — постера нет, найди фильм в TMDB чтобы добавить');
         $('ev-create').textContent='Сохранить изменения';
@@ -736,7 +746,7 @@ let SS_EDIT = null; // session id being edited
 
 function ssResetForm(){
   SS_EDIT=null;
-  $('ss-event').value=''; $('ss-date').value=''; $('ss-time').value='';
+  $('ss-event').value=''; $('ss-date').value=''; $('ss-time').value=''; $('ss-poster').value='';
   $('ss-create').textContent='Создать сеанс';
   $('ss-cancel').style.display='none';
 }
@@ -749,7 +759,7 @@ $('ss-create').addEventListener('click', async ()=>{
   if(SS_EDIT && !event_id && !date && !time){ msg(m,'Нечего менять.',false); return; }
   const btn=$('ss-create'); btn.disabled=true;
   try{
-    const body={event_id,date,time};
+    const body={event_id,date,time,poster_url:$('ss-poster').value.trim()};
     if(SS_EDIT) body.id = SS_EDIT;
     const r=await fetch(api('admin-sessions'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     if(r.status===401){ handle401(); return; }
@@ -778,7 +788,7 @@ async function loadSessionsList(){
       return '<div class="srow'+(s.is_archived?' arch':'')+'" data-i="'+i+'">'+
         '<input type="checkbox" class="sel" data-id="'+esc(s.id)+'">'+
         (s.poster_url?'<img src="'+esc(s.poster_url)+'">':'<img>')+
-        '<div class="info"><div class="t">'+esc(s.title)+'</div><div class="d">'+esc(s.date)+' · '+esc(s.time)+' · '+esc(String(s.price))+' GEL</div></div>'+
+        '<div class="info"><div class="t">'+esc(s.title)+'</div><div class="d">'+esc(s.date)+' · '+esc(s.time)+' · '+esc(String(s.price))+' GEL'+(s.own_poster_url?' · свой постер':'')+'</div></div>'+
         '<button class="btn small ghost" data-edit="'+esc(s.id)+'">Изм.</button>'+
         '<button class="btn small ghost" data-link="'+esc(link)+'">Ссылка</button></div>';
     }).join('') : '<div class="hint">Сеансов нет.</div>';
@@ -797,6 +807,7 @@ async function loadSessionsList(){
         SS_EDIT=s.id;
         $('ss-event').value=s.event_id||'';
         $('ss-date').value=s.date||''; $('ss-time').value=s.time||'';
+        $('ss-poster').value=s.own_poster_url||'';   // своё, не унаследованное от события
         $('ss-create').textContent='Сохранить изменения';
         $('ss-cancel').style.display='inline-block';
         window.scrollTo({top:0,behavior:'smooth'});

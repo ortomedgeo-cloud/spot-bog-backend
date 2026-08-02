@@ -50,7 +50,9 @@ export default async function handler(req, res) {
           event_id: eventId || null,
           date: date || null,
           time: time || null,
-          duration: Number(b.duration) || null
+          duration: Number(b.duration) || null,
+          // undefined = поле не трогаем; пустая строка = сбросить на постер события
+          poster_url: b.poster_url === undefined ? undefined : String(b.poster_url || "").trim()
         });
         if (!session) return json(res, 404, { error: "Session not found" });
         return json(res, 200, { ok: true, session, updated: true });
@@ -60,7 +62,10 @@ export default async function handler(req, res) {
       if (!date) return json(res, 400, { error: "Missing date" });
       if (!/^\d{1,2}:\d{2}$/.test(time)) return json(res, 400, { error: "Invalid time (HH:MM)" });
 
-      const session = await createSession({ event_id: eventId, date, time, duration });
+      const session = await createSession({
+        event_id: eventId, date, time, duration,
+        poster_url: String(b.poster_url || "").trim() || null
+      });
       return json(res, 200, { ok: true, session });
     }
 

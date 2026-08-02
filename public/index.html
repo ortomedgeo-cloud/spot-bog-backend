@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SPOT. — рутоп-кинобар в Батуми</title>
+<meta name="description" content="SPOT. — рутоп-кинобар в Батуми: кино под открытым небом, кухня и авторские коктейли. Афиша, меню и бронь столика.">
+<meta property="og:title" content="SPOT. — Rooftop Cinema Bar">
+<meta property="og:description" content="Кино под открытым небом, кухня и авторские коктейли. Батуми.">
+<meta property="og:type" content="website">
+
+<link rel="icon" href="/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Noto+Sans:wght@400;500;600&family=Noto+Sans+Georgian:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ink:#0B0B0B; --card:#151312; --card-2:#1D1A18; --rule:#2A2724;
+    --text:#F4F1EC; --muted:#8B857D; --accent:#E75228;
+    --display:'Oswald','Noto Sans Georgian',sans-serif;
+    --body:'Noto Sans','Noto Sans Georgian',sans-serif;
+    --pad:clamp(16px,4.5vw,32px);
+    --r:14px;
+
+    /* Единая шкала отступов: все вертикальные интервалы берутся отсюда,
+       поэтому блоки стоят на одинаковом расстоянии, а не «кто как». */
+    --s1:8px; --s2:14px; --s3:22px; --s4:clamp(28px,5vw,44px); --s5:clamp(44px,8vw,84px);
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+  body{
+    margin:0; background:var(--ink); color:var(--text);
+    font-family:var(--body); font-size:16px; line-height:1.55;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  @media (prefers-reduced-motion:reduce){ html{scroll-behavior:auto} *{transition-duration:.01ms!important;animation-duration:.01ms!important} }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:3px; }
+  img{ display:block; max-width:100%; }
+  a{ color:inherit; }
+  .wrap{ max-width:1080px; margin:0 auto; padding-inline:var(--pad); }
+
+  /* ---------- шапка ---------- */
+  header.top{ position:sticky; top:0; z-index:30; background:rgba(11,11,11,.94); backdrop-filter:blur(10px); border-bottom:1px solid var(--rule); }
+  .top__row{ display:flex; align-items:center; gap:12px; padding:10px 0; }
+  .top__logo{ height:26px; width:auto; margin-right:auto;
+    /* Логотип нарисован чёрным для светлых носителей. invert делает его белым,
+       а hue-rotate возвращает фирменный оранжевый акцент — файл трогать не нужно. */
+    filter:invert(1) hue-rotate(180deg); }
+  .langs{ display:flex; gap:2px; }
+  .langs button{ font-size:13px; color:var(--muted); background:none; border:1px solid transparent; border-radius:999px; padding:7px 12px; cursor:pointer; min-height:36px; font-family:var(--body); }
+  .langs button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); }
+
+  /* ---------- первый экран ---------- */
+  .hero{ padding:var(--s5) 0 var(--s4); text-align:center; }
+  .hero__logo{ width:min(340px,64vw); margin:0 auto var(--s3); filter:invert(1) hue-rotate(180deg); }
+  .hero__tag{ font-family:var(--display); font-weight:500; font-size:clamp(15px,3.4vw,21px); letter-spacing:.24em; text-transform:uppercase; color:var(--muted); margin:0 0 var(--s2); }
+  .hero__sub{ color:var(--muted); font-size:15px; margin:0 auto; max-width:44ch; }
+  .cta{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:var(--s4); }
+  .btn{
+    font-family:var(--display); font-weight:500; font-size:15px; letter-spacing:.08em; text-transform:uppercase;
+    text-decoration:none; color:#fff; background:var(--accent); border:1px solid var(--accent);
+    border-radius:12px; padding:15px 30px; min-height:50px; display:inline-flex; align-items:center; cursor:pointer;
+  }
+  .btn.ghost{ background:var(--card); color:var(--text); border-color:var(--rule); }
+  .btn.ghost:hover{ border-color:var(--muted); }
+
+  /* ---------- секции ---------- */
+  section{ padding-top:var(--s5); }
+  .sec__h{ display:flex; align-items:baseline; justify-content:space-between; gap:14px; margin-bottom:var(--s3); }
+  .sec__h h2{ font-family:var(--display); font-weight:500; font-size:clamp(21px,4vw,30px); letter-spacing:.07em; text-transform:uppercase; margin:0; }
+  .sec__h a{ font-size:13px; color:var(--muted); text-decoration:none; white-space:nowrap; border-bottom:1px solid var(--rule); }
+  .sec__h a:hover{ color:var(--text); border-color:var(--accent); }
+
+  /* ---------- афиша ---------- */
+  .shows{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:var(--s2); }
+  .show{ background:var(--card); border-radius:var(--r); overflow:hidden; display:flex; flex-direction:column; text-decoration:none; }
+  .show__ph{ aspect-ratio:2/3; object-fit:cover; background:var(--card-2); width:100%; }
+  .show__ph--none{ aspect-ratio:2/3; background:var(--card-2); display:flex; align-items:center; justify-content:center; color:#3a3632; font-family:var(--display); font-size:26px; letter-spacing:.1em; }
+  .show__in{ padding:12px 13px 14px; display:flex; flex-direction:column; gap:5px; flex:1; }
+  .show__d{ font-family:var(--display); font-size:12.5px; letter-spacing:.1em; color:var(--accent); }
+  .show__t{ font-family:var(--display); font-weight:400; font-size:15.5px; line-height:1.2; letter-spacing:.03em; text-transform:uppercase; margin:0; overflow-wrap:anywhere; }
+  .show__p{ color:var(--muted); font-size:12.5px; margin-top:auto; padding-top:6px; }
+  .show__p b{ color:var(--text); font-family:var(--display); font-size:14px; font-weight:500; }
+
+  /* ---------- разделы-ссылки ---------- */
+  .quick{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:var(--s2); }
+  .quick a{
+    background:var(--card); border:1px solid var(--rule); border-radius:var(--r);
+    padding:22px 20px; text-decoration:none; display:block; transition:border-color .18s;
+  }
+  .quick a:hover{ border-color:var(--accent); }
+  .quick h3{ font-family:var(--display); font-weight:500; font-size:17px; letter-spacing:.06em; text-transform:uppercase; margin:0 0 6px; }
+  .quick p{ color:var(--muted); font-size:13px; margin:0; }
+
+  /* ---------- контакты ---------- */
+  .info{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:var(--s3); background:var(--card); border-radius:var(--r); padding:var(--s3); }
+  .info h3{ font-family:var(--display); font-weight:500; font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:0 0 8px; }
+  .info p{ margin:0; font-size:14.5px; line-height:1.6; }
+  .info a{ text-decoration:none; border-bottom:1px solid var(--rule); }
+  .info a:hover{ border-color:var(--accent); }
+
+  .note{ color:var(--muted); font-size:15px; padding:var(--s4) 0; }
+
+  footer.foot{ margin-top:var(--s5); padding:var(--s3) 0 var(--s4); border-top:1px solid var(--rule); color:var(--muted); font-size:13px; }
+  .foot__row{ display:flex; gap:var(--s2); flex-wrap:wrap; align-items:center; justify-content:space-between; }
+  .foot__row a{ text-decoration:none; border-bottom:1px solid var(--rule); }
+  .foot__row a:hover{ border-color:var(--accent); }
+
+  @media (max-width:600px){
+    .shows{ grid-template-columns:repeat(2,1fr); gap:10px; }
+    .btn{ padding:14px 22px; font-size:14px; }
+    .cta{ gap:8px; }
+    .info{ padding:var(--s2); }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top__row">
+    <a href="/" aria-label="SPOT."><img class="top__logo" src="/logo.png" alt="SPOT."></a>
+    <div class="langs" id="langs" role="group" aria-label="Language"></div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <img class="hero__logo" src="/logo.png" alt="SPOT. Rooftop Cinema Bar">
+    <p class="hero__tag">to watch · to taste · to feel</p>
+    <p class="hero__sub" id="hero-sub"></p>
+    <div class="cta">
+      <a class="btn" href="/reserve" id="cta-book"></a>
+      <a class="btn ghost" href="/menu" id="cta-menu"></a>
+    </div>
+  </div>
+
+  <section class="wrap">
+    <div class="sec__h">
+      <h2 id="shows-title"></h2>
+      <a href="/reserve" id="shows-all"></a>
+    </div>
+    <div id="shows"><div class="note" id="shows-state"></div></div>
+  </section>
+
+  <section class="wrap">
+    <div class="sec__h"><h2 id="quick-title"></h2></div>
+    <div class="quick" id="quick"></div>
+  </section>
+
+  <section class="wrap">
+    <div class="sec__h"><h2 id="info-title"></h2></div>
+    <div class="info">
+      <div>
+        <h3 id="i-addr-t"></h3>
+        <p id="i-addr"></p>
+      </div>
+      <div>
+        <h3 id="i-hours-t"></h3>
+        <p id="i-hours"></p>
+      </div>
+      <div>
+        <h3 id="i-contact-t"></h3>
+        <p>
+          <a href="https://wa.me/995555248432" target="_blank" rel="noopener">WhatsApp</a><br>
+          <a href="https://www.instagram.com/spot.rooftop" target="_blank" rel="noopener">Instagram</a>
+        </p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot__row">
+    <span>© SPOT. Batumi</span>
+    <span><a href="/menu" id="f-menu"></a> · <a href="/reserve" id="f-book"></a></span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const LANGS=[{c:'ka',l:'ქარ'},{c:'ru',l:'рус'},{c:'en',l:'eng'}];
+
+  const T={
+    ru:{ sub:'Кино под открытым небом, кухня и авторские коктейли. Тремя ступенями выше 15-го этажа.',
+         book:'Забронировать', menu:'Меню',
+         shows:'Афиша', showsAll:'Все сеансы',
+         quick:'Куда дальше', info:'Как нас найти',
+         addrT:'Адрес', addr:'ул. Реджеба Ниджарадзе 18, Батуми\nТремя ступенями выше 15-го этажа.',
+         hoursT:'Часы работы', hours:'Каждый день\n12:00 — 02:00',
+         contactT:'Связаться',
+         qMenu:'Меню', qMenuD:'Кухня, авторские коктейли, вино и кальяны',
+         qBook:'Бронь столика', qBookD:'Выбрать сеанс и место на схеме зала',
+         qOrder:'Заказ за столиком', qOrderD:'Позвать официанта или заказать, не вставая',
+         perGuest:'за гостя', loading:'Загружаем афишу…',
+         empty:'Ближайшие сеансы ещё не объявлены. Загляните позже или напишите нам.',
+         fail:'Не удалось загрузить афишу.' },
+    ka:{ sub:'ღია ცის ქვეშ კინო, სამზარეულო და საავტორო კოქტეილები. მე-15 სართულზე სამი საფეხურით მაღლა.',
+         book:'დაჯავშნა', menu:'მენიუ',
+         shows:'აფიშა', showsAll:'ყველა სეანსი',
+         quick:'სად შემდეგ', info:'როგორ მოგვძებნოთ',
+         addrT:'მისამართი', addr:'რეჯებ ნიჟარაძის 18, ბათუმი\nმე-15 სართულზე სამი საფეხურით მაღლა.',
+         hoursT:'სამუშაო საათები', hours:'ყოველდღე\n12:00 — 02:00',
+         contactT:'კონტაქტი',
+         qMenu:'მენიუ', qMenuD:'სამზარეულო, კოქტეილები, ღვინო და კალიანი',
+         qBook:'მაგიდის დაჯავშნა', qBookD:'აირჩიეთ სეანსი და ადგილი სქემაზე',
+         qOrder:'შეკვეთა მაგიდიდან', qOrderD:'დაუძახეთ მიმტანს ან შეუკვეთეთ ადგილიდან',
+         perGuest:'ერთ სტუმარზე', loading:'აფიშა იტვირთება…',
+         empty:'უახლოესი სეანსები ჯერ არ გამოცხადებულა. შემოგვიარეთ მოგვიანებით.',
+         fail:'აფიშა ვერ ჩაიტვირთა.' },
+    en:{ sub:'Open-air cinema, kitchen and signature cocktails. Three steps above the 15th floor.',
+         book:'Book a table', menu:'Menu',
+         shows:'What’s on', showsAll:'All screenings',
+         quick:'Where to next', info:'Find us',
+         addrT:'Address', addr:'18 Rejeb Nijaradze, Batumi\nThree steps above the 15th floor.',
+         hoursT:'Opening hours', hours:'Every day\n12 pm — 2 am',
+         contactT:'Get in touch',
+         qMenu:'Menu', qMenuD:'Kitchen, signature cocktails, wine and hookah',
+         qBook:'Book a table', qBookD:'Pick a screening and a seat on the plan',
+         qOrder:'Order from your table', qOrderD:'Call a waiter or order without getting up',
+         perGuest:'per guest', loading:'Loading what’s on…',
+         empty:'No screenings announced yet. Check back later or message us.',
+         fail:'Could not load the programme.' }
+  };
+
+  const $=(id)=>document.getElementById(id);
+  const esc=(s)=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  let lang=(()=>{
+    const u=new URL(location.href).searchParams.get('lang');
+    if(LANGS.some(l=>l.c===u)) return u;
+    try{ const s=localStorage.getItem('spot_lang'); if(LANGS.some(l=>l.c===s)) return s; }catch{}
+    const n=(navigator.language||'ru').slice(0,2);
+    return LANGS.some(l=>l.c===n)?n:'ru';
+  })();
+
+  function renderLangs(){
+    $('langs').innerHTML=LANGS.map(l=>'<button type="button" data-l="'+l.c+'" aria-pressed="'+(l.c===lang)+'">'+l.l+'</button>').join('');
+    $('langs').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+      lang=b.dataset.l;
+      try{ localStorage.setItem('spot_lang',lang); }catch{}
+      const u=new URL(location.href); u.searchParams.set('lang',lang); history.replaceState(null,'',u);
+      renderLangs(); applyStatic(); load();
+    });
+  }
+
+  function applyStatic(){
+    const t=T[lang];
+    document.documentElement.lang=lang;
+    $('hero-sub').textContent=t.sub;
+    $('cta-book').textContent=t.book;
+    $('cta-menu').textContent=t.menu;
+    $('shows-title').textContent=t.shows;
+    $('shows-all').textContent=t.showsAll;
+    $('quick-title').textContent=t.quick;
+    $('info-title').textContent=t.info;
+    $('i-addr-t').textContent=t.addrT;
+    $('i-addr').innerHTML=esc(t.addr).replace(/\n/g,'<br>');
+    $('i-hours-t').textContent=t.hoursT;
+    $('i-hours').innerHTML=esc(t.hours).replace(/\n/g,'<br>');
+    $('i-contact-t').textContent=t.contactT;
+    $('f-menu').textContent=t.menu;
+    $('f-book').textContent=t.book;
+
+    $('quick').innerHTML=[
+      ['/menu',    t.qMenu,  t.qMenuD],
+      ['/reserve', t.qBook,  t.qBookD],
+      ['/table',   t.qOrder, t.qOrderD]
+    ].map(([href,h,p])=>'<a href="'+href+'"><h3>'+esc(h)+'</h3><p>'+esc(p)+'</p></a>').join('');
+  }
+
+  async function load(){
+    const t=T[lang];
+    $('shows').innerHTML='<div class="note">'+esc(t.loading)+'</div>';
+    try{
+      const r=await fetch('/api/upcoming-sessions');
+      const d=await r.json();
+      const list=(d.sessions||[]).slice(0,8);   // афиша на главной — ближайшее
+      if(!list.length){ $('shows').innerHTML='<div class="note">'+esc(t.empty)+'</div>'; return; }
+
+      $('shows').innerHTML='<div class="shows">'+list.map(s=>
+        '<a class="show" href="/reserve?session_id='+encodeURIComponent(s.session_id)+'">'+
+          (s.poster_url
+            ? '<img class="show__ph" src="'+esc(s.poster_url)+'" alt="" loading="lazy" decoding="async">'
+            : '<div class="show__ph--none">SPOT.</div>')+
+          '<div class="show__in">'+
+            '<span class="show__d">'+esc(s.date)+' · '+esc(s.time)+'</span>'+
+            '<h3 class="show__t">'+esc(s.title)+'</h3>'+
+            '<div class="show__p"><b>'+esc(String(s.price))+' GEL</b> '+esc(t.perGuest)+'</div>'+
+          '</div>'+
+        '</a>'
+      ).join('')+'</div>';
+    }catch(e){
+      $('shows').innerHTML='<div class="note">'+esc(T[lang].fail)+'</div>';
+    }
+  }
+
+  renderLangs(); applyStatic(); load();
+})();
+</script>
+</body>
+</html>

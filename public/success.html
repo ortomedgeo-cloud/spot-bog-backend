@@ -15,8 +15,7 @@
   body{ margin:0; min-height:100dvh; background:var(--ink); color:var(--text); font-family:var(--body);
         display:flex; align-items:center; justify-content:center; padding:24px; text-align:center; }
   .box{ max-width:460px; }
-  .mark{ font-family:var(--display); font-weight:600; font-size:20px; letter-spacing:.16em; text-transform:uppercase; text-decoration:none; color:var(--text); display:block; margin-bottom:28px; }
-  .mark b{ color:var(--accent); }
+  .top__logo{ height:30px; width:auto; margin:0 auto 28px; filter:invert(1) hue-rotate(180deg); }
   .tick{ width:64px; height:64px; border-radius:50%; background:rgba(76,175,80,.14); border:1px solid rgba(76,175,80,.5);
          display:flex; align-items:center; justify-content:center; margin:0 auto 20px; font-size:30px; color:#4CAF50; }
   h1{ font-family:var(--display); font-weight:500; font-size:30px; letter-spacing:.04em; text-transform:uppercase; margin:0 0 12px; }
@@ -31,7 +30,7 @@
 </head>
 <body>
   <div class="box">
-    <a class="mark" href="/">SPOT<b>.</b></a>
+    <a href="/" aria-label="SPOT."><img class="top__logo" src="/logo.png" alt="SPOT."></a>
     <div class="tick">✓</div>
     <h1 id="t"></h1>
     <p id="p1"></p>

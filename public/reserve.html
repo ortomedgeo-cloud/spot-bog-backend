@@ -35,8 +35,7 @@
 
   header.top{ position:sticky; top:0; z-index:30; background:rgba(11,11,11,.94); backdrop-filter:blur(10px); border-bottom:1px solid var(--rule); }
   .top__row{ display:flex; align-items:center; gap:12px; padding:11px 0; }
-  .mark{ font-family:var(--display); font-weight:600; font-size:19px; letter-spacing:.16em; text-transform:uppercase; text-decoration:none; margin-right:auto; }
-  .mark b{ color:var(--accent); }
+  .top__logo{ height:26px; width:auto; margin-right:auto; filter:invert(1) hue-rotate(180deg); }
   .langs{ display:flex; gap:2px; }
   .langs button{ font-size:13px; color:var(--muted); background:none; border:1px solid transparent; border-radius:999px; padding:7px 12px; cursor:pointer; min-height:36px; }
   .langs button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); }
@@ -104,7 +103,7 @@
 
 <header class="top">
   <div class="wrap top__row">
-    <a class="mark" href="/">SPOT<b>.</b></a>
+    <a href="/" aria-label="SPOT."><img class="top__logo" src="/logo.png" alt="SPOT."></a>
     <div class="langs" id="langs" role="group" aria-label="Language"></div>
   </div>
 </header>

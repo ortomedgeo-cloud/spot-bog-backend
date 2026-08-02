@@ -19,6 +19,10 @@
     --pad:clamp(16px,4.5vw,32px);
     --hh:56px;              /* высота шапки, уточняется скриптом */
     --r:14px;
+
+    /* Единая шкала вертикальных отступов — та же, что на главной.
+       Все интервалы берутся отсюда, поэтому блоки стоят ритмично. */
+    --s1:8px; --s2:14px; --s3:22px; --s4:clamp(28px,5vw,44px); --s5:clamp(44px,8vw,84px);
   }
   *{ box-sizing:border-box; }
   html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
@@ -50,21 +54,22 @@
   /* ---------- шапка ---------- */
   header.top{ position:sticky; top:0; z-index:30; background:rgba(11,11,11,.94); backdrop-filter:blur(10px); border-bottom:1px solid var(--rule); }
   .top__row{ display:flex; align-items:center; gap:12px; padding:11px 0; }
-  .mark{ font-family:var(--display); font-weight:600; font-size:19px; letter-spacing:.16em; text-transform:uppercase; text-decoration:none; margin-right:auto; }
-  .mark b{ color:var(--accent); }
+  /* Логотип нарисован чёрным для светлых носителей: invert делает его белым,
+     hue-rotate возвращает фирменный оранжевый акцент. */
+  .top__logo{ height:26px; width:auto; margin-right:auto; filter:invert(1) hue-rotate(180deg); }
   .langs{ display:flex; gap:2px; }
   .langs button{ font-size:13px; color:var(--muted); background:none; border:1px solid transparent; border-radius:999px; padding:7px 12px; cursor:pointer; min-height:36px; }
   .langs button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); }
 
   /* ---------- слоган ---------- */
-  .hero{ padding:clamp(22px,5vw,48px) 0 clamp(16px,3vw,26px); }
+  .hero{ padding:var(--s5) 0 var(--s3); }
   .hero h1{ font-family:var(--display); font-weight:500; font-size:clamp(30px,8.5vw,60px); line-height:1; letter-spacing:.02em; text-transform:uppercase; margin:0; }
   .hero h1 span{ display:block; }
   .hero h1 .taste{ color:var(--accent); }
   .hero p{ color:var(--muted); font-size:14px; margin:14px 0 0; max-width:46ch; }
 
   /* ---------- просьбы ---------- */
-  .asks{ padding:4px 0 2px; }
+  .asks{ padding:0 0 var(--s1); }
   .ask{
     font-size:13.5px; color:var(--text); background:var(--card);
     border:1px solid var(--rule); border-radius:999px;
@@ -75,11 +80,12 @@
   .ask.sent{ border-color:var(--accent); color:var(--accent); }
   .ask:disabled{ opacity:.45; cursor:default; }
 
-  h2.sec{ font-family:var(--display); font-weight:500; font-size:clamp(20px,4vw,26px); letter-spacing:.07em; text-transform:uppercase; margin:clamp(28px,5vw,46px) 0 14px; }
-  #menu > h2.sec:first-child{ margin-top:clamp(6px,1.5vw,12px); }
+  h2.sec{ font-family:var(--display); font-weight:500; font-size:clamp(20px,4vw,26px); letter-spacing:.07em; text-transform:uppercase; margin:var(--s4) 0 var(--s3); }
+  /* Первый заголовок не удваивает отступ: сверху уже есть ряд фильтров или рельс */
+  #menu > h2.sec:first-child{ margin-top:0; }
 
   /* ---------- плитки категорий ---------- */
-  .tiles{ display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:10px; }
+  .tiles{ display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:var(--s2); }
   .tile{
     position:relative; border:none; padding:0; cursor:pointer; overflow:hidden;
     border-radius:var(--r); background:var(--card); aspect-ratio:4/3; text-align:left;
@@ -101,9 +107,10 @@
   .rail__in button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); }
 
   /* ---------- подкатегории ---------- */
-  /* Ряд подкатегорий не должен липнуть к линии рельса сверху и к карточкам снизу */
-  .subs{ padding:16px 0 4px; margin-bottom:clamp(16px,3vw,24px); }
-  .subs:empty{ display:none; padding:0; margin:0; }
+  /* Ряд подкатегорий стоит на равном расстоянии от линии рельса сверху
+     и от карточек снизу — иначе он «прилипает» к разделителю. */
+  .subs{ padding:var(--s3) 0; margin:0; }
+  .subs:empty{ display:none; padding:0; }
   .subs button{
     white-space:nowrap; font-size:12.5px; color:var(--muted);
     background:var(--card); border:1px solid var(--rule); border-radius:999px;
@@ -112,7 +119,7 @@
   .subs button[aria-pressed="true"]{ color:#fff; background:var(--accent); border-color:var(--accent); }
 
   /* ---------- карточки блюд ---------- */
-  .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); gap:14px; }
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); gap:var(--s2); }
   .dish{ background:var(--card); border-radius:var(--r); overflow:hidden; display:flex; flex-direction:column; }
   .dish__ph{ position:relative; aspect-ratio:1/1; background:var(--card-2); overflow:hidden; }
   .dish__ph img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
@@ -215,7 +222,7 @@
 
 <header class="top">
   <div class="wrap top__row">
-    <a class="mark" href="/">SPOT<b>.</b></a>
+    <a href="/" aria-label="SPOT."><img class="top__logo" src="/logo.png" alt="SPOT."></a>
     <div class="langs" id="langs" role="group" aria-label="Language"></div>
   </div>
 </header>

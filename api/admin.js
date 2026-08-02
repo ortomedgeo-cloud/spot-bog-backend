@@ -767,7 +767,9 @@ $('ss-create').addEventListener('click', async ()=>{
     if(r.ok&&d.ok){
       if(SS_EDIT){ msg(m,'Сеанс обновлён.',true); ssResetForm(); }
       else {
-        const link='https://spot-bar.site/reserve?session_id='+d.session.id;
+        // Ссылка на текущий домен: работает и на vercel.app до переключения DNS,
+        // и на spot-bar.site после — без правки кода.
+        const link=location.origin+'/reserve?session_id='+d.session.id;
         msg(m,'Сеанс создан. Ссылка: '+link,true);
         $('ss-date').value=''; $('ss-time').value='';
       }
@@ -784,7 +786,7 @@ async function loadSessionsList(){
     if(r.status===401){ handle401(); return; }
     const d=await r.json(); const ss=d.sessions||[];
     box.innerHTML = ss.length ? ss.map((s,i) => {
-      const link='https://spot-bar.site/reserve?session_id='+s.id;
+      const link=location.origin+'/reserve?session_id='+s.id;
       return '<div class="srow'+(s.is_archived?' arch':'')+'" data-i="'+i+'">'+
         '<input type="checkbox" class="sel" data-id="'+esc(s.id)+'">'+
         (s.poster_url?'<img src="'+esc(s.poster_url)+'">':'<img>')+

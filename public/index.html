@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>SPOT. — рутоп-кинобар в Батуми</title>
-<meta name="description" content="SPOT. — рутоп-кинобар в Батуми: кино под открытым небом, кухня и авторские коктейли. Афиша, меню и бронь столика.">
+<title>SPOT. — руфтоп-кинобар в Батуми</title>
+<meta name="description" content="SPOT. — руфтоп-кинобар в Батуми: кино под открытым небом, кухня и авторские коктейли. Афиша, меню и бронь столика.">
 <meta property="og:title" content="SPOT. — Rooftop Cinema Bar">
 <meta property="og:description" content="Кино под открытым небом, кухня и авторские коктейли. Батуми.">
 <meta property="og:type" content="website">
@@ -72,8 +72,26 @@
   .sec__h a{ font-size:13px; color:var(--muted); text-decoration:none; white-space:nowrap; border-bottom:1px solid var(--rule); }
   .sec__h a:hover{ color:var(--text); border-color:var(--accent); }
 
+  /* ---------- афиша: карусель по дням ---------- */
+  .prog__head{ display:flex; align-items:center; gap:var(--s2); margin-bottom:var(--s3); }
+  .prog__day{ flex:1; min-width:0; }
+  .prog__kicker{ font-family:var(--display); font-weight:500; font-size:12px; letter-spacing:.24em; text-transform:uppercase; color:var(--muted); margin:0 0 4px; }
+  .prog__title{ font-family:var(--display); font-weight:500; font-size:clamp(22px,4.6vw,34px); line-height:1.05; letter-spacing:.05em; text-transform:uppercase; margin:0; }
+  .prog__title span{ color:var(--accent); }
+  .prog__nav{ display:flex; gap:8px; flex:none; }
+  .prog__nav button{
+    width:46px; height:46px; border-radius:12px; cursor:pointer;
+    background:var(--card); border:1px solid var(--rule); color:var(--text);
+    font-size:17px; line-height:1; transition:border-color .18s, opacity .18s;
+  }
+  .prog__nav button:hover:not(:disabled){ border-color:var(--accent); }
+  .prog__nav button:disabled{ opacity:.3; cursor:default; }
+  .prog__dots{ display:flex; gap:6px; justify-content:center; margin-top:var(--s3); flex-wrap:wrap; }
+  .prog__dots button{ width:8px; height:8px; padding:0; border-radius:50%; border:none; background:var(--rule); cursor:pointer; }
+  .prog__dots button[aria-current="true"]{ background:var(--accent); width:22px; border-radius:99px; }
+
   /* ---------- афиша ---------- */
-  .shows{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:var(--s2); }
+  .shows{ display:grid; grid-template-columns:repeat(2,1fr); gap:var(--s2); }
   .show{ background:var(--card); border-radius:var(--r); overflow:hidden; display:flex; flex-direction:column; text-decoration:none; }
   .show__ph{ aspect-ratio:2/3; object-fit:cover; background:var(--card-2); width:100%; }
   .show__ph--none{ aspect-ratio:2/3; background:var(--card-2); display:flex; align-items:center; justify-content:center; color:#3a3632; font-family:var(--display); font-size:26px; letter-spacing:.1em; }
@@ -136,11 +154,19 @@
   </div>
 
   <section class="wrap">
-    <div class="sec__h">
-      <h2 id="shows-title"></h2>
-      <a href="/reserve" id="shows-all"></a>
+    <div class="prog__head" id="prog-head" style="display:none">
+      <div class="prog__day">
+        <p class="prog__kicker" id="prog-kicker"></p>
+        <h2 class="prog__title" id="prog-title"></h2>
+      </div>
+      <div class="prog__nav">
+        <button type="button" id="prog-prev" aria-label="←">‹</button>
+        <button type="button" id="prog-next" aria-label="→">›</button>
+      </div>
     </div>
     <div id="shows"><div class="note" id="shows-state"></div></div>
+    <div class="prog__dots" id="prog-dots"></div>
+    <p style="margin:var(--s3) 0 0"><a href="/reserve" id="shows-all" style="font-size:13px;color:var(--muted);text-decoration:none;border-bottom:1px solid var(--rule)"></a></p>
   </section>
 
   <section class="wrap">
@@ -182,22 +208,22 @@
   const LANGS=[{c:'ka',l:'ქარ'},{c:'ru',l:'рус'},{c:'en',l:'eng'}];
 
   const T={
-    ru:{ sub:'Кино под открытым небом, кухня и авторские коктейли. Тремя ступенями выше 15-го этажа.',
+    ru:{ sub:'Кино под открытым небом, кухня и авторские коктейли. Мы на три ступени выше 15-го этажа.',
          book:'Забронировать', menu:'Меню',
-         shows:'Афиша', showsAll:'Все сеансы',
-         quick:'Куда дальше', info:'Как нас найти',
-         addrT:'Адрес', addr:'ул. Реджеба Ниджарадзе 18, Батуми\nТремя ступенями выше 15-го этажа.',
+         shows:'Афиша', showsAll:'Все сеансы', kicker:'Что смотрим', today:'Сегодня', tomorrow:'Завтра', more:n=>'и ещё '+n+' на этот день',
+         quick:'Разделы', info:'Как нас найти',
+         addrT:'Адрес', addr:'ул. Реджеба Ниджарадзе, 18, Батуми\nМы на три ступени выше 15-го этажа.',
          hoursT:'Часы работы', hours:'Каждый день\n12:00 — 02:00',
          contactT:'Связаться',
          qMenu:'Меню', qMenuD:'Кухня, авторские коктейли, вино и кальяны',
-         qBook:'Бронь столика', qBookD:'Выбрать сеанс и место на схеме зала',
-         qOrder:'Заказ за столиком', qOrderD:'Позвать официанта или заказать, не вставая',
+         qBook:'Бронь столика', qBookD:'Выбрать сеанс и столик на схеме зала',
+         qOrder:'Заказ за столиком', qOrderD:'Позвать официанта или сделать заказ, не вставая из-за стола',
          perGuest:'за гостя', loading:'Загружаем афишу…',
          empty:'Ближайшие сеансы ещё не объявлены. Загляните позже или напишите нам.',
          fail:'Не удалось загрузить афишу.' },
     ka:{ sub:'ღია ცის ქვეშ კინო, სამზარეულო და საავტორო კოქტეილები. მე-15 სართულზე სამი საფეხურით მაღლა.',
          book:'დაჯავშნა', menu:'მენიუ',
-         shows:'აფიშა', showsAll:'ყველა სეანსი',
+         shows:'აფიშა', showsAll:'ყველა სეანსი', kicker:'რას ვუყურებთ', today:'დღეს', tomorrow:'ხვალ', more:n=>'და კიდევ '+n+' ამ დღეს',
          quick:'სად შემდეგ', info:'როგორ მოგვძებნოთ',
          addrT:'მისამართი', addr:'რეჯებ ნიჟარაძის 18, ბათუმი\nმე-15 სართულზე სამი საფეხურით მაღლა.',
          hoursT:'სამუშაო საათები', hours:'ყოველდღე\n12:00 — 02:00',
@@ -210,7 +236,7 @@
          fail:'აფიშა ვერ ჩაიტვირთა.' },
     en:{ sub:'Open-air cinema, kitchen and signature cocktails. Three steps above the 15th floor.',
          book:'Book a table', menu:'Menu',
-         shows:'What’s on', showsAll:'All screenings',
+         shows:'What’s on', showsAll:'All screenings', kicker:'What’s on', today:'Today', tomorrow:'Tomorrow', more:n=>'and '+n+' more that day',
          quick:'Where to next', info:'Find us',
          addrT:'Address', addr:'18 Rejeb Nijaradze, Batumi\nThree steps above the 15th floor.',
          hoursT:'Opening hours', hours:'Every day\n12 pm — 2 am',
@@ -269,27 +295,99 @@
     ].map(([href,h,p])=>'<a href="'+href+'"><h3>'+esc(h)+'</h3><p>'+esc(p)+'</p></a>').join('');
   }
 
+  // Афиша листается по дням: на странице один день и до двух сеансов.
+  // Дни, где сеансов больше двух, не прячем — под карточками подпись
+  // «и ещё N на этот день», чтобы было видно, что там есть выбор.
+  const PER_DAY = 2;
+  let DAYS = [];
+  let dayIdx = 0;
+
+  function parseDdMm(v){
+    const m=String(v||'').match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    return m ? new Date(Number(m[3]), Number(m[2])-1, Number(m[1])) : null;
+  }
+  function sameDay(a,b){
+    return a&&b&&a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+  }
+  function locale(){ return lang==='ka' ? 'ka-GE' : (lang==='en' ? 'en-GB' : 'ru-RU'); }
+  function dayLabel(dateStr){
+    const t=T[lang], d=parseDdMm(dateStr);
+    if(!d) return dateStr;
+    const now=new Date();
+    const tomorrow=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);
+    if(sameDay(d,now)) return t.today;
+    if(sameDay(d,tomorrow)) return t.tomorrow;
+    return d.toLocaleDateString(locale(), { weekday:'long' });
+  }
+  function daySub(dateStr){
+    const d=parseDdMm(dateStr);
+    return d ? d.toLocaleDateString(locale(), { day:'numeric', month:'long' }) : '';
+  }
+
+  function renderDay(){
+    const t=T[lang];
+    if(!DAYS.length) return;
+    if(dayIdx<0) dayIdx=0;
+    if(dayIdx>DAYS.length-1) dayIdx=DAYS.length-1;
+
+    const day=DAYS[dayIdx];
+    const shown=day.items.slice(0,PER_DAY);
+    const rest=day.items.length-shown.length;
+
+    $('prog-head').style.display='';
+    $('prog-kicker').textContent=t.kicker;
+    $('prog-title').innerHTML=esc(dayLabel(day.date))+' <span>'+esc(daySub(day.date))+'</span>';
+    $('prog-prev').disabled = dayIdx===0;
+    $('prog-next').disabled = dayIdx===DAYS.length-1;
+
+    $('shows').innerHTML='<div class="shows">'+shown.map(sn=>
+      '<a class="show" href="/reserve?session_id='+encodeURIComponent(sn.session_id)+'">'+
+        (sn.poster_url
+          ? '<img class="show__ph" src="'+esc(sn.poster_url)+'" alt="" loading="lazy" decoding="async">'
+          : '<div class="show__ph--none">SPOT.</div>')+
+        '<div class="show__in">'+
+          '<span class="show__d">'+esc(sn.time)+'</span>'+
+          '<h3 class="show__t">'+esc(sn.title)+'</h3>'+
+          '<div class="show__p"><b>'+esc(String(sn.price))+' GEL</b> '+esc(t.perGuest)+'</div>'+
+        '</div>'+
+      '</a>'
+    ).join('')+'</div>'+
+    (rest>0 ? '<p style="color:var(--muted);font-size:13px;margin:var(--s2) 0 0">'+esc(t.more(rest))+'</p>' : '');
+
+    $('prog-dots').innerHTML=DAYS.map((d,i)=>
+      '<button type="button" data-i="'+i+'" aria-current="'+(i===dayIdx)+'" aria-label="'+esc(dayLabel(d.date))+'"></button>'
+    ).join('');
+    $('prog-dots').querySelectorAll('button').forEach(b=>b.onclick=()=>{ dayIdx=Number(b.dataset.i); renderDay(); });
+  }
+
+  $('prog-prev').onclick=()=>{ dayIdx--; renderDay(); };
+  $('prog-next').onclick=()=>{ dayIdx++; renderDay(); };
+  document.addEventListener('keydown', e=>{
+    if(!DAYS.length) return;
+    if(e.key==='ArrowLeft'  && dayIdx>0){ dayIdx--; renderDay(); }
+    if(e.key==='ArrowRight' && dayIdx<DAYS.length-1){ dayIdx++; renderDay(); }
+  });
+
   async function load(){
     const t=T[lang];
     $('shows').innerHTML='<div class="note">'+esc(t.loading)+'</div>';
+    $('prog-head').style.display='none';
+    $('prog-dots').innerHTML='';
     try{
       const r=await fetch('/api/upcoming-sessions');
       const d=await r.json();
-      const list=(d.sessions||[]).slice(0,8);   // афиша на главной — ближайшее
+      const list=d.sessions||[];
       if(!list.length){ $('shows').innerHTML='<div class="note">'+esc(t.empty)+'</div>'; return; }
 
-      $('shows').innerHTML='<div class="shows">'+list.map(s=>
-        '<a class="show" href="/reserve?session_id='+encodeURIComponent(s.session_id)+'">'+
-          (s.poster_url
-            ? '<img class="show__ph" src="'+esc(s.poster_url)+'" alt="" loading="lazy" decoding="async">'
-            : '<div class="show__ph--none">SPOT.</div>')+
-          '<div class="show__in">'+
-            '<span class="show__d">'+esc(s.date)+' · '+esc(s.time)+'</span>'+
-            '<h3 class="show__t">'+esc(s.title)+'</h3>'+
-            '<div class="show__p"><b>'+esc(String(s.price))+' GEL</b> '+esc(t.perGuest)+'</div>'+
-          '</div>'+
-        '</a>'
-      ).join('')+'</div>';
+      // Группируем по дате; порядок дат сохраняем как пришёл с сервера.
+      const byDate=new Map();
+      list.forEach(sn=>{
+        if(!byDate.has(sn.date)) byDate.set(sn.date, []);
+        byDate.get(sn.date).push(sn);
+      });
+      DAYS=[...byDate.entries()].map(([date,items])=>({ date, items }));
+      dayIdx=0;
+      renderDay();
     }catch(e){
       $('shows').innerHTML='<div class="note">'+esc(T[lang].fail)+'</div>';
     }

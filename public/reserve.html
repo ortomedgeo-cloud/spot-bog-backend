@@ -45,7 +45,7 @@
 
   /* афиша сеанса */
   .ev{ display:grid; grid-template-columns:96px 1fr; gap:14px; background:var(--card); border-radius:var(--r); padding:14px; margin-bottom:18px; }
-  .ev img{ width:96px; aspect-ratio:2/3; object-fit:cover; border-radius:9px; background:var(--card-2); }
+  .ev img{ width:96px; aspect-ratio:2/3; object-fit:cover; object-position:center top; border-radius:9px; background:var(--card-2); }
   .ev__t{ font-family:var(--display); font-size:19px; letter-spacing:.03em; text-transform:uppercase; margin:0 0 6px; }
   .ev__m{ color:var(--muted); font-size:13.5px; margin:0 0 4px; }
   .ev__p{ font-family:var(--display); font-size:17px; letter-spacing:.03em; }
@@ -63,26 +63,31 @@
   .two{ display:flex; gap:10px; } .two > *{ flex:1; min-width:0; }
   @media (max-width:480px){ .two{ flex-direction:column; gap:0 } }
 
-  /* схема зала */
+  /* схема зала: рисуется по плану из админки и масштабируется под экран */
   .hall{ background:var(--card); border-radius:var(--r); padding:14px; margin-bottom:16px; }
   .hall__legend{ display:flex; gap:14px; font-size:12px; color:var(--muted); margin-bottom:12px; flex-wrap:wrap; }
   .hall__legend i{ width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:5px; vertical-align:-1px; }
-  .screen{ text-align:center; font-family:var(--display); font-size:11px; letter-spacing:.28em; color:var(--muted); border:1px solid var(--rule); border-radius:8px; padding:7px; margin-bottom:12px; }
-  .seats{ display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
-  .bar-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:12px; padding-top:12px; border-top:1px dashed var(--rule); }
-  .seat{
-    border:1px solid var(--rule); background:var(--card-2); color:var(--text);
-    border-radius:10px; padding:12px 4px; font-family:var(--display); font-size:13px;
-    letter-spacing:.03em; cursor:pointer; min-height:52px; transition:border-color .15s, background .15s;
+  .plan{ position:relative; width:100%; }
+  .plan__in{ position:relative; transform-origin:top left; }
+  .plan__screen{
+    position:absolute; left:50%; transform:translateX(-50%); top:8px;
+    font-family:var(--display); font-size:11px; letter-spacing:.3em; color:var(--muted);
+    border:1px solid var(--rule); border-radius:8px; padding:6px 30px; pointer-events:none;
   }
-  .seat small{ display:block; font-family:var(--body); font-size:10px; color:var(--muted); letter-spacing:0; margin-top:2px; }
-  .seat.free{ border-color:rgba(76,175,80,.55); }
-  .seat.free:hover{ background:rgba(76,175,80,.14); }
-  .seat.busy{ border-color:rgba(244,67,54,.4); color:var(--muted); background:transparent; cursor:not-allowed; opacity:.55; }
-  .seat.small{ opacity:.4; cursor:not-allowed; }
-  .seat.picked{ background:var(--accent); border-color:var(--accent); color:#fff; }
-  .seat.picked small{ color:rgba(255,255,255,.8); }
-  @media (max-width:520px){ .seats{ grid-template-columns:repeat(3,1fr) } .bar-row{ grid-template-columns:repeat(4,1fr) } }
+  .pt{
+    position:absolute; box-sizing:border-box; cursor:pointer; padding:2px;
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    font-family:var(--display); font-size:13px; letter-spacing:.02em; line-height:1.1;
+    background:var(--card-2); color:var(--text); border:1px solid var(--rule);
+    transition:border-color .15s, background .15s;
+  }
+  .pt small{ display:block; font-family:var(--body); font-size:9.5px; color:var(--muted); letter-spacing:0; }
+  .pt.free{ border-color:rgba(76,175,80,.55); }
+  @media (hover:hover){ .pt.free:hover{ background:rgba(76,175,80,.14); } }
+  .pt.busy{ border-color:rgba(244,67,54,.35); color:var(--muted); opacity:.5; cursor:not-allowed; }
+  .pt.small{ opacity:.35; cursor:not-allowed; }
+  .pt.picked{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .pt.picked small{ color:rgba(255,255,255,.85); }
 
   .sum{ position:fixed; left:0; right:0; bottom:0; z-index:40; background:rgba(11,11,11,.97); backdrop-filter:blur(12px); border-top:1px solid var(--rule); padding:11px 0 calc(13px + env(safe-area-inset-bottom)); }
   .sum__row{ display:flex; align-items:center; gap:12px; }
@@ -129,9 +134,7 @@
       <span><i style="background:var(--busy)"></i><span id="lg-busy"></span></span>
       <span><i style="background:var(--accent)"></i><span id="lg-pick"></span></span>
     </div>
-    <div class="screen">SCREEN</div>
-    <div class="seats" id="seats"></div>
-    <div class="bar-row" id="bar-seats"></div>
+    <div class="plan" id="plan"><div class="plan__in" id="plan-in"></div></div>
     <div class="hint" id="seat-hint" style="font-size:12px;color:var(--muted);margin-top:10px"></div>
   </div>
 
@@ -166,10 +169,6 @@
 <script>
 (() => {
   const LANGS=[{c:'ka',l:'ქარ'},{c:'ru',l:'рус'},{c:'en',l:'eng'}];
-  const TABLES=[1,2,3,4,5,6,7,8,9,10];
-  const BARS=[1,2,3,4];
-  const BIG_TABLES=[9,10];      // только от 3 гостей
-  const BIG_MIN=3;
   const MAX_GUESTS=8;
 
   const T={
@@ -178,7 +177,6 @@
          insta:'Instagram (необязательно)', comment:'Комментарий',
          free:'свободно', busy:'занято', pick:'ваш выбор',
          pickSeat:'Выберите столик на схеме.', seatTaken:'Этот столик уже занят на этот сеанс.',
-         bigOnly:'Столы 9 и 10 — от '+BIG_MIN+' гостей.',
          chosen:t=>'Выбран '+t, deposit:'Депозит', pay:'Оплатить',
          perGuest:'за гостя', noSessions:'Ближайших сеансов пока нет. Загляните позже или напишите нам.',
          loading:'Загружаем…', fail:'Что-то пошло не так. Попробуйте ещё раз.',
@@ -191,7 +189,6 @@
          insta:'Instagram (არასავალდებულო)', comment:'კომენტარი',
          free:'თავისუფალია', busy:'დაკავებულია', pick:'თქვენი არჩევანი',
          pickSeat:'აირჩიეთ მაგიდა სქემაზე.', seatTaken:'ეს მაგიდა უკვე დაკავებულია.',
-         bigOnly:'მაგიდები 9 და 10 — '+BIG_MIN+' სტუმრიდან.',
          chosen:t=>'არჩეულია '+t, deposit:'დეპოზიტი', pay:'გადახდა',
          perGuest:'ერთ სტუმარზე', noSessions:'უახლოესი სეანსები ჯერ არ არის. შემოგვიარეთ მოგვიანებით.',
          loading:'იტვირთება…', fail:'რაღაც შეცდომაა. სცადეთ ხელახლა.',
@@ -204,7 +201,6 @@
          insta:'Instagram (optional)', comment:'Comment',
          free:'free', busy:'taken', pick:'your pick',
          pickSeat:'Pick a table on the plan.', seatTaken:'That table is already taken for this screening.',
-         bigOnly:'Tables 9 and 10 are for '+BIG_MIN+'+ guests.',
          chosen:t=>t+' selected', deposit:'Deposit', pay:'Pay',
          perGuest:'per guest', noSessions:'No upcoming screenings yet. Check back later or message us.',
          loading:'Loading…', fail:'Something went wrong. Please try again.',
@@ -277,11 +273,14 @@
   $('f-guests').addEventListener('change',()=>{
     guests=Number($('f-guests').value)||1;
     // Стол мог стать недоступным при уменьшении числа гостей
-    if(seat && BIG_TABLES.includes(seatNum(seat)) && guests<BIG_MIN) seat=null;
+    // Стол мог стать недоступным при смене числа гостей — снимаем выбор.
+    if(seat && PLAN){
+      const p=PLAN.tables.find(x=>x.label===seat);
+      if(p && (guests < (Number(p.capacity_min)||1) || guests > (Number(p.capacity_max)||99))) seat=null;
+    }
     renderSeats(); renderSum();
   });
 
-  const seatNum=(label)=>Number((String(label).match(/\d+/)||[])[0]);
 
   function renderEvent(){
     const t=T[lang];
@@ -298,24 +297,62 @@
       '</div>';
   }
 
+  // Схема зала берётся из плана, нарисованного в админке. Холст задан в
+  // условных единицах, а здесь масштабируется под ширину экрана — поэтому
+  // одна и та же расстановка одинаково читается на телефоне и на десктопе.
+  let PLAN = null;
+
+  async function loadPlan(){
+    try{
+      const r = await fetch('/api/floor-plan');
+      const d = await r.json();
+      if(d && d.ok) PLAN = d;
+    }catch(e){ PLAN = null; }
+  }
+
+  function fitPlan(){
+    if(!PLAN) return;
+    const box = $('plan');
+    const W = Number(PLAN.settings.canvas_w) || 1000;
+    const H = Number(PLAN.settings.canvas_h) || 700;
+    const scale = Math.min(1, box.clientWidth / W);
+    const inner = $('plan-in');
+    inner.style.width = W + 'px';
+    inner.style.height = H + 'px';
+    inner.style.transform = 'scale(' + scale + ')';
+    box.style.height = (H * scale) + 'px';
+  }
+  window.addEventListener('resize', fitPlan);
+
   function renderSeats(){
     const t=T[lang];
-    const cell=(label)=>{
-      const n=seatNum(label);
-      const isBusy=booked.has(label.toLowerCase());
-      const tooSmall=BIG_TABLES.includes(n) && label.indexOf('Стол')===0 && guests<BIG_MIN;
-      const cls=isBusy?'busy':(tooSmall?'small':'free');
-      const picked=(seat===label)?' picked':'';
-      const note=isBusy?t.busy:(tooSmall?(BIG_MIN+'+'):'');
-      return '<button type="button" class="seat '+cls+picked+'" data-seat="'+esc(label)+'"'+
-        ((isBusy||tooSmall)?' disabled':'')+'>'+esc(label.replace('Стол ','').replace('Бар ','B'))+
-        (note?'<small>'+esc(note)+'</small>':'')+'</button>';
-    };
-    $('seats').innerHTML=TABLES.map(n=>cell('Стол '+n)).join('');
-    $('bar-seats').innerHTML=BARS.map(n=>cell('Бар '+n)).join('');
+    if(!PLAN || !PLAN.tables || !PLAN.tables.length){
+      $('plan-in').innerHTML='';
+      $('seat-hint').textContent=t.pickSeat;
+      return;
+    }
+
+    $('plan-in').innerHTML =
+      '<div class="plan__screen">'+esc(PLAN.settings.screen_label||'SCREEN')+'</div>'+
+      PLAN.tables.map(p=>{
+        const isBusy = booked.has(String(p.label).toLowerCase());
+        const tooSmall = guests < (Number(p.capacity_min)||1) || guests > (Number(p.capacity_max)||99);
+        const cls = isBusy ? 'busy' : (tooSmall ? 'small' : 'free');
+        const picked = (seat===p.label) ? ' picked' : '';
+        const style = 'left:'+p.x+'px;top:'+p.y+'px;width:'+p.w+'px;height:'+p.h+'px;'+
+          'border-radius:'+(p.shape==='circle'?'50%':'10px')+';'+
+          (p.rotation?('transform:rotate('+p.rotation+'deg);'):'');
+        const note = isBusy ? t.busy : (tooSmall ? (p.capacity_min+'–'+p.capacity_max) : '');
+        return '<button type="button" class="pt '+cls+picked+'" data-seat="'+esc(p.label)+'" style="'+style+'"'+
+          ((isBusy||tooSmall)?' disabled':'')+'>'+
+          '<span>'+esc(String(p.label).replace('Стол ','').replace('Бар ','B'))+
+          (note?'<small>'+esc(note)+'</small>':'')+'</span></button>';
+      }).join('');
+
+    fitPlan();
     $('seat-hint').textContent = seat ? t.chosen(seat) : t.pickSeat;
 
-    document.querySelectorAll('[data-seat]').forEach(b=>b.onclick=()=>{
+    $('plan-in').querySelectorAll('[data-seat]').forEach(b=>b.onclick=()=>{
       seat=b.dataset.seat; renderSeats(); renderSum();
     });
   }
@@ -407,7 +444,7 @@
     if(!name){ m.textContent=t.needName; m.className='msg err'; $('f-name').focus(); return; }
     if(!phone){ m.textContent=t.needPhone; m.className='msg err'; $('f-phone').focus(); return; }
     if(!looksLikePhone(phone)){ m.textContent=t.badPhone; m.className='msg err'; $('f-phone').focus(); return; }
-    if(!seat){ m.textContent=t.needSeat; m.className='msg err'; window.scrollTo({top:$('seats').offsetTop-120,behavior:'smooth'}); return; }
+    if(!seat){ m.textContent=t.needSeat; m.className='msg err'; window.scrollTo({top:$('plan').offsetTop-120,behavior:'smooth'}); return; }
 
     $('pay').disabled=true; m.textContent=t.going; m.className='msg ok';
     try{
@@ -432,7 +469,7 @@
     }
   };
 
-  renderLangs(); applyStatic(); boot();
+  renderLangs(); applyStatic(); loadPlan().then(boot);
 })();
 </script>
 </body>

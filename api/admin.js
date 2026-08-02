@@ -186,6 +186,42 @@ function page() {
 
   .btn.small.danger { background:#F44336; color:#fff; }
 
+  /* конструктор зала */
+  .fl-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+  .fl-bar .grp { display:flex; gap:6px; align-items:center; background:#fff; border-radius:10px; padding:6px 10px; }
+  .fl-bar label { font-size:12px; color:#666; }
+  .fl-bar input[type=number] { width:64px; padding:5px 7px; border:1px solid #ddd; border-radius:6px; font-size:13px; }
+  .fl-wrap { position:relative; background:#fff; border-radius:12px; padding:10px; overflow:auto; }
+  .fl-canvas {
+    position:relative; margin:0 auto; background:#faf9f8;
+    border:1px solid #e6e4e1; border-radius:10px; touch-action:none; user-select:none;
+  }
+  .fl-screen {
+    position:absolute; left:50%; transform:translateX(-50%); top:10px;
+    font-size:10px; letter-spacing:.3em; color:#aaa; border:1px solid #e0ddd9;
+    border-radius:6px; padding:5px 26px; pointer-events:none;
+  }
+  .fl-t {
+    position:absolute; box-sizing:border-box; cursor:grab;
+    background:#2f2b28; color:#fff; border:2px solid #46403b;
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    font-size:12px; font-weight:600; line-height:1.1; padding:2px;
+  }
+  .fl-t.bar { background:#3a3330; border-color:#5b524c; }
+  .fl-t.off { opacity:.35; }
+  .fl-t.sel { border-color:#E75228; box-shadow:0 0 0 3px rgba(231,82,40,.25); z-index:5; }
+  .fl-t small { display:block; font-weight:400; font-size:9.5px; opacity:.65; }
+  .fl-h {
+    position:absolute; right:-7px; bottom:-7px; width:15px; height:15px;
+    background:#fff; border:2px solid #E75228; border-radius:4px; cursor:se-resize;
+  }
+  .fl-side { background:#fff; border-radius:12px; padding:14px; margin-top:10px; }
+  .fl-side .row { margin-bottom:10px; }
+  .fl-warn { background:#fff7e6; border:1px solid #f5d98b; color:#8a6100; font-size:12.5px; padding:9px 11px; border-radius:8px; margin-bottom:10px; }
+  .fl-save { position:sticky; bottom:0; background:#111; color:#fff; border-radius:10px; padding:10px 14px; display:none; align-items:center; gap:12px; font-size:13px; margin-top:10px; }
+  .fl-save.show { display:flex; }
+  .fl-save span { flex:1; }
+
   /* конструктор меню */
   .mb-sub { border-top:1px solid #f0f0f0; }
   .mb-sub__h { display:flex; align-items:center; gap:7px; padding:7px 6px 6px; background:#fcfcfc; }
@@ -244,6 +280,7 @@ function page() {
     <div class="tab" data-tab="events">События</div>
     <div class="tab" data-tab="sessions">Сеансы</div>
     <div class="tab" data-tab="menu">Меню</div>
+    <div class="tab" data-tab="floor">Зал</div>
     <div class="tab" data-tab="svc">Обслуживание<span id="svc-badge"></span></div>
   </div>
 
@@ -361,6 +398,32 @@ function page() {
     <div class="card">
       <label style="font-size:13px;font-weight:600">Меню</label>
       <div class="hint" style="margin:6px 0 10px">Перетаскивай за ⠿ или двигай стрелками. Позицию можно перенести в другую категорию выпадающим списком. Глаз скрывает категорию с сайта, кружок снимает позицию с продажи. Звезда у подкатегории — показывать её на главной («Всё меню»); если в категории не отмечено ни одной, показываются все.</div><div id="menu-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div><div class="mb-save" id="mb-save"><span id="mb-save-t">Порядок изменён</span><button class="btn small" id="mb-save-btn">Сохранить</button><button class="btn small ghost" id="mb-undo-btn">Отменить</button></div>
+    </div>
+  </div>
+
+  <!-- ===== FLOOR ===== -->
+  <div class="panel" id="panel-floor">
+    <div class="card">
+      <div class="fl-bar">
+        <button class="btn small" id="fl-add">+ Стол</button>
+        <button class="btn small ghost" id="fl-add-bar">+ Барное место</button>
+        <div class="grp"><label>Сетка</label><input id="fl-grid" type="number" min="0" max="100" step="5"></div>
+        <div class="grp"><label>Холст</label>
+          <input id="fl-cw" type="number" min="400" max="3000" step="20">×
+          <input id="fl-ch" type="number" min="300" max="3000" step="20"></div>
+        <button class="btn small ghost" id="fl-reload">Сбросить правки</button>
+      </div>
+      <div class="hint">Перетаскивай столы мышью, тяни за угол — меняешь размер. Стрелками — точное смещение, Shift+стрелки — крупный шаг. Delete убирает выбранный стол из плана.</div>
+    </div>
+
+    <div class="fl-wrap"><div class="fl-canvas" id="fl-canvas"></div></div>
+
+    <div class="fl-side" id="fl-side"><div class="hint">Выбери стол на схеме, чтобы изменить его.</div></div>
+
+    <div class="fl-save" id="fl-save">
+      <span id="fl-save-t">План изменён</span>
+      <button class="btn small" id="fl-save-btn">Сохранить</button>
+      <button class="btn small ghost" id="fl-undo-btn">Отменить</button>
     </div>
   </div>
 
@@ -493,6 +556,7 @@ document.querySelectorAll('#main-tabs .tab').forEach(t => t.addEventListener('cl
   if(t.dataset.tab==='events') { loadEventsList(); }
   if(t.dataset.tab==='sessions') { loadEventOptions(); loadSessionsList(); }
   if(t.dataset.tab==='menu') loadMenu();
+  if(t.dataset.tab==='floor') loadFloor();
   if(t.dataset.tab==='svc') { loadSvc(); loadNotify(); }
 }));
 
@@ -985,6 +1049,243 @@ async function svcSet(payload){
 
 $('svc-reload').addEventListener('click', ()=>loadSvc());
 $('svc-hours').addEventListener('change', ()=>loadSvc());
+
+// ---------- КОНСТРУКТОР ЗАЛА ----------
+// Метка стола («Стол 5») — ключ, по которому бронь занимает место. Поэтому
+// геометрию можно менять свободно, а переименование и удаление показывают
+// предупреждение: у метки может быть история броней.
+//
+// Правки копятся локально и уходят одним запросом по кнопке — случайное
+// движение мышью не должно менять схему на боевом сайте мгновенно.
+
+let FLOOR = { settings:{}, tables:[], inUse:{} };
+let FL_SNAP = null;
+let FL_SEL = null;      // выбранная метка
+let FL_DIRTY = false;
+let FL_DRAG = null;
+
+function flDirty(){ FL_DIRTY = true; $('fl-save').classList.add('show'); }
+function flGrid(){ return Math.max(0, Number($('fl-grid').value) || 0); }
+function flSnap(v){ const g = flGrid(); return g ? Math.round(v / g) * g : Math.round(v); }
+
+async function loadFloor(){
+  try{
+    const r = await fetch(api('admin-floor'), F);
+    if(r.status===401){ handle401(); return; }
+    const d = await r.json();
+    FLOOR = { settings:d.settings||{}, tables:d.tables||[], inUse:d.inUse||{} };
+    FL_SNAP = JSON.stringify(FLOOR.tables);
+    FL_DIRTY = false; FL_SEL = null;
+    $('fl-save').classList.remove('show');
+    $('fl-grid').value = FLOOR.settings.grid ?? 20;
+    $('fl-cw').value = FLOOR.settings.canvas_w ?? 1000;
+    $('fl-ch').value = FLOOR.settings.canvas_h ?? 700;
+    flRender();
+  }catch(e){ $('fl-canvas').innerHTML='<div class="hint" style="padding:20px">Ошибка загрузки плана.</div>'; }
+}
+
+function flRender(){
+  const cv = $('fl-canvas');
+  const W = Number($('fl-cw').value) || 1000;
+  const H = Number($('fl-ch').value) || 700;
+  const g = flGrid();
+
+  cv.style.width = W + 'px';
+  cv.style.height = H + 'px';
+  // Сетка рисуется фоном — не плодим тысячи элементов ради разметки.
+  cv.style.backgroundImage = g
+    ? 'linear-gradient(#ecebe9 1px, transparent 1px), linear-gradient(90deg, #ecebe9 1px, transparent 1px)'
+    : 'none';
+  cv.style.backgroundSize = g ? (g+'px '+g+'px') : 'auto';
+
+  cv.innerHTML = '<div class="fl-screen">'+esc(FLOOR.settings.screen_label||'SCREEN')+'</div>'+
+    FLOOR.tables.map(t=>{
+      const sel = t.label===FL_SEL;
+      const style = 'left:'+t.x+'px;top:'+t.y+'px;width:'+t.w+'px;height:'+t.h+'px;'+
+        'border-radius:'+(t.shape==='circle'?'50%':'10px')+';'+
+        (t.rotation?('transform:rotate('+t.rotation+'deg);'):'');
+      return '<div class="fl-t'+(t.zone==='bar'?' bar':'')+(t.active===false?' off':'')+(sel?' sel':'')+
+        '" data-label="'+esc(t.label)+'" style="'+style+'">'+
+          '<span>'+esc(t.label)+'<small>'+t.capacity_min+'–'+t.capacity_max+'</small></span>'+
+          (sel?'<div class="fl-h" data-resize="1"></div>':'')+
+        '</div>';
+    }).join('');
+
+  flBindCanvas();
+  flSide();
+}
+
+function flBindCanvas(){
+  $('fl-canvas').querySelectorAll('.fl-t').forEach(el=>{
+    el.addEventListener('pointerdown', ev=>{
+      const label = el.dataset.label;
+      const t = FLOOR.tables.find(x=>x.label===label);
+      if(!t) return;
+      FL_SEL = label;
+      const resizing = ev.target && ev.target.dataset && ev.target.dataset.resize==='1';
+      FL_DRAG = {
+        label, resizing,
+        sx: ev.clientX, sy: ev.clientY,
+        ox: t.x, oy: t.y, ow: t.w, oh: t.h
+      };
+      el.setPointerCapture && el.setPointerCapture(ev.pointerId);
+      ev.preventDefault();
+      flRender();
+    });
+  });
+}
+
+document.addEventListener('pointermove', ev=>{
+  if(!FL_DRAG) return;
+  const t = FLOOR.tables.find(x=>x.label===FL_DRAG.label);
+  if(!t) return;
+  const dx = ev.clientX - FL_DRAG.sx, dy = ev.clientY - FL_DRAG.sy;
+  const W = Number($('fl-cw').value)||1000, H = Number($('fl-ch').value)||700;
+
+  if(FL_DRAG.resizing){
+    t.w = Math.max(40, Math.min(W, flSnap(FL_DRAG.ow + dx)));
+    t.h = Math.max(40, Math.min(H, flSnap(FL_DRAG.oh + dy)));
+  } else {
+    // Стол не должен уезжать за пределы холста — иначе он пропадёт со схемы.
+    t.x = Math.max(0, Math.min(W - t.w, flSnap(FL_DRAG.ox + dx)));
+    t.y = Math.max(0, Math.min(H - t.h, flSnap(FL_DRAG.oy + dy)));
+  }
+  flDirty(); flRender();
+});
+
+document.addEventListener('pointerup', ()=>{ FL_DRAG = null; });
+
+// Стрелками — точное смещение, когда мышью попасть трудно.
+document.addEventListener('keydown', e=>{
+  if(!FL_SEL) return;
+  if(!$('panel-floor').classList.contains('active')) return;
+  const t = FLOOR.tables.find(x=>x.label===FL_SEL);
+  if(!t) return;
+  const step = e.shiftKey ? (flGrid()||10) : 1;
+  let used = true;
+  if(e.key==='ArrowLeft')  t.x = Math.max(0, t.x-step);
+  else if(e.key==='ArrowRight') t.x = t.x+step;
+  else if(e.key==='ArrowUp')    t.y = Math.max(0, t.y-step);
+  else if(e.key==='ArrowDown')  t.y = t.y+step;
+  else if(e.key==='Delete' || e.key==='Backspace'){ flDelete(FL_SEL); return; }
+  else used = false;
+  if(used){ e.preventDefault(); flDirty(); flRender(); }
+});
+
+function flSide(){
+  const box = $('fl-side');
+  const t = FLOOR.tables.find(x=>x.label===FL_SEL);
+  if(!t){ box.innerHTML='<div class="hint">Выбери стол на схеме, чтобы изменить его.</div>'; return; }
+  const used = FLOOR.inUse[t.label] || 0;
+
+  box.innerHTML =
+    (used ? '<div class="fl-warn">На эту метку уже есть брони: '+used+'. Переименование не перепишет их — старые брони останутся со старой меткой.</div>' : '')+
+    '<div class="row two"><div><label>Метка *</label><input id="fl-label" value="'+esc(t.label)+'"></div>'+
+      '<div><label>Зона</label><select id="fl-zone">'+
+        '<option value="hall"'+(t.zone!=='bar'?' selected':'')+'>Зал</option>'+
+        '<option value="bar"'+(t.zone==='bar'?' selected':'')+'>Бар</option></select></div></div>'+
+    '<div class="row two"><div><label>Форма</label><select id="fl-shape">'+
+        '<option value="rect"'+(t.shape!=='circle'?' selected':'')+'>Прямоугольник</option>'+
+        '<option value="circle"'+(t.shape==='circle'?' selected':'')+'>Круг</option></select></div>'+
+      '<div><label>Поворот, °</label><input id="fl-rot" type="number" min="0" max="345" step="15" value="'+t.rotation+'"></div></div>'+
+    '<div class="row two"><div><label>Мин. гостей</label><input id="fl-cmin" type="number" min="1" max="20" value="'+t.capacity_min+'"></div>'+
+      '<div><label>Макс. гостей</label><input id="fl-cmax" type="number" min="1" max="20" value="'+t.capacity_max+'"></div></div>'+
+    '<div class="row two"><div><label>Ширина</label><input id="fl-w" type="number" min="40" step="5" value="'+t.w+'"></div>'+
+      '<div><label>Высота</label><input id="fl-h" type="number" min="40" step="5" value="'+t.h+'"></div></div>'+
+    '<div class="row"><label style="display:flex;align-items:center;gap:8px;font-weight:400">'+
+      '<input type="checkbox" id="fl-active" style="width:16px;height:16px"'+(t.active!==false?' checked':'')+'> Показывать на сайте</label></div>'+
+    '<button class="btn small danger" id="fl-del">Убрать из плана</button>';
+
+  const bind = (id, key, num) => {
+    const el = $(id);
+    if(!el) return;
+    el.addEventListener('change', ()=>{
+      const v = num ? (Number(el.value)||0) : el.value;
+      if(key==='label'){
+        const nv = String(v).trim();
+        if(!nv){ el.value = t.label; return; }
+        if(FLOOR.tables.some(x=>x!==t && x.label===nv)){ alert('Метка «'+nv+'» уже занята.'); el.value=t.label; return; }
+        if(used && !confirm('У метки «'+t.label+'» есть брони ('+used+'). Переименовать? Старые брони останутся со старой меткой.')){ el.value=t.label; return; }
+        FL_SEL = nv;
+      }
+      t[key] = v;
+      flDirty(); flRender();
+    });
+  };
+  bind('fl-label','label'); bind('fl-zone','zone'); bind('fl-shape','shape');
+  bind('fl-rot','rotation',true); bind('fl-cmin','capacity_min',true); bind('fl-cmax','capacity_max',true);
+  bind('fl-w','w',true); bind('fl-h','h',true);
+  $('fl-active').addEventListener('change', ()=>{ t.active = $('fl-active').checked; flDirty(); flRender(); });
+  $('fl-del').onclick = ()=>flDelete(t.label);
+}
+
+async function flDelete(label){
+  const used = FLOOR.inUse[label] || 0;
+  const msg = used
+    ? 'Убрать «'+label+'» из плана?\\n\\nБрони на эту метку ('+used+') сохранятся — они история, но стол исчезнет со схемы брони.'
+    : 'Убрать «'+label+'» из плана?';
+  if(!confirm(msg)) return;
+  try{
+    const r=await fetch(api('admin-floor'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ action:'delete', label })});
+    if(r.status===401){ handle401(); return; }
+    FL_SEL=null; loadFloor();
+  }catch(e){ alert('Сетевая ошибка.'); }
+}
+
+function flNextLabel(prefix){
+  const nums = FLOOR.tables
+    .filter(t=>t.label.indexOf(prefix)===0)
+    .map(t=>Number((t.label.match(/\d+/)||[])[0])||0);
+  return prefix+' '+((nums.length?Math.max.apply(null,nums):0)+1);
+}
+
+function flAdd(zone){
+  const prefix = zone==='bar' ? 'Бар' : 'Стол';
+  const label = flNextLabel(prefix);
+  // Новый стол кладём в свободное место сверху слева, а не под курсор:
+  // так он всегда виден, даже если холст прокручен.
+  FLOOR.tables.push({
+    label, zone, shape: zone==='bar' ? 'rect' : 'circle',
+    x: flSnap(40), y: flSnap(40),
+    w: zone==='bar' ? 70 : 90, h: zone==='bar' ? 60 : 90,
+    rotation: 0, capacity_min: 1, capacity_max: zone==='bar' ? 2 : 4,
+    sort: (FLOOR.tables.length+1)*10, active: true
+  });
+  FL_SEL = label;
+  flDirty(); flRender();
+}
+
+$('fl-add').addEventListener('click', ()=>flAdd('hall'));
+$('fl-add-bar').addEventListener('click', ()=>flAdd('bar'));
+$('fl-grid').addEventListener('change', flRender);
+$('fl-cw').addEventListener('change', ()=>{ flDirty(); flRender(); });
+$('fl-ch').addEventListener('change', ()=>{ flDirty(); flRender(); });
+$('fl-reload').addEventListener('click', loadFloor);
+
+$('fl-undo-btn').addEventListener('click', ()=>{
+  if(!FL_SNAP) return;
+  FLOOR.tables = JSON.parse(FL_SNAP);
+  FL_DIRTY=false; FL_SEL=null;
+  $('fl-save').classList.remove('show');
+  flRender();
+});
+
+$('fl-save-btn').addEventListener('click', async ()=>{
+  const btn=$('fl-save-btn'); btn.disabled=true; btn.textContent='Сохраняю…';
+  try{
+    const r=await fetch(api('admin-floor'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        settings:{ canvas_w:Number($('fl-cw').value)||1000, canvas_h:Number($('fl-ch').value)||700, grid:flGrid() },
+        tables: FLOOR.tables.map((t,i)=>({ ...t, sort:(i+1)*10 }))
+      })});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(r.ok&&d.ok) loadFloor();
+    else alert('Ошибка: '+(d.detail||d.error||'?'));
+  }catch(e){ alert('Сетевая ошибка.'); }
+  finally{ btn.disabled=false; btn.textContent='Сохранить'; }
+});
 
 // ---------- КАНАЛЫ УВЕДОМЛЕНИЙ ----------
 

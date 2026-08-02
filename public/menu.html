@@ -90,7 +90,7 @@
     position:relative; border:none; padding:0; cursor:pointer; overflow:hidden;
     border-radius:var(--r); background:var(--card); aspect-ratio:4/3; text-align:left;
   }
-  .tile img{ width:100%; height:100%; object-fit:cover; opacity:.62; transition:opacity .25s, transform .35s; }
+  .tile img{ width:100%; height:100%; object-fit:cover; object-position:center top; opacity:.62; transition:opacity .25s, transform .35s; }
   @media (hover:hover){ .tile:hover img{ opacity:.82; transform:scale(1.05); } }
   .tile__cap{
     position:absolute; inset:auto 0 0 0; padding:26px 11px 10px;
@@ -122,7 +122,7 @@
   .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); gap:var(--s2); }
   .dish{ background:var(--card); border-radius:var(--r); overflow:hidden; display:flex; flex-direction:column; }
   .dish__ph{ position:relative; aspect-ratio:1/1; background:var(--card-2); overflow:hidden; }
-  .dish__ph img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .dish__ph img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center top; }
   .dish__ph img.alt{ opacity:0; transition:opacity .3s ease; }
   @media (hover:hover){ .dish:hover .dish__ph img.alt{ opacity:1; } }
   .dish__ph.flip img.alt{ opacity:1; }          /* тап на телефоне */

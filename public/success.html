@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPOT. — бронь подтверждена</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Noto+Sans:wght@400;500&family=Noto+Sans+Georgian:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#0B0B0B; --card:#151312; --rule:#2A2724; --text:#F4F1EC; --muted:#8B857D; --accent:#E75228;
+         --display:'Oswald','Noto Sans Georgian',sans-serif; --body:'Noto Sans','Noto Sans Georgian',sans-serif; }
+  *{box-sizing:border-box}
+  body{ margin:0; min-height:100dvh; background:var(--ink); color:var(--text); font-family:var(--body);
+        display:flex; align-items:center; justify-content:center; padding:24px; text-align:center; }
+  .box{ max-width:460px; }
+  .mark{ font-family:var(--display); font-weight:600; font-size:20px; letter-spacing:.16em; text-transform:uppercase; text-decoration:none; color:var(--text); display:block; margin-bottom:28px; }
+  .mark b{ color:var(--accent); }
+  .tick{ width:64px; height:64px; border-radius:50%; background:rgba(76,175,80,.14); border:1px solid rgba(76,175,80,.5);
+         display:flex; align-items:center; justify-content:center; margin:0 auto 20px; font-size:30px; color:#4CAF50; }
+  h1{ font-family:var(--display); font-weight:500; font-size:30px; letter-spacing:.04em; text-transform:uppercase; margin:0 0 12px; }
+  p{ color:var(--muted); font-size:15px; line-height:1.6; margin:0 0 10px; }
+  .oid{ font-family:var(--display); letter-spacing:.06em; color:var(--text); font-size:14px; background:var(--card);
+        border:1px solid var(--rule); border-radius:10px; padding:10px 14px; display:inline-block; margin:14px 0 22px; }
+  .links{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:8px; }
+  .links a{ font-family:var(--display); font-size:14px; letter-spacing:.06em; text-transform:uppercase; text-decoration:none;
+            color:var(--text); background:var(--card); border:1px solid var(--rule); border-radius:11px; padding:13px 20px; }
+  .links a.acc{ background:var(--accent); border-color:var(--accent); color:#fff; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <a class="mark" href="/">SPOT<b>.</b></a>
+    <div class="tick">✓</div>
+    <h1 id="t"></h1>
+    <p id="p1"></p>
+    <div class="oid" id="oid" style="display:none"></div>
+    <p id="p2"></p>
+    <div class="links">
+      <a class="acc" href="/menu" id="l-menu"></a>
+      <a href="https://wa.me/995555248432" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+<script>
+(() => {
+  const T={
+    ru:{ t:'Бронь подтверждена', p1:'Оплата прошла, столик за вами. Подтверждение отправили в WhatsApp.',
+         p2:'Ждём вас! Адрес: ул. Реджеба Ниджарадзе 18, Батуми — тремя ступенями выше 15-го этажа.',
+         oid:'Номер брони', menu:'Меню' },
+    ka:{ t:'ჯავშანი დადასტურდა', p1:'გადახდა შესრულდა, მაგიდა თქვენია. დადასტურება WhatsApp-ში გამოგზავნეთ.',
+         p2:'გელოდებით! მისამართი: რეჯებ ნიჟარაძის 18, ბათუმი — მე-15 სართულზე სამი საფეხურით მაღლა.',
+         oid:'ჯავშნის ნომერი', menu:'მენიუ' },
+    en:{ t:'Booking confirmed', p1:'Payment went through, the table is yours. We sent a confirmation on WhatsApp.',
+         p2:'See you soon! 18 Rejeb Nijaradze, Batumi — three steps above the 15th floor.',
+         oid:'Booking number', menu:'Menu' }
+  };
+  let lang='ru';
+  try{ const s=localStorage.getItem('spot_lang'); if(T[s]) lang=s; }catch{}
+  const u=new URL(location.href).searchParams.get('lang'); if(T[u]) lang=u;
+  const t=T[lang];
+  document.documentElement.lang=lang;
+  document.getElementById('t').textContent=t.t;
+  document.getElementById('p1').textContent=t.p1;
+  document.getElementById('p2').textContent=t.p2;
+  document.getElementById('l-menu').textContent=t.menu;
+  // BOG возвращает наш internal order id — показываем его гостю как номер брони
+  const oid=new URL(location.href).searchParams.get('order_id');
+  if(oid){
+    const el=document.getElementById('oid');
+    el.textContent=t.oid+': '+oid;
+    el.style.display='inline-block';
+  }
+})();
+</script>
+</body>
+</html>

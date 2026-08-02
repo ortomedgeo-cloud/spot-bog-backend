@@ -12,6 +12,18 @@
     {
       "source": "/table",
       "destination": "/menu.html"
+    },
+    {
+      "source": "/reserve",
+      "destination": "/reserve.html"
+    },
+    {
+      "source": "/success",
+      "destination": "/success.html"
+    },
+    {
+      "source": "/fail",
+      "destination": "/fail.html"
     }
   ]
 }

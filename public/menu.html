@@ -76,6 +76,7 @@
   .ask:disabled{ opacity:.45; cursor:default; }
 
   h2.sec{ font-family:var(--display); font-weight:500; font-size:clamp(20px,4vw,26px); letter-spacing:.07em; text-transform:uppercase; margin:clamp(28px,5vw,46px) 0 14px; }
+  #menu > h2.sec:first-child{ margin-top:clamp(6px,1.5vw,12px); }
 
   /* ---------- плитки категорий ---------- */
   .tiles{ display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:10px; }
@@ -100,7 +101,9 @@
   .rail__in button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); }
 
   /* ---------- подкатегории ---------- */
-  .subs{ padding:2px 0 4px; margin-bottom:14px; }
+  /* Ряд подкатегорий не должен липнуть к линии рельса сверху и к карточкам снизу */
+  .subs{ padding:16px 0 4px; margin-bottom:clamp(16px,3vw,24px); }
+  .subs:empty{ display:none; padding:0; margin:0; }
   .subs button{
     white-space:nowrap; font-size:12.5px; color:var(--muted);
     background:var(--card); border:1px solid var(--rule); border-radius:999px;
@@ -481,9 +484,17 @@
     const t=T[lang];
     const cats = active===-1 ? MENU : [MENU[active]];
     $('menu').innerHTML = cats.map(c=>{
-      const list = (active!==-1 && activeSub)
-        ? c.items.filter(i=>i.subcategory_id===activeSub)
-        : c.items;
+      let list;
+      if(active===-1){
+        // Главная («Всё меню»): если у категории отмечены подкатегории —
+        // показываем только их. Так большие разделы вроде напитков не
+        // вываливают на первый экран крепкий алкоголь и настойки.
+        const featured=(c.subcategories||[]).filter(sc=>sc.featured).map(sc=>sc.id);
+        list = featured.length ? c.items.filter(i=>featured.includes(i.subcategory_id)) : c.items;
+      } else {
+        list = activeSub ? c.items.filter(i=>i.subcategory_id===activeSub) : c.items;
+      }
+      if(!list.length) return '';
       return '<h2 class="sec">'+esc(c.title)+'</h2><div class="grid">'+
       list.map(it=>{
         const inCart=cart.get(it.id);

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPOT. — оплата не прошла</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Noto+Sans:wght@400;500&family=Noto+Sans+Georgian:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#0B0B0B; --card:#151312; --rule:#2A2724; --text:#F4F1EC; --muted:#8B857D; --accent:#E75228;
+         --display:'Oswald','Noto Sans Georgian',sans-serif; --body:'Noto Sans','Noto Sans Georgian',sans-serif; }
+  *{box-sizing:border-box}
+  body{ margin:0; min-height:100dvh; background:var(--ink); color:var(--text); font-family:var(--body);
+        display:flex; align-items:center; justify-content:center; padding:24px; text-align:center; }
+  .box{ max-width:460px; }
+  .mark{ font-family:var(--display); font-weight:600; font-size:20px; letter-spacing:.16em; text-transform:uppercase; text-decoration:none; color:var(--text); display:block; margin-bottom:28px; }
+  .mark b{ color:var(--accent); }
+  .cross{ width:64px; height:64px; border-radius:50%; background:rgba(244,67,54,.12); border:1px solid rgba(244,67,54,.45);
+          display:flex; align-items:center; justify-content:center; margin:0 auto 20px; font-size:28px; color:#F44336; }
+  h1{ font-family:var(--display); font-weight:500; font-size:30px; letter-spacing:.04em; text-transform:uppercase; margin:0 0 12px; }
+  p{ color:var(--muted); font-size:15px; line-height:1.6; margin:0 0 20px; }
+  .links{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .links a{ font-family:var(--display); font-size:14px; letter-spacing:.06em; text-transform:uppercase; text-decoration:none;
+            color:var(--text); background:var(--card); border:1px solid var(--rule); border-radius:11px; padding:13px 20px; }
+  .links a.acc{ background:var(--accent); border-color:var(--accent); color:#fff; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <a class="mark" href="/">SPOT<b>.</b></a>
+    <div class="cross">✕</div>
+    <h1 id="t"></h1>
+    <p id="p"></p>
+    <div class="links">
+      <a class="acc" href="/reserve" id="l-retry"></a>
+      <a href="https://wa.me/995555248432" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+<script>
+(() => {
+  const T={
+    ru:{ t:'Оплата не прошла', p:'Столик не забронирован и деньги не списаны. Попробуйте ещё раз или напишите нам — забронируем вручную.', retry:'Попробовать снова' },
+    ka:{ t:'გადახდა ვერ შესრულდა', p:'მაგიდა არ დაჯავშნილა და თანხა არ ჩამოიჭრა. სცადეთ ხელახლა ან მოგვწერეთ — ხელით დაგიჯავშნით.', retry:'ხელახლა ცდა' },
+    en:{ t:'Payment failed', p:'The table was not booked and you were not charged. Try again or message us and we will book it manually.', retry:'Try again' }
+  };
+  let lang='ru';
+  try{ const s=localStorage.getItem('spot_lang'); if(T[s]) lang=s; }catch{}
+  const u=new URL(location.href).searchParams.get('lang'); if(T[u]) lang=u;
+  const t=T[lang];
+  document.documentElement.lang=lang;
+  document.getElementById('t').textContent=t.t;
+  document.getElementById('p').textContent=t.p;
+  document.getElementById('l-retry').textContent=t.retry;
+})();
+</script>
+</body>
+</html>

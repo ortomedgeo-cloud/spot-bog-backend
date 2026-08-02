@@ -192,6 +192,8 @@ function page() {
   .mb-sub__t { flex:1; font-size:12.5px; font-weight:600; color:#666; letter-spacing:.02em; text-transform:uppercase; }
   .mb-sub__t em { font-style:normal; color:#bbb; font-weight:400; text-transform:none; letter-spacing:0; }
   .mb-sub .arrows button { width:20px; height:14px; font-size:9px; }
+  .mb-star { background:none; border:none; cursor:pointer; font-size:14px; padding:2px 4px; flex:none; filter:grayscale(1); opacity:.45; }
+  .mb-star.on { filter:none; opacity:1; }
   .mb-addsub { width:100%; margin-top:6px; padding:8px; font-size:12.5px; color:#666; background:#fff; border:1px dashed #ddd; border-radius:8px; cursor:pointer; }
   .mb-addsub:hover { border-color:#E75228; color:#E75228; }
   .mb-cat { background:#fff; border-radius:12px; margin-bottom:10px; overflow:hidden; }
@@ -354,7 +356,7 @@ function page() {
 
     <div class="card">
       <label style="font-size:13px;font-weight:600">Меню</label>
-      <div class="hint" style="margin:6px 0 10px">Перетаскивай за ⠿ или двигай стрелками. Позицию можно перенести в другую категорию выпадающим списком. Глаз скрывает категорию с сайта, кружок снимает позицию с продажи.</div><div id="menu-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div><div class="mb-save" id="mb-save"><span id="mb-save-t">Порядок изменён</span><button class="btn small" id="mb-save-btn">Сохранить</button><button class="btn small ghost" id="mb-undo-btn">Отменить</button></div>
+      <div class="hint" style="margin:6px 0 10px">Перетаскивай за ⠿ или двигай стрелками. Позицию можно перенести в другую категорию выпадающим списком. Глаз скрывает категорию с сайта, кружок снимает позицию с продажи. Звезда у подкатегории — показывать её на главной («Всё меню»); если в категории не отмечено ни одной, показываются все.</div><div id="menu-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div><div class="mb-save" id="mb-save"><span id="mb-save-t">Порядок изменён</span><button class="btn small" id="mb-save-btn">Сохранить</button><button class="btn small ghost" id="mb-undo-btn">Отменить</button></div>
     </div>
   </div>
 
@@ -430,7 +432,8 @@ function page() {
     <h2>Ручная бронь <span class="x" id="mb-close">✕</span></h2>
     <div class="row"><label>Сеанс *</label><select id="mb-session"><option value="">Загрузка…</option></select></div>
     <div class="row"><label>Стол / Бар *</label><div class="seats" id="mb-seats"></div><input id="mb-table" type="hidden"><div class="hint" id="mb-seatshint">Выбери сеанс.</div></div>
-    <div class="row two"><div><label>Имя</label><input id="mb-name"></div><div><label>Телефон</label><input id="mb-phone"></div></div>
+    <div class="row two"><div><label>Имя</label><input id="mb-name"></div><div><label>Телефон</label><input id="mb-phone" placeholder="+995 …"></div></div>
+    <div class="row"><label>Instagram</label><input id="mb-instagram" placeholder="@nickname"></div>
     <div class="row two"><div><label>Персон</label><input id="mb-guests" type="number" min="1" value="2"></div><div><label>Сумма (GEL)</label><input id="mb-amount" type="number" min="0" step="0.01"></div></div>
     <div class="row"><label>Статус оплаты</label><select id="mb-payment"><option value="paid">Оплачено</option><option value="deposit">Депозит внесён</option><option value="unpaid">Не оплачено</option></select></div>
     <button class="btn" style="width:100%" id="mb-submit">Создать бронь</button>
@@ -851,6 +854,7 @@ $('mb-submit').addEventListener('click', async ()=>{
   const m=$('mb-msg'); m.style.display='none';
   const p={ session_id:$('mb-session').value, table:$('mb-table').value.trim(),
     name:$('mb-name').value.trim(), phone:$('mb-phone').value.trim(),
+    instagram:$('mb-instagram').value.trim(),
     guests:$('mb-guests').value.trim(), amount:$('mb-amount').value.trim(),
     payment_status:$('mb-payment').value };
   if(!p.session_id||!p.table){ msg(m,'Выбери сеанс и стол.',false); return; }
@@ -861,7 +865,7 @@ $('mb-submit').addEventListener('click', async ()=>{
     const d=await r.json().catch(()=>({}));
     if(r.ok&&d.ok){
       msg(m,'Бронь создана: '+d.table+', '+d.title+' '+d.date+' '+d.time,true);
-      $('mb-name').value=''; $('mb-phone').value=''; $('mb-amount').value=''; $('mb-table').value='';
+      $('mb-name').value=''; $('mb-phone').value=''; $('mb-instagram').value=''; $('mb-amount').value=''; $('mb-table').value='';
       $('mb-session').dispatchEvent(new Event('change'));
       loadToday();
     } else if(r.status===409){ msg(m,'Стол уже занят на этот сеанс.',false); $('mb-session').dispatchEvent(new Event('change')); }
@@ -1190,6 +1194,8 @@ function mbRender(){
           '<span class="mb-sub__t">'+esc(sub.title_ru)+' <em>'+list.length+'</em></span>'+
           '<span class="arrows"><button data-su="'+esc(sub.id)+'"'+(si===0?' disabled':'')+'>▲</button>'+
             '<button data-sd="'+esc(sub.id)+'"'+(si===subTotal-1?' disabled':'')+'>▼</button></span>'+
+          '<button class="mb-star'+(sub.featured?' on':'')+'" data-sf="'+esc(sub.id)+'" title="'+
+            (sub.featured?'Показывается в «Всё меню»':'Скрыта из «Всё меню»')+'">★</button>'+
           '<button class="btn small ghost" data-ms="'+esc(sub.id)+'">Изм.</button>'+
           '<button class="btn small danger" data-ds="'+esc(sub.id)+'" title="Удалить">✕</button>'+
         '</div>'
@@ -1306,6 +1312,18 @@ function mbBind(){
     const ka=prompt('ქართული:', sc.title_ka||''); if(ka===null) return;
     const en=prompt('English:', sc.title_en||''); if(en===null) return;
     await mbSaveSub({ id:sc.id, title_ru:ru.trim(), title_ka:ka.trim(), title_en:en.trim() });
+  });
+
+  // --- звезда: показывать подкатегорию в общем списке «Всё меню» ---
+  box.querySelectorAll('[data-sf]').forEach(b=>b.onclick=async()=>{
+    const sc=MENU.subcategories.find(x=>x.id===b.dataset.sf); if(!sc) return;
+    const next=!sc.featured; b.disabled=true;
+    try{
+      const r=await fetch(api('admin-menu'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ kind:'subcategory', id:sc.id, featured:next })});
+      if(r.status===401){ handle401(); return; }
+      sc.featured=next; mbRender();
+    }catch(e){ alert('Сетевая ошибка.'); b.disabled=false; }
   });
 
   // --- удаление ---

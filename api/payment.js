@@ -1,4 +1,5 @@
 import { createBogOrder } from "../lib/bog.js";
+import { looksLikePhone } from "../lib/greenapi.js";
 import { getSession, createPayment } from "../lib/db.js";
 import {
   firstNonEmpty,
@@ -72,6 +73,7 @@ export default async function handler(req, res) {
     const guests = parseNumber(body.guests || body.persons || body.people || 1);
     const customerName = firstNonEmpty(body.customer_name, body.name);
     const customerPhone = firstNonEmpty(body.customer_phone, body.phone);
+    const customerInstagram = firstNonEmpty(body.customer_instagram, body.instagram);
     const comment = firstNonEmpty(body.comment, body.Comment, body.message);
     const reserveUrl = firstNonEmpty(
       body.reserve_url,
@@ -92,6 +94,14 @@ export default async function handler(req, res) {
     }
     if (!customerPhone) {
       return json(res, 400, { error: "Missing customer_phone" });
+    }
+    // Телефон должен быть телефоном: раньше сюда попадали инстаграм-ники, и
+    // связаться с гостем было нечем — ни позвонить, ни подтвердить бронь.
+    if (!looksLikePhone(customerPhone)) {
+      return json(res, 400, {
+        error: "INVALID_PHONE",
+        detail: "Укажите номер телефона с кодом страны. Инстаграм — в отдельное поле."
+      });
     }
     if (!Number.isFinite(guests) || guests <= 0) {
       return json(res, 400, { error: "Invalid guests count" });
@@ -137,6 +147,7 @@ export default async function handler(req, res) {
       amount: totalAmount,
       guest_name: customerName,
       guest_phone: customerPhone,
+      guest_instagram: customerInstagram,
       reserve_url: reserveUrl,
       comment
     });

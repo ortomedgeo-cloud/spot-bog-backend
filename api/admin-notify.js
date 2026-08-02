@@ -36,6 +36,13 @@ export default async function handler(req, res) {
       if (b.test) {
         const channel = String(b.test);
         if (!CHANNELS[channel]) return json(res, 400, { error: "UNKNOWN_CHANNEL" });
+        if (CHANNELS[channel].broadcast === false) {
+          // Каналу нужен адресат: он пишет гостю по номеру из конкретной брони.
+          return json(res, 400, {
+            error: "NO_TEST",
+            detail: "Канал пишет гостю по номеру из брони — проверяется реальной оплатой"
+          });
+        }
 
         const statuses = await channelStatus();
         const status = statuses.find((s) => s.channel === channel);

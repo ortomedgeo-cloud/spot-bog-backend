@@ -1,5 +1,6 @@
 import { getSession, createBooking } from "../lib/db.js";
 import { json, isAdminAuthed } from "../lib/utils.js";
+import { looksLikePhone } from "../lib/greenapi.js";
 import crypto from "crypto";
 
 // Staff manual booking (walk-in / phone / social) — writes straight to
@@ -24,6 +25,16 @@ export default async function handler(req, res) {
     if (!sessionId) return json(res, 400, { error: "Missing session_id" });
     if (!table) return json(res, 400, { error: "Missing table" });
 
+    // Телефон у ручной брони необязателен (гость мог прийти из директа), но
+    // если он указан — должен быть настоящим, иначе подтверждение уйдёт в никуда.
+    const phone = String(b.phone || "").trim();
+    if (phone && !looksLikePhone(phone)) {
+      return json(res, 400, {
+        error: "INVALID_PHONE",
+        detail: "Похоже, это не номер. Инстаграм впишите в отдельное поле."
+      });
+    }
+
     const session = await getSession(sessionId);
     if (!session) return json(res, 404, { error: "Session not found" });
 
@@ -32,7 +43,8 @@ export default async function handler(req, res) {
       session_id: sessionId,
       table_label: table,
       guest_name: String(b.name || "").trim() || null,
-      guest_phone: String(b.phone || "").trim() || null,
+      guest_phone: phone || null,
+      guest_instagram: String(b.instagram || "").trim() || null,
       guests: Number(b.guests) || null,
       amount: Number(b.amount) || null,
       payment_status: ["paid", "deposit", "unpaid"].includes(b.payment_status)

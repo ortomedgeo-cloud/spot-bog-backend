@@ -4,7 +4,7 @@ import {
   updatePayment,
   createBookingIfNotExists
 } from "../lib/db.js";
-import { notify } from "../lib/notify.js";
+import { notify, notifyGuest } from "../lib/notify.js";
 import { json } from "../lib/utils.js";
 
 export const config = {
@@ -121,7 +121,7 @@ export default async function handler(req, res) {
 Стол: ${payment.table_label}
 Гостей: ${payment.guests}
 Имя: ${payment.guest_name}
-Контакт: ${payment.guest_phone}
+Телефон: ${payment.guest_phone}${payment.guest_instagram ? `\nInstagram: ${payment.guest_instagram}` : ""}
 Сумма: ${payment.amount} GEL
 BOG order: ${bogOrderId || payment.bog_order_id}
 Booking ID: ${payment.internal_order_id}`;
@@ -138,6 +138,32 @@ Booking ID: ${payment.internal_order_id}`;
         } catch (error) {
           console.error("whatsapp notification failed", error);
         }
+
+        // Подтверждение самому гостю на номер из брони. Тот же флаг
+        // green_notified_at защищает от повторной отправки при дубле callback.
+        // Если в контакте инстаграм, а не телефон, notifyGuest тихо вернёт
+        // not_a_phone — это штатная ситуация, а не сбой.
+        try {
+          const guestText =
+`Здравствуйте${payment.guest_name ? ", " + payment.guest_name : ""}! Ваша бронь в SPOT. подтверждена ✅
+
+${payment.event_title}
+Стол: ${payment.table_label}
+Гостей: ${payment.guests}
+Оплачено: ${payment.amount} GEL
+
+Адрес: ул. Реджеба Ниджарадзе 18, Батуми — тремя ступенями выше 15-го этажа.
+Номер брони: ${payment.internal_order_id}
+
+Если планы изменятся, напишите нам в этот чат — перенесём бронь на другой день.`;
+
+          const res = await notifyGuest(payment.guest_phone, guestText);
+          if (!res.sent && res.reason !== "not_a_phone") {
+            console.warn("guest notification skipped", res);
+          }
+        } catch (error) {
+          console.error("guest notification failed", error);
+        }
       }
 
       // 2) Create the booking (idempotent). Uses the internal_order_id as the
@@ -150,6 +176,7 @@ Booking ID: ${payment.internal_order_id}`;
           table_label: payment.table_label,
           guest_name: payment.guest_name,
           guest_phone: payment.guest_phone,
+          guest_instagram: payment.guest_instagram,
           guests: payment.guests,
           amount: payment.amount,
           payment_status: "paid",

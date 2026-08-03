@@ -397,7 +397,7 @@ function page() {
 
     <div class="card">
       <label style="font-size:13px;font-weight:600">Меню</label>
-      <div class="hint" style="margin:6px 0 10px">Перетаскивай за ⠿ или двигай стрелками. Позицию можно перенести в другую категорию выпадающим списком. Глаз скрывает категорию с сайта, кружок снимает позицию с продажи. Звезда у подкатегории — показывать её на главной («Всё меню»); если в категории не отмечено ни одной, показываются все.</div><div id="menu-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div><div class="mb-save" id="mb-save"><span id="mb-save-t">Порядок изменён</span><button class="btn small" id="mb-save-btn">Сохранить</button><button class="btn small ghost" id="mb-undo-btn">Отменить</button></div>
+      <div class="hint" style="margin:6px 0 10px">Перетаскивай за ⠿ или двигай стрелками. Позицию можно перенести в другую категорию выпадающим списком. Глаз скрывает категорию с сайта, кружок снимает позицию с продажи. Звезда — показывать в «Всё меню». Работает на трёх уровнях: категория, подкатегория, отдельное блюдо. По умолчанию видно всё: снимай звезду у того, что загромождает главную, — внутри самой категории всё останется на месте.</div><div id="menu-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div><div class="mb-save" id="mb-save"><span id="mb-save-t">Порядок изменён</span><button class="btn small" id="mb-save-btn">Сохранить</button><button class="btn small ghost" id="mb-undo-btn">Отменить</button></div>
     </div>
   </div>
 
@@ -1128,7 +1128,9 @@ function flBindCanvas(){
         sx: ev.clientX, sy: ev.clientY,
         ox: t.x, oy: t.y, ow: t.w, oh: t.h
       };
-      el.setPointerCapture && el.setPointerCapture(ev.pointerId);
+      // Не захватываем указатель элементом: сразу после этого flRender()
+      // пересобирает разметку, элемент исчезает, и в части браузеров
+      // перетаскивание обрывается. Движение слушает document.
       ev.preventDefault();
       flRender();
     });
@@ -1240,15 +1242,31 @@ function flNextLabel(prefix){
   return prefix+' '+((nums.length?Math.max.apply(null,nums):0)+1);
 }
 
+// Ищем свободное место, чтобы новый стол не лёг ровно поверх предыдущего:
+// при совпадающих координатах перетаскивается только верхний, а нижний
+// выглядит намертво застрявшим.
+function flFreeSpot(w, h){
+  const W = Number($('fl-cw').value)||1000, H = Number($('fl-ch').value)||700;
+  const step = Math.max(20, flGrid() || 20);
+  const hits = (x,y) => FLOOR.tables.some(t =>
+    x < t.x + t.w && x + w > t.x && y < t.y + t.h && y + h > t.y);
+  for(let y=step; y + h < H; y += step){
+    for(let x=step; x + w < W; x += step){
+      if(!hits(x,y)) return { x: flSnap(x), y: flSnap(y) };
+    }
+  }
+  return { x: flSnap(step), y: flSnap(step) };   // всё занято — кладём в угол
+}
+
 function flAdd(zone){
   const prefix = zone==='bar' ? 'Бар' : 'Стол';
   const label = flNextLabel(prefix);
-  // Новый стол кладём в свободное место сверху слева, а не под курсор:
-  // так он всегда виден, даже если холст прокручен.
+  const w = zone==='bar' ? 70 : 90, h = zone==='bar' ? 60 : 90;
+  const spot = flFreeSpot(w, h);
   FLOOR.tables.push({
     label, zone, shape: zone==='bar' ? 'rect' : 'circle',
-    x: flSnap(40), y: flSnap(40),
-    w: zone==='bar' ? 70 : 90, h: zone==='bar' ? 60 : 90,
+    x: spot.x, y: spot.y,
+    w, h,
     rotation: 0, capacity_min: 1, capacity_max: zone==='bar' ? 2 : 4,
     sort: (FLOOR.tables.length+1)*10, active: true
   });
@@ -1493,6 +1511,8 @@ function mbRender(){
         (i.title_ka?'':' · нет ქარ')+(i.title_en?'':' · нет EN')+'</small></span>'+
       '<button class="mb-eye" data-av="'+esc(i.id)+'" title="'+(i.available?'В наличии':'Снято с продажи')+'">'+
         (i.available?'●':'○')+'</button>'+
+      '<button class="mb-star'+(i.in_overview!==false?' on':'')+'" data-io="'+esc(i.id)+'" title="'+
+        (i.in_overview!==false?'Показывается в «Всё меню»':'Не показывается в «Всё меню» — только внутри категории')+'">★</button>'+
       '<select class="mb-move" data-mv="'+esc(i.id)+'">'+moveOpts(i.category_id, i.subcategory_id)+'</select>'+
       '<span class="arrows"><button data-iu="'+esc(i.id)+'"'+(ii===0?' disabled':'')+'>▲</button>'+
         '<button data-idn="'+esc(i.id)+'"'+(ii===total-1?' disabled':'')+'>▼</button></span>'+
@@ -1508,8 +1528,8 @@ function mbRender(){
           '<span class="mb-sub__t">'+esc(sub.title_ru)+' <em>'+list.length+'</em></span>'+
           '<span class="arrows"><button data-su="'+esc(sub.id)+'"'+(si===0?' disabled':'')+'>▲</button>'+
             '<button data-sd="'+esc(sub.id)+'"'+(si===subTotal-1?' disabled':'')+'>▼</button></span>'+
-          '<button class="mb-star'+(sub.featured?' on':'')+'" data-sf="'+esc(sub.id)+'" title="'+
-            (sub.featured?'Показывается в «Всё меню»':'Скрыта из «Всё меню»')+'">★</button>'+
+          '<button class="mb-star'+(sub.in_overview!==false?' on':'')+'" data-sf="'+esc(sub.id)+'" title="'+
+            (sub.in_overview!==false?'Показывается в «Всё меню»':'Не показывается в «Всё меню» — только внутри категории')+'">★</button>'+
           '<button class="btn small ghost" data-ms="'+esc(sub.id)+'">Изм.</button>'+
           '<button class="btn small danger" data-ds="'+esc(sub.id)+'" title="Удалить">✕</button>'+
         '</div>'
@@ -1529,8 +1549,10 @@ function mbRender(){
         '<span class="grab" aria-hidden="true">⠿</span>'+
         '<span class="mb-cat__t">'+esc(c.title_ru)+
           '<small>'+count+' поз.'+(subs.length?' · '+subs.length+' подкат.':'')+(c.visible?'':' · скрыта с сайта')+'</small></span>'+
-        '<button class="mb-eye" data-cv="'+esc(c.id)+'" title="'+(c.visible?'Видна на сайте':'Скрыта')+'">'+
+        '<button class="mb-eye" data-cv="'+esc(c.id)+'" title="'+(c.visible?'Видна на сайте':'Скрыта с сайта целиком')+'">'+
           (c.visible?'👁':'🚫')+'</button>'+
+        '<button class="mb-star'+(c.in_overview!==false?' on':'')+'" data-co="'+esc(c.id)+'" title="'+
+          (c.in_overview!==false?'Показывается в «Всё меню»':'Не показывается в «Всё меню» — только внутри категории')+'">★</button>'+
         '<span class="arrows"><button data-cu="'+esc(c.id)+'"'+(ci===0?' disabled':'')+'>▲</button>'+
           '<button data-cd="'+esc(c.id)+'"'+(ci===cats.length-1?' disabled':'')+'>▼</button></span>'+
         '<button class="btn small ghost" data-mc="'+esc(c.id)+'">Изм.</button>'+
@@ -1631,12 +1653,50 @@ function mbBind(){
   // --- звезда: показывать подкатегорию в общем списке «Всё меню» ---
   box.querySelectorAll('[data-sf]').forEach(b=>b.onclick=async()=>{
     const sc=MENU.subcategories.find(x=>x.id===b.dataset.sf); if(!sc) return;
-    const next=!sc.featured; b.disabled=true;
+    const next = sc.in_overview===false; b.disabled=true;
     try{
       const r=await fetch(api('admin-menu'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ kind:'subcategory', id:sc.id, featured:next })});
+        body:JSON.stringify({ kind:'subcategory', id:sc.id, in_overview:next })});
       if(r.status===401){ handle401(); return; }
-      sc.featured=next; mbRender();
+      const d=await r.json().catch(()=>({}));
+      // Раньше ответ не проверялся: при ошибке сервера звезда всё равно
+      // переключалась на экране, а после перезагрузки возвращалась обратно.
+      if(!r.ok || !d.ok){
+        alert('Не сохранилось: '+(d.detail||d.error||'ошибка сервера')+
+              '\\n\\nЕсли это первая попытка — возможно, не выполнен db/menu-overview.sql в Neon.');
+        b.disabled=false;
+        return;
+      }
+      sc.in_overview=next; mbRender();
+    }catch(e){ alert('Сетевая ошибка.'); b.disabled=false; }
+  });
+
+  // Звезда у позиции: убрать конкретное блюдо из «Всё меню».
+  box.querySelectorAll('[data-io]').forEach(b=>b.onclick=async()=>{
+    const it=MENU.items.find(x=>x.id===b.dataset.io); if(!it) return;
+    const next = it.in_overview===false; b.disabled=true;
+    try{
+      const r=await fetch(api('admin-menu'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ kind:'item', id:it.id, in_overview:next })});
+      if(r.status===401){ handle401(); return; }
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok || !d.ok){ alert('Не сохранилось: '+(d.detail||d.error||'ошибка сервера')); b.disabled=false; return; }
+      it.in_overview=next; mbRender();
+    }catch(e){ alert('Сетевая ошибка.'); b.disabled=false; }
+  });
+
+  // Звезда у категории: убрать её из «Всё меню» целиком, оставив доступной
+  // по плитке и в рельсе разделов.
+  box.querySelectorAll('[data-co]').forEach(b=>b.onclick=async()=>{
+    const c=MENU.categories.find(x=>x.id===b.dataset.co); if(!c) return;
+    const next = c.in_overview===false; b.disabled=true;
+    try{
+      const r=await fetch(api('admin-menu'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ kind:'category', id:c.id, in_overview:next })});
+      if(r.status===401){ handle401(); return; }
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok || !d.ok){ alert('Не сохранилось: '+(d.detail||d.error||'ошибка сервера')); b.disabled=false; return; }
+      c.in_overview=next; mbRender();
     }catch(e){ alert('Сетевая ошибка.'); b.disabled=false; }
   });
 

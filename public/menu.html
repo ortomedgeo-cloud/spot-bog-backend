@@ -53,11 +53,20 @@
 
   /* ---------- шапка ---------- */
   header.top{ position:sticky; top:0; z-index:30; background:rgba(11,11,11,.94); backdrop-filter:blur(10px); border-bottom:1px solid var(--rule); }
-  .top__row{ display:flex; align-items:center; gap:12px; padding:11px 0; }
+  .top__row{ display:flex; align-items:center; gap:12px; padding:11px 0 11px 4px; }
   /* Логотип нарисован чёрным для светлых носителей: invert делает его белым,
      hue-rotate возвращает фирменный оранжевый акцент. */
   .top__logo{ height:26px; width:auto; margin-right:auto; filter:invert(1) hue-rotate(180deg); }
-  .langs{ display:flex; gap:2px; }
+  .langs{ display:flex; gap:2px; margin-left:auto; }
+  /* «Назад» возвращает к списку разделов внутри меню, а не на главную сайта:
+     логотип уводил с меню целиком, и это сбивало. */
+  .back{
+    display:none; align-items:center; gap:6px; margin-left:14px;
+    font-size:13px; color:var(--muted); background:none; border:1px solid var(--rule);
+    border-radius:999px; padding:7px 14px; cursor:pointer; min-height:36px; white-space:nowrap;
+  }
+  .back.show{ display:inline-flex; }
+  .back:hover{ color:var(--text); border-color:var(--muted); }
   .langs button{ font-size:13px; color:var(--muted); background:none; border:1px solid transparent; border-radius:999px; padding:7px 12px; cursor:pointer; min-height:36px; }
   .langs button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); }
 
@@ -137,6 +146,13 @@
   .dish__t{ font-family:var(--display); font-weight:400; font-size:15px; line-height:1.2; letter-spacing:.03em; text-transform:uppercase; margin:0; overflow-wrap:anywhere; }
   .dish__d{ color:var(--muted); font-size:12.5px; line-height:1.4; margin:0; white-space:pre-line;
             display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  /* Длинные составы обрезаются многоточием, но их можно раскрыть —
+     иначе гость не видит, что внутри блюда. */
+  .dish__d.open{ -webkit-line-clamp:unset; display:block; }
+  .dish__more{
+    align-self:flex-start; background:none; border:none; padding:2px 0; cursor:pointer;
+    color:var(--accent); font-size:12px; font-family:var(--body); text-decoration:underline;
+  }
   .dish__foot{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:auto; padding-top:6px; }
   .dish__p{ font-family:var(--display); font-weight:500; font-size:16px; letter-spacing:.03em; white-space:nowrap; }
   .dish__p i{ font-style:normal; font-size:12px; color:var(--muted); margin-left:3px; }
@@ -196,6 +212,12 @@
   .msg.err{ display:block; background:#2a1412; border:1px solid #5a241d; color:#f0a49a; }
 
   .note{ color:var(--muted); font-size:15px; padding:44px 0; }
+  .allergy{
+    display:flex; gap:10px; align-items:flex-start;
+    background:var(--card); border:1px solid var(--rule); border-radius:var(--r);
+    padding:13px 15px; margin:var(--s3) 0 0; color:var(--muted); font-size:13px; line-height:1.5;
+  }
+  .allergy b{ color:var(--text); font-weight:500; }
   footer.foot{ margin-top:clamp(40px,7vw,80px); padding:26px 0 40px; border-top:1px solid var(--rule); color:var(--muted); font-size:13px; }
   footer.foot a{ color:var(--text); text-decoration:none; border-bottom:1px solid var(--rule); }
   footer.foot a:hover{ border-color:var(--accent); }
@@ -223,6 +245,7 @@
 <header class="top">
   <div class="wrap top__row">
     <a href="/" aria-label="SPOT."><img class="top__logo" src="/logo.png" alt="SPOT."></a>
+    <button type="button" class="back" id="back-btn"></button>
     <div class="langs" id="langs" role="group" aria-label="Language"></div>
   </div>
 </header>
@@ -244,6 +267,7 @@
 <main class="wrap">
   <div class="subs bleed" id="subs"></div>
   <div id="menu"><div class="note" id="state"></div></div>
+  <div class="allergy" id="allergy" style="display:none"><span>⚠️</span><span id="allergy-t"></span></div>
 </main>
 
 <footer class="foot">
@@ -294,7 +318,7 @@
 
   const T = {
     ru:{ sub:'Руфтоп-кинобар в Батуми. Кухня и бар — каждый день с 12:00 до 02:00.',
-         tiles:'Меню', all:'Всё меню', allSub:'Всё', swap:'Ещё фото',
+         tiles:'Меню', all:'Всё меню', back:'← К разделам', more:'Подробнее', less:'Свернуть', allergy:'Если у вас есть аллергия или непереносимость — предупредите официанта, мы подберём безопасное блюдо.', allSub:'Всё', swap:'Ещё фото',
          waiter:'Официант', bill:'Счёт', blanket:'Плед', charger:'Зарядка', ashtray:'Пепельница',
          sent:'Готово', tooSoon:'Уже передали',
          cart:'Ваш заказ', clear:'Очистить', checkout:'Заказать', send:'Отправить заказ',
@@ -308,7 +332,7 @@
          loading:'Загружаем меню…', empty:'Меню пока пустое.',
          addr:'ул. Реджеба Ниджарадзе, 18, Батуми — мы на три ступени выше 15-го этажа.', gel:'GEL' },
     ka:{ sub:'რუფთოფ კინობარი ბათუმში. სამზარეულო და ბარი — ყოველდღე 12:00-დან 02:00-მდე.',
-         tiles:'მენიუ', all:'სრული მენიუ', allSub:'ყველა', swap:'კიდევ ფოტო',
+         tiles:'მენიუ', all:'სრული მენიუ', back:'← განყოფილებებში', more:'დაწვრილებით', less:'დახურვა', allergy:'თუ გაქვთ ალერგია ან აუტანლობა — გააფრთხილეთ მიმტანი, შევარჩევთ უსაფრთხო კერძს.', allSub:'ყველა', swap:'კიდევ ფოტო',
          waiter:'მიმტანი', bill:'ანგარიში', blanket:'პლედი', charger:'დამტენი', ashtray:'საფერფლე',
          sent:'მზადაა', tooSoon:'უკვე გადავეცით',
          cart:'თქვენი შეკვეთა', clear:'გასუფთავება', checkout:'შეკვეთა', send:'შეკვეთის გაგზავნა',
@@ -321,7 +345,7 @@
          loading:'მენიუ იტვირთება…', empty:'მენიუ ჯერ ცარიელია.',
          addr:'რეჯებ ნიჟარაძის 18, ბათუმი — მე-15 სართულზე სამი საფეხურით მაღლა.', gel:'GEL' },
     en:{ sub:'Rooftop cinema bar in Batumi. Kitchen and bar, every day 12 pm – 2 am.',
-         tiles:'Menu', all:'Everything', allSub:'All', swap:'More photo',
+         tiles:'Menu', all:'Everything', back:'← All sections', more:'Read more', less:'Show less', allergy:'If you have any allergies or intolerances, please tell your waiter — we will find something safe for you.', allSub:'All', swap:'More photo',
          waiter:'Waiter', bill:'Bill', blanket:'Blanket', charger:'Charger', ashtray:'Ashtray',
          sent:'Done', tooSoon:'Already sent',
          cart:'Your order', clear:'Clear', checkout:'Order', send:'Send the order',
@@ -389,6 +413,8 @@
     document.documentElement.lang=lang;
     $('hero-sub').textContent=t.sub;
     $('tiles-title').textContent=t.tiles;
+    $('back-btn').textContent=t.back;
+    $('allergy-t').textContent=t.allergy;
     $('foot-addr').textContent=t.addr;
     $('cart-clear').textContent=t.clear;
     $('cart-open').textContent=t.checkout;
@@ -433,7 +459,8 @@
       const d=await r.json();
       MENU=(d.menu||[]).filter(c=>(c.items||[]).length);
       if(!MENU.length){ $('tiles').innerHTML=''; $('rail').innerHTML=''; $('subs').innerHTML=''; $('menu').innerHTML='<div class="note">'+esc(t.empty)+'</div>'; return; }
-      renderTiles(); renderRail(); renderSubs(); renderDishes();
+      renderTiles(); renderRail(); renderSubs(); renderDishes(); renderBack();
+      $('allergy').style.display='';
     }catch(e){ $('menu').innerHTML='<div class="note">'+esc(T[lang].fail)+'</div>'; }
   }
 
@@ -463,7 +490,7 @@
   function select(i){
     active = (active===i ? -1 : i);
     activeSub = null;
-    renderTiles(); renderRail(); renderSubs(); renderDishes();
+    renderTiles(); renderRail(); renderSubs(); renderDishes(); renderBack();
     const hh = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--hh')) || 56;
     const y = $('rail').getBoundingClientRect().top + window.scrollY - hh;
     window.scrollTo({ top:y, behavior:'smooth' });
@@ -471,10 +498,11 @@
 
   // Фильтры подкатегорий показываем только внутри выбранной категории:
   // в режиме «всё меню» они бессмысленны, разделы там и так разделены.
+  // Фильтры подкатегорий внутри категории: показываем только непустые.
   function renderSubs(){
     const box=$('subs');
     const cat = active===-1 ? null : MENU[active];
-    const subs = cat && cat.subcategories ? cat.subcategories : [];
+    const subs = cat && cat.subcategories ? cat.subcategories.filter(sc=>sc.has_items!==false) : [];
     if(!subs.length){ box.innerHTML=''; box.style.display='none'; return; }
     box.style.display='';
     const t=T[lang];
@@ -487,17 +515,29 @@
     });
   }
 
+  // «Назад» нужна только когда открыт конкретный раздел: в общем списке
+  // возвращаться некуда.
+  function renderBack(){
+    $('back-btn').classList.toggle('show', active!==-1);
+  }
+  $('back-btn').addEventListener('click', ()=>{
+    active=-1; activeSub=null;
+    renderTiles(); renderRail(); renderSubs(); renderDishes(); renderBack();
+    window.scrollTo({ top:0, behavior:'smooth' });
+  });
+
   function renderDishes(){
     const t=T[lang];
     const cats = active===-1 ? MENU : [MENU[active]];
     $('menu').innerHTML = cats.map(c=>{
       let list;
       if(active===-1){
-        // Главная («Всё меню»): если у категории отмечены подкатегории —
-        // показываем только их. Так большие разделы вроде напитков не
-        // вываливают на первый экран крепкий алкоголь и настойки.
-        const featured=(c.subcategories||[]).filter(sc=>sc.featured).map(sc=>sc.id);
-        list = featured.length ? c.items.filter(i=>featured.includes(i.subcategory_id)) : c.items;
+        // «Всё меню» — витрина, а не полный каталог: по умолчанию видно всё,
+        // но категорию или подкатегорию можно убрать отсюда галочкой в
+        // админке, оставив её доступной внутри самой категории.
+        if(c.in_overview===false) return '';
+        const hidden=new Set((c.subcategories||[]).filter(sc=>sc.in_overview===false).map(sc=>sc.id));
+        list = c.items.filter(i => i.in_overview!==false && !hidden.has(i.subcategory_id));
       } else {
         list = activeSub ? c.items.filter(i=>i.subcategory_id===activeSub) : c.items;
       }
@@ -522,10 +562,18 @@
           '<div class="dish__in">'+
             '<h3 class="dish__t">'+esc(it.title)+'</h3>'+
             (it.description?'<p class="dish__d">'+esc(it.description)+'</p>':'')+
+            (it.description && it.description.length>70 ? '<button type="button" class="dish__more">'+esc(t.more)+'</button>' : '')+
             '<div class="dish__foot"><span class="dish__p">'+esc(String(it.price))+'<i>'+esc(t.gel)+'</i></span>'+ctl+'</div>'+
           '</div></article>';
       }).join('')+'</div>';
     }).join('');
+
+    $('menu').querySelectorAll('.dish__more').forEach(b=>b.onclick=()=>{
+      const p=b.previousElementSibling;
+      if(!p) return;
+      const open=p.classList.toggle('open');
+      b.textContent = open ? T[lang].less : T[lang].more;
+    });
 
     $('menu').querySelectorAll('.dish__ph .swap').forEach(b=>b.onclick=e=>{
       e.preventDefault(); e.stopPropagation();

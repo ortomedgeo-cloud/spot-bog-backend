@@ -42,12 +42,12 @@
 
   /* ---------- шапка ---------- */
   header.top{ position:sticky; top:0; z-index:30; background:rgba(11,11,11,.94); backdrop-filter:blur(10px); border-bottom:1px solid var(--rule); }
-  .top__row{ display:flex; align-items:center; gap:12px; padding:10px 0; }
+  .top__row{ display:flex; align-items:center; gap:12px; padding:10px 0 10px 4px; }
   .top__logo{ height:26px; width:auto; margin-right:auto;
     /* Логотип нарисован чёрным для светлых носителей. invert делает его белым,
        а hue-rotate возвращает фирменный оранжевый акцент — файл трогать не нужно. */
     filter:invert(1) hue-rotate(180deg); }
-  .langs{ display:flex; gap:2px; }
+  .langs{ display:flex; gap:2px; margin-left:auto; }
   .langs button{ font-size:13px; color:var(--muted); background:none; border:1px solid transparent; border-radius:999px; padding:7px 12px; cursor:pointer; min-height:36px; font-family:var(--body); }
   .langs button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); }
 

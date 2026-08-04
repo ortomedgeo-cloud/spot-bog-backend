@@ -218,7 +218,7 @@
          qMenu:'Меню', qMenuD:'Кухня, авторские коктейли, вино и кальяны',
          qBook:'Бронь столика', qBookD:'Выбрать сеанс и столик на схеме зала',
          qOrder:'Заказ за столиком', qOrderD:'Позвать официанта или сделать заказ, не вставая из-за стола',
-         perGuest:'за гостя', loading:'Загружаем афишу…',
+         perGuest:'за гостя', perGuestDep:'за гостя (депозит)', perGuestInc:'за гостя (сет-меню входит в стоимость)', loading:'Загружаем афишу…',
          empty:'Ближайшие сеансы ещё не объявлены. Загляните позже или напишите нам.',
          fail:'Не удалось загрузить афишу.' },
     ka:{ sub:'ღია ცის ქვეშ კინო, სამზარეულო და საავტორო კოქტეილები. მე-15 სართულზე სამი საფეხურით მაღლა.',
@@ -231,7 +231,7 @@
          qMenu:'მენიუ', qMenuD:'სამზარეულო, კოქტეილები, ღვინო და კალიანი',
          qBook:'მაგიდის დაჯავშნა', qBookD:'აირჩიეთ სეანსი და ადგილი სქემაზე',
          qOrder:'შეკვეთა მაგიდიდან', qOrderD:'დაუძახეთ მიმტანს ან შეუკვეთეთ ადგილიდან',
-         perGuest:'ერთ სტუმარზე', loading:'აფიშა იტვირთება…',
+         perGuest:'ერთ სტუმარზე', perGuestDep:'ერთ სტუმარზე (დეპოზიტი)', perGuestInc:'ერთ სტუმარზე (სეტ-მენიუ ფასში შედის)', loading:'აფიშა იტვირთება…',
          empty:'უახლოესი სეანსები ჯერ არ გამოცხადებულა. შემოგვიარეთ მოგვიანებით.',
          fail:'აფიშა ვერ ჩაიტვირთა.' },
     en:{ sub:'Open-air cinema, kitchen and signature cocktails. Three steps above the 15th floor.',
@@ -244,13 +244,21 @@
          qMenu:'Menu', qMenuD:'Kitchen, signature cocktails, wine and hookah',
          qBook:'Book a table', qBookD:'Pick a screening and a seat on the plan',
          qOrder:'Order from your table', qOrderD:'Call a waiter or order without getting up',
-         perGuest:'per guest', loading:'Loading what’s on…',
+         perGuest:'per guest', perGuestDep:'per guest (deposit)', perGuestInc:'per guest (set menu included)', loading:'Loading what’s on…',
          empty:'No screenings announced yet. Check back later or message us.',
          fail:'Could not load the programme.' }
   };
 
   // Заглушка вместо отсутствующего элемента: пропущенный id портит один
   // блок, а не всю страницу. Ошибку при этом видно в консоли.
+  // Цена значит разное в зависимости от формата: у обычного показа и
+  // à la carte это депозит, у киноужина и drinking night — всё включено.
+  const INCLUDED_FORMATS = ['din','drink'];
+  function priceNote(fmt){
+    const t=T[lang];
+    return INCLUDED_FORMATS.indexOf(fmt)!==-1 ? t.perGuestInc : t.perGuestDep;
+  }
+
   const $=(id)=>{
     const el=document.getElementById(id);
     if(!el){ console.warn('нет элемента #'+id); return { textContent:'', innerHTML:'', style:{}, classList:{ toggle(){}, add(){}, remove(){} }, querySelectorAll:()=>[], addEventListener(){} }; }
@@ -353,7 +361,7 @@
         '<div class="show__in">'+
           '<span class="show__d">'+esc(sn.time)+'</span>'+
           '<h3 class="show__t">'+esc(sn.title)+'</h3>'+
-          '<div class="show__p"><b>'+esc(String(sn.price))+' GEL</b> '+esc(t.perGuest)+'</div>'+
+          '<div class="show__p"><b>'+esc(String(sn.price))+' GEL</b> '+esc(priceNote(sn.format))+'</div>'+
         '</div>'+
       '</a>'
     ).join('')+'</div>'+

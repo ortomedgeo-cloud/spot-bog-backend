@@ -401,6 +401,19 @@
     if(h) document.documentElement.style.setProperty('--hh', Math.round(h.getBoundingClientRect().height)+'px');
   }
   window.addEventListener('resize', syncHeaderHeight);
+  // Ширина карточек меняется — вместе с ней и то, что помещается в три строки.
+  let moreTimer=null;
+  window.addEventListener('resize', ()=>{
+    clearTimeout(moreTimer);
+    moreTimer=setTimeout(()=>{
+      document.querySelectorAll('.dish__d').forEach(p=>{
+        const btn=p.nextElementSibling;
+        if(!btn || !btn.classList.contains('dish__more')) return;
+        if(p.classList.contains('open')) return;
+        btn.hidden = !(p.scrollHeight > p.clientHeight + 1);
+      });
+    }, 200);
+  });
   window.addEventListener('orientationchange', syncHeaderHeight);
   syncHeaderHeight();
 
@@ -562,11 +575,20 @@
           '<div class="dish__in">'+
             '<h3 class="dish__t">'+esc(it.title)+'</h3>'+
             (it.description?'<p class="dish__d">'+esc(it.description)+'</p>':'')+
-            (it.description && it.description.length>70 ? '<button type="button" class="dish__more">'+esc(t.more)+'</button>' : '')+
+            (it.description ? '<button type="button" class="dish__more" hidden>'+esc(t.more)+'</button>' : '')+
             '<div class="dish__foot"><span class="dish__p">'+esc(String(it.price))+'<i>'+esc(t.gel)+'</i></span>'+ctl+'</div>'+
           '</div></article>';
       }).join('')+'</div>';
     }).join('');
+
+    // Показываем «Подробнее» только там, где текст действительно не поместился.
+    // По длине строки судить нельзя: обрезка зависит от ширины карточки и
+    // языка, поэтому одни описания получали кнопку, а другие — нет.
+    $('menu').querySelectorAll('.dish__d').forEach(p=>{
+      const btn = p.nextElementSibling;
+      if(!btn || !btn.classList.contains('dish__more')) return;
+      if(p.scrollHeight > p.clientHeight + 1) btn.hidden = false;
+    });
 
     $('menu').querySelectorAll('.dish__more').forEach(b=>b.onclick=()=>{
       const p=b.previousElementSibling;

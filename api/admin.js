@@ -9,14 +9,41 @@ const SEATS = [
   "Бар 1", "Бар 2", "Бар 3", "Бар 4"
 ];
 
-const DEPOSIT_MOV =
-  "(вычитается из общей суммы счёта) ❗️Бронь столика на фильм нельзя отменить. Если у Вас не получается посетить этот показ, мы можем перенести Ваше бронирование на другой день! По всем вопросам обращайтесь к нам в директ Instagram.";
-
-const DEPOSIT_DIN =
-  "(сет-меню входит в стоимость) ❗️Условия отмены: отмена за 3 дня до мероприятия и ранее - возвращается 100% суммы\n- отмена за 2 дня - взвращается 50%\n- отмена за день и в день мероприятия - сумма за билет сгорает.";
+// Форматы событий. Один справочник на всё: подпись в админке, шаблон условий
+// и то, как объясняется цена гостю на сайте. Добавить формат — дописать сюда.
+//
+// deposit — «цена это депозит, он вычитается из счёта»
+// included — «в стоимость уже всё входит»
+const FORMATS = {
+  mov: {
+    title: "Movie Night — обычный показ",
+    priceKind: "deposit",
+    deposit:
+      "(вычитается из общей суммы счёта) ❗️Бронь столика на фильм нельзя отменить. Если у Вас не получается посетить этот показ, мы можем перенести Ваше бронирование на другой день! По всем вопросам обращайтесь к нам в директ Instagram."
+  },
+  din: {
+    title: "Movie Dinner Night — киноужин",
+    priceKind: "included",
+    deposit:
+      "(сет-меню входит в стоимость) ❗️Условия отмены: отмена за 3 дня до мероприятия и ранее - возвращается 100% суммы\n- отмена за 2 дня - взвращается 50%\n- отмена за день и в день мероприятия - сумма за билет сгорает."
+  },
+  drink: {
+    title: "Movie Drinking Night",
+    priceKind: "included",
+    // Условия те же, что у киноужина.
+    deposit:
+      "(сет-меню входит в стоимость) ❗️Условия отмены: отмена за 3 дня до мероприятия и ранее - возвращается 100% суммы\n- отмена за 2 дня - взвращается 50%\n- отмена за день и в день мероприятия - сумма за билет сгорает."
+  },
+  alacarte: {
+    title: "Movie Night Á La Carte",
+    priceKind: "deposit",
+    deposit:
+      "(депозит вычитается из общей суммы счёта) ❗️Бронь столика на фильм нельзя отменить. Если у Вас не получается посетить этот показ, мы можем перенести Ваше бронирование на другой день! По всем вопросам обращайтесь к нам в директ Instagram."
+  }
+};
 
 function page() {
-  const cfg = JSON.stringify({ seats: SEATS, depositMov: DEPOSIT_MOV, depositDin: DEPOSIT_DIN });
+  const cfg = JSON.stringify({ seats: SEATS, formats: FORMATS });
   return `<!doctype html>
 <html lang="ru">
 <head>
@@ -209,6 +236,7 @@ function page() {
   }
   .fl-t.bar { background:#3a3330; border-color:#5b524c; }
   .fl-t.off { opacity:.35; }
+  .fl-t.closed { background:#4a3b36; border-style:dashed; }
   .fl-t.sel { border-color:#E75228; box-shadow:0 0 0 3px rgba(231,82,40,.25); z-index:5; }
   .fl-t small { display:block; font-weight:400; font-size:9.5px; opacity:.65; }
   .fl-h {
@@ -303,7 +331,7 @@ function page() {
         <div class="hint" id="ev-picked"></div>
       </div>
       <div class="row two">
-        <div><label>Формат *</label><select id="ev-format"><option value="mov">mov — фильм</option><option value="din">din — киноужин</option></select></div>
+        <div><label>Формат *</label><select id="ev-format"></select></div>
         <div><label>Цена (GEL, с человека) *</label><input id="ev-price" type="number" min="0" step="0.01" placeholder="30"></div>
       </div>
       <div class="row"><label>Постер (URL)</label><input id="ev-poster" placeholder="оставь пустым — возьмётся из TMDB">
@@ -318,7 +346,7 @@ function page() {
       <div class="batchbar" id="ev-batch">
         <span><b id="ev-batch-n">0</b> выбрано</span>
         <input id="ev-batch-price" type="number" min="0" step="0.01" placeholder="Цена" style="width:80px">
-        <select id="ev-batch-format"><option value="">формат —</option><option value="mov">mov</option><option value="din">din</option></select>
+        <select id="ev-batch-format"></select>
         <button class="btn small" id="ev-batch-apply">Применить</button>
         <button class="btn small danger" id="ev-batch-del">Удалить</button>
       </div>
@@ -567,7 +595,8 @@ function boot(){
   loadEventsList();
   loadEventOptions();
   loadSessionsList();
-  $('ev-deposit').value = CFG.depositMov;
+  fillFormatSelects();
+  $('ev-deposit').value = depositTemplate('mov');
   loadMenu();
   loadSvc();
   loadNotify();
@@ -679,6 +708,18 @@ async function loadToday(){
   }catch(e){ box.innerHTML='<div class="hint">Ошибка загрузки.</div>'; }
 }
 
+// ---------- ФОРМАТЫ ----------
+function depositTemplate(fmt){
+  const f = CFG.formats[fmt];
+  return f ? f.deposit : '';
+}
+function fillFormatSelects(){
+  const opts = Object.keys(CFG.formats)
+    .map(k=>'<option value="'+esc(k)+'">'+esc(CFG.formats[k].title)+'</option>').join('');
+  $('ev-format').innerHTML = opts;
+  $('ev-batch-format').innerHTML = '<option value="">формат —</option>'+opts;
+}
+
 // ---------- EVENTS ----------
 let EV_PICK = { title:'', poster:'', tmdb_id:null };
 let EV_EDIT = null; // event being edited: {id,title,poster_url}
@@ -687,7 +728,7 @@ function evResetForm(){
   EV_EDIT=null; EV_PICK={ title:'', poster:'', tmdb_id:null };
   $('ev-picked').textContent=''; $('ev-price').value=''; $('ev-poster').value='';
   $('ev-results').innerHTML='';
-  $('ev-deposit').value = $('ev-format').value==='din' ? CFG.depositDin : CFG.depositMov;
+  $('ev-deposit').value = depositTemplate($('ev-format').value);
   $('ev-create').textContent='Создать событие';
   $('ev-cancel').style.display='none';
 }
@@ -723,8 +764,11 @@ async function evSearch(){
 
 $('ev-format').addEventListener('change', ()=>{
   const cur=$('ev-deposit').value.trim();
-  if(!cur || cur===CFG.depositMov || cur===CFG.depositDin){
-    $('ev-deposit').value = $('ev-format').value==='din' ? CFG.depositDin : CFG.depositMov;
+  // Перезаписываем условия только если в поле стоит нетронутый шаблон:
+  // отредактированный вручную текст затирать нельзя.
+  const templates = Object.keys(CFG.formats).map(k=>CFG.formats[k].deposit);
+  if(!cur || templates.indexOf(cur)!==-1){
+    $('ev-deposit').value = depositTemplate($('ev-format').value);
   }
 });
 
@@ -785,7 +829,7 @@ async function loadEventsList(){
         $('ev-format').value=e.format||'mov';
         $('ev-price').value=e.price;
         $('ev-poster').value=e.poster_url||'';
-        $('ev-deposit').value=e.deposit_text||($('ev-format').value==='din'?CFG.depositDin:CFG.depositMov);
+        $('ev-deposit').value=e.deposit_text||depositTemplate($('ev-format').value);
         $('ev-picked').textContent='Редактирование: '+e.title+(e.poster_url?'':' — постера нет, найди фильм в TMDB чтобы добавить');
         $('ev-create').textContent='Сохранить изменения';
         $('ev-cancel').style.display='inline-block';
@@ -1104,9 +1148,9 @@ function flRender(){
       const style = 'left:'+t.x+'px;top:'+t.y+'px;width:'+t.w+'px;height:'+t.h+'px;'+
         'border-radius:'+(t.shape==='circle'?'50%':'10px')+';'+
         (t.rotation?('transform:rotate('+t.rotation+'deg);'):'');
-      return '<div class="fl-t'+(t.zone==='bar'?' bar':'')+(t.active===false?' off':'')+(sel?' sel':'')+
+      return '<div class="fl-t'+(t.zone==='bar'?' bar':'')+(t.active===false?' off':'')+(t.bookable===false?' closed':'')+(sel?' sel':'')+
         '" data-label="'+esc(t.label)+'" style="'+style+'">'+
-          '<span>'+esc(t.label)+'<small>'+t.capacity_min+'–'+t.capacity_max+'</small></span>'+
+          '<span>'+esc(t.label)+'<small>'+(t.bookable===false?'закрыт':(t.capacity_min+'–'+t.capacity_max))+'</small></span>'+
           (sel?'<div class="fl-h" data-resize="1"></div>':'')+
         '</div>';
     }).join('');
@@ -1195,7 +1239,10 @@ function flSide(){
     '<div class="row two"><div><label>Ширина</label><input id="fl-w" type="number" min="40" step="5" value="'+t.w+'"></div>'+
       '<div><label>Высота</label><input id="fl-h" type="number" min="40" step="5" value="'+t.h+'"></div></div>'+
     '<div class="row"><label style="display:flex;align-items:center;gap:8px;font-weight:400">'+
-      '<input type="checkbox" id="fl-active" style="width:16px;height:16px"'+(t.active!==false?' checked':'')+'> Показывать на сайте</label></div>'+
+      '<input type="checkbox" id="fl-active" style="width:16px;height:16px"'+(t.active!==false?' checked':'')+'> Показывать на схеме</label></div>'+
+    '<div class="row"><label style="display:flex;align-items:center;gap:8px;font-weight:400">'+
+      '<input type="checkbox" id="fl-bookable" style="width:16px;height:16px"'+(t.bookable!==false?' checked':'')+'> Можно бронировать с сайта</label>'+
+      '<div class="hint">Снятая галочка закрывает стол: на схеме он виден серым с подписью «закрыт», но гость его не выберет. Через админку посадить за него по-прежнему можно.</div></div>'+
     '<button class="btn small danger" id="fl-del">Убрать из плана</button>';
 
   const bind = (id, key, num) => {
@@ -1218,6 +1265,7 @@ function flSide(){
   bind('fl-rot','rotation',true); bind('fl-cmin','capacity_min',true); bind('fl-cmax','capacity_max',true);
   bind('fl-w','w',true); bind('fl-h','h',true);
   $('fl-active').addEventListener('change', ()=>{ t.active = $('fl-active').checked; flDirty(); flRender(); });
+  $('fl-bookable').addEventListener('change', ()=>{ t.bookable = $('fl-bookable').checked; flDirty(); flRender(); });
   $('fl-del').onclick = ()=>flDelete(t.label);
 }
 

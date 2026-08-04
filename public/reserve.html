@@ -175,10 +175,10 @@
     ru:{ title:'Бронь столика', lead:'Выберите сеанс, столик и оставьте контакты — депозит оплачивается онлайн.',
          date:'Дата', time:'Сеанс', guests:'Гостей', name:'Ваше имя', phone:'Телефон',
          insta:'Instagram (необязательно)', comment:'Комментарий',
-         free:'свободно', busy:'занято', pick:'ваш выбор',
+         free:'свободно', busy:'занято', closed:'закрыт', pick:'ваш выбор',
          pickSeat:'Выберите столик на схеме.', seatTaken:'Этот столик уже занят на этот сеанс.',
          chosen:t=>'Выбран '+t, deposit:'Депозит', pay:'Оплатить',
-         perGuest:'за гостя', noSessions:'Ближайших сеансов пока нет. Загляните позже или напишите нам.',
+         perGuest:'за гостя', perGuestDep:'за гостя (депозит)', perGuestInc:'за гостя (сет-меню входит в стоимость)', noSessions:'Ближайших сеансов пока нет. Загляните позже или напишите нам.',
          loading:'Загружаем…', fail:'Что-то пошло не так. Попробуйте ещё раз.',
          needName:'Введите имя.', needPhone:'Введите номер телефона.',
          badPhone:'Похоже, это не номер. Инстаграм — в отдельное поле ниже.',
@@ -187,10 +187,10 @@
     ka:{ title:'მაგიდის დაჯავშნა', lead:'აირჩიეთ სეანსი, მაგიდა და დატოვეთ კონტაქტი — დეპოზიტი ონლაინ იხდება.',
          date:'თარიღი', time:'სეანსი', guests:'სტუმრები', name:'თქვენი სახელი', phone:'ტელეფონი',
          insta:'Instagram (არასავალდებულო)', comment:'კომენტარი',
-         free:'თავისუფალია', busy:'დაკავებულია', pick:'თქვენი არჩევანი',
+         free:'თავისუფალია', busy:'დაკავებულია', closed:'დაკეტილია', pick:'თქვენი არჩევანი',
          pickSeat:'აირჩიეთ მაგიდა სქემაზე.', seatTaken:'ეს მაგიდა უკვე დაკავებულია.',
          chosen:t=>'არჩეულია '+t, deposit:'დეპოზიტი', pay:'გადახდა',
-         perGuest:'ერთ სტუმარზე', noSessions:'უახლოესი სეანსები ჯერ არ არის. შემოგვიარეთ მოგვიანებით.',
+         perGuest:'ერთ სტუმარზე', perGuestDep:'ერთ სტუმარზე (დეპოზიტი)', perGuestInc:'ერთ სტუმარზე (სეტ-მენიუ ფასში შედის)', noSessions:'უახლოესი სეანსები ჯერ არ არის. შემოგვიარეთ მოგვიანებით.',
          loading:'იტვირთება…', fail:'რაღაც შეცდომაა. სცადეთ ხელახლა.',
          needName:'შეიყვანეთ სახელი.', needPhone:'შეიყვანეთ ტელეფონის ნომერი.',
          badPhone:'ეს ნომერს არ ჰგავს. ინსტაგრამი — ცალკე ველში.',
@@ -199,16 +199,24 @@
     en:{ title:'Book a table', lead:'Pick a screening and a table, leave your contacts — the deposit is paid online.',
          date:'Date', time:'Screening', guests:'Guests', name:'Your name', phone:'Phone',
          insta:'Instagram (optional)', comment:'Comment',
-         free:'free', busy:'taken', pick:'your pick',
+         free:'free', busy:'taken', closed:'closed', pick:'your pick',
          pickSeat:'Pick a table on the plan.', seatTaken:'That table is already taken for this screening.',
          chosen:t=>t+' selected', deposit:'Deposit', pay:'Pay',
-         perGuest:'per guest', noSessions:'No upcoming screenings yet. Check back later or message us.',
+         perGuest:'per guest', perGuestDep:'per guest (deposit)', perGuestInc:'per guest (set menu included)', noSessions:'No upcoming screenings yet. Check back later or message us.',
          loading:'Loading…', fail:'Something went wrong. Please try again.',
          needName:'Enter your name.', needPhone:'Enter your phone number.',
          badPhone:"That doesn't look like a number. Instagram goes in the field below.",
          needSeat:'Pick a table.', going:'Taking you to payment…',
          addr:'18 Rejeb Nijaradze, Batumi — three steps above the 15th floor.', gel:'GEL' }
   };
+
+  // Цена значит разное в зависимости от формата: у обычного показа и
+  // à la carte это депозит, у киноужина и drinking night — всё включено.
+  const INCLUDED_FORMATS = ['din','drink'];
+  function priceNote(fmt){
+    const t=T[lang];
+    return INCLUDED_FORMATS.indexOf(fmt)!==-1 ? t.perGuestInc : t.perGuestDep;
+  }
 
   const $=(id)=>document.getElementById(id);
   const esc=(s)=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -291,7 +299,7 @@
         '<div>'+
           '<h2 class="ev__t">'+esc(session.title)+'</h2>'+
           '<p class="ev__m">'+esc(session.date)+' · '+esc(session.time)+'</p>'+
-          '<div class="ev__p">'+esc(String(session.price))+' '+esc(t.gel)+' <span style="font-size:12px;color:var(--muted)">'+esc(t.perGuest)+'</span></div>'+
+          '<div class="ev__p">'+esc(String(session.price))+' '+esc(t.gel)+' <span style="font-size:12px;color:var(--muted)">'+esc(priceNote(session.format))+'</span></div>'+
           (session.deposit_text?'<div class="ev__note">'+esc(session.deposit_text)+'</div>':'')+
         '</div>'+
       '</div>';
@@ -336,15 +344,16 @@
       '<div class="plan__screen">'+esc(PLAN.settings.screen_label||'SCREEN')+'</div>'+
       PLAN.tables.map(p=>{
         const isBusy = booked.has(String(p.label).toLowerCase());
+        const isClosed = p.bookable === false;   // закрыт администратором
         const tooSmall = guests < (Number(p.capacity_min)||1) || guests > (Number(p.capacity_max)||99);
-        const cls = isBusy ? 'busy' : (tooSmall ? 'small' : 'free');
+        const cls = isClosed ? 'busy' : (isBusy ? 'busy' : (tooSmall ? 'small' : 'free'));
         const picked = (seat===p.label) ? ' picked' : '';
         const style = 'left:'+p.x+'px;top:'+p.y+'px;width:'+p.w+'px;height:'+p.h+'px;'+
           'border-radius:'+(p.shape==='circle'?'50%':'10px')+';'+
           (p.rotation?('transform:rotate('+p.rotation+'deg);'):'');
-        const note = isBusy ? t.busy : (tooSmall ? (p.capacity_min+'–'+p.capacity_max) : '');
+        const note = isClosed ? t.closed : (isBusy ? t.busy : (tooSmall ? (p.capacity_min+'–'+p.capacity_max) : ''));
         return '<button type="button" class="pt '+cls+picked+'" data-seat="'+esc(p.label)+'" style="'+style+'"'+
-          ((isBusy||tooSmall)?' disabled':'')+'>'+
+          ((isClosed||isBusy||tooSmall)?' disabled':'')+'>'+
           '<span>'+esc(String(p.label).replace('Стол ','').replace('Бар ','B'))+
           (note?'<small>'+esc(note)+'</small>':'')+'</span></button>';
       }).join('');

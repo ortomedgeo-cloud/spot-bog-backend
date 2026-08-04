@@ -213,6 +213,46 @@ function page() {
 
   .btn.small.danger { background:#F44336; color:#fff; }
 
+  /* окно сеанса и архив */
+  .sd-bg { position:fixed; inset:0; z-index:60; background:rgba(0,0,0,.5); display:none; align-items:flex-start; justify-content:center; overflow:auto; padding:20px 12px 60px; }
+  .sd-bg.open { display:flex; }
+  .sd { background:#f5f5f7; border-radius:16px; width:100%; max-width:940px; }
+  .sd__h { display:flex; align-items:flex-start; gap:14px; padding:16px 18px; background:#fff; border-radius:16px 16px 0 0; border-bottom:1px solid #eee; position:sticky; top:0; z-index:2; }
+  .sd__h img { width:52px; height:74px; object-fit:cover; border-radius:7px; background:#eee; flex:none; }
+  .sd__t { flex:1; min-width:0; }
+  .sd__t h2 { margin:0 0 3px; font-size:18px; }
+  .sd__t .m { font-size:13px; color:#777; }
+  .sd__x { background:none; border:none; font-size:26px; line-height:1; color:#999; cursor:pointer; padding:0 4px; }
+  .sd__body { padding:16px 18px 22px; }
+  .sd__stats { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .sd__stat { background:#fff; border-radius:10px; padding:9px 13px; font-size:13px; }
+  .sd__stat b { display:block; font-size:17px; }
+
+  .sd-plan { background:#fff; border-radius:12px; padding:12px; margin-bottom:14px; overflow:auto; }
+  .sd-plan__in { position:relative; transform-origin:top left; }
+  .sdt { position:absolute; box-sizing:border-box; display:flex; align-items:center; justify-content:center;
+         text-align:center; font-size:11px; font-weight:600; line-height:1.15; padding:2px; cursor:pointer;
+         background:#e8f5e9; border:2px solid #a5d6a7; color:#2e7d32; }
+  .sdt.busy { background:#ffebee; border-color:#ef9a9a; color:#b71c1c; }
+  .sdt.closed { background:#eceff1; border-color:#b0bec5; color:#78909c; border-style:dashed; }
+  .sdt small { display:block; font-weight:400; font-size:9px; opacity:.8; }
+  .sdt.sel { outline:3px solid #E75228; outline-offset:1px; z-index:3; }
+
+  .bk { background:#fff; border-radius:10px; padding:11px 13px; margin-bottom:8px; }
+  .bk__top { display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
+  .bk__seat { font-weight:700; font-size:15px; }
+  .bk__who { font-size:14px; }
+  .bk__c { font-size:12.5px; color:#666; margin-top:3px; }
+  .bk__c a { color:#333; }
+  .bk__acts { display:flex; gap:6px; margin-top:9px; flex-wrap:wrap; }
+  .bk.edit { outline:2px solid #E75228; }
+
+  .arch-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #eee; cursor:pointer; }
+  .arch-row:hover { background:#fafafa; }
+  .arch-row .d { font-size:12.5px; color:#888; white-space:nowrap; }
+  .arch-row .t { flex:1; font-weight:600; font-size:14px; }
+  .arch-row .n { font-size:12.5px; color:#666; white-space:nowrap; }
+
   /* конструктор зала */
   .fl-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
   .fl-bar .grp { display:flex; gap:6px; align-items:center; background:#fff; border-radius:10px; padding:6px 10px; }
@@ -309,6 +349,7 @@ function page() {
     <div class="tab" data-tab="sessions">Сеансы</div>
     <div class="tab" data-tab="menu">Меню</div>
     <div class="tab" data-tab="floor">Зал</div>
+    <div class="tab" data-tab="archive">Архив</div>
     <div class="tab" data-tab="svc">Обслуживание<span id="svc-badge"></span></div>
   </div>
 
@@ -455,6 +496,24 @@ function page() {
     </div>
   </div>
 
+  <!-- ===== ARCHIVE ===== -->
+  <div class="panel" id="panel-archive">
+    <div class="card" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <input id="ar-q" placeholder="Поиск: фильм, имя гостя, телефон, инстаграм" style="flex:1;min-width:220px;padding:9px 12px;border:1px solid #ccc;border-radius:8px">
+      <button class="btn small" id="ar-find">Искать</button>
+      <button class="btn small ghost" id="ar-clear">Сбросить</button>
+    </div>
+    <div id="ar-guests"></div>
+    <div class="card">
+      <label style="font-size:13px;font-weight:600">Прошедшие сеансы</label>
+      <div id="ar-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn small ghost" id="ar-prev">← Раньше</button>
+        <button class="btn small ghost" id="ar-next">Позже →</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== SERVICE ===== -->
   <div class="panel" id="panel-svc">
     <div class="card" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -516,6 +575,21 @@ function page() {
   <div class="cal-foot">
     <button class="btn ghost" id="cal-close">Отмена</button>
     <button class="btn" id="cal-ok">Выбрать</button>
+  </div>
+</div>
+
+<div class="sd-bg" id="sd-bg">
+  <div class="sd">
+    <div class="sd__h">
+      <img id="sd-poster" alt="">
+      <div class="sd__t"><h2 id="sd-title"></h2><div class="m" id="sd-meta"></div></div>
+      <button class="sd__x" id="sd-close" aria-label="Закрыть">×</button>
+    </div>
+    <div class="sd__body">
+      <div class="sd__stats" id="sd-stats"></div>
+      <div class="sd-plan"><div class="sd-plan__in" id="sd-plan"></div></div>
+      <div id="sd-list"></div>
+    </div>
   </div>
 </div>
 
@@ -585,6 +659,7 @@ document.querySelectorAll('#main-tabs .tab').forEach(t => t.addEventListener('cl
   if(t.dataset.tab==='sessions') { loadEventOptions(); loadSessionsList(); }
   if(t.dataset.tab==='menu') loadMenu();
   if(t.dataset.tab==='floor') loadFloor();
+  if(t.dataset.tab==='archive') loadArchive();
   if(t.dataset.tab==='svc') { loadSvc(); loadNotify(); }
 }));
 
@@ -1094,6 +1169,238 @@ async function svcSet(payload){
 $('svc-reload').addEventListener('click', ()=>loadSvc());
 $('svc-hours').addEventListener('change', ()=>loadSvc());
 
+// ---------- ОКНО СЕАНСА ----------
+// Рабочее окно администратора: схема зала с занятыми местами и список броней
+// с контактами. Отсюда же бронь правится, переносится и отменяется — раньше
+// для этого приходилось лезть в базу.
+
+let SD = null;          // текущий сеанс
+let SD_EDIT = null;     // id брони в режиме правки
+
+async function openSession(sessionId){
+  $('sd-bg').classList.add('open');
+  $('sd-title').textContent='Загрузка…';
+  $('sd-meta').textContent=''; $('sd-stats').innerHTML='';
+  $('sd-plan').innerHTML=''; $('sd-list').innerHTML='';
+  try{
+    const u=new URL(api('admin-bookings'), location.origin);
+    u.searchParams.set('session_id', sessionId);
+    const r=await fetch(u, F);
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json();
+    if(!r.ok || !d.ok){ $('sd-title').textContent='Не удалось открыть сеанс'; return; }
+    SD=d; SD_EDIT=null;
+    sdRender();
+  }catch(e){ $('sd-title').textContent='Сетевая ошибка'; }
+}
+
+$('sd-close').addEventListener('click', ()=>$('sd-bg').classList.remove('open'));
+$('sd-bg').addEventListener('click', e=>{ if(e.target===$('sd-bg')) $('sd-bg').classList.remove('open'); });
+
+function sdRender(){
+  if(!SD) return;
+  const s=SD.session, t=SD.totals;
+
+  $('sd-poster').src = s.poster_url || '';
+  $('sd-poster').style.visibility = s.poster_url ? 'visible' : 'hidden';
+  $('sd-title').textContent = s.title;
+  $('sd-meta').textContent = s.date+' · '+s.time+' · '+s.format+' · '+s.price+' GEL';
+
+  $('sd-stats').innerHTML =
+    '<div class="sd__stat">Броней<b>'+t.bookings+'</b></div>'+
+    '<div class="sd__stat">Гостей<b>'+t.guests+'</b></div>'+
+    '<div class="sd__stat">Свободно столов<b>'+t.free+'</b></div>'+
+    '<div class="sd__stat">Сумма<b>'+Number(t.revenue)+' GEL</b></div>';
+
+  // схема: занятые столы подписаны именем гостя
+  const byLabel={};
+  SD.bookings.forEach(b=>{ byLabel[b.table_label]=b; });
+  const W=Number(SD.plan.settings.canvas_w)||1000, H=Number(SD.plan.settings.canvas_h)||700;
+  const box=$('sd-plan');
+  const avail=box.parentElement.clientWidth-24;
+  const scale=Math.min(1, avail/W);
+  box.style.width=W+'px'; box.style.height=H+'px';
+  box.style.transform='scale('+scale+')';
+  box.parentElement.style.height=(H*scale+4)+'px';
+
+  box.innerHTML = SD.plan.tables.map(p=>{
+    const b=byLabel[p.label];
+    const cls = b ? 'busy' : (p.bookable===false ? 'closed' : '');
+    const sel = (b && b.id===SD_EDIT) ? ' sel' : '';
+    const style='left:'+p.x+'px;top:'+p.y+'px;width:'+p.w+'px;height:'+p.h+'px;'+
+      'border-radius:'+(p.shape==='circle'?'50%':'8px')+';'+
+      (p.rotation?('transform:rotate('+p.rotation+'deg);'):'');
+    const note = b ? (b.guest_name||'—') : (p.bookable===false?'закрыт':'свободен');
+    return '<div class="sdt '+cls+sel+'" data-seat="'+esc(p.label)+'" style="'+style+'">'+
+      '<span>'+esc(p.label.replace('Стол ','').replace('Бар ','B'))+
+      '<small>'+esc(note)+'</small></span></div>';
+  }).join('');
+
+  // клик по столу — прокрутка к его брони
+  box.querySelectorAll('[data-seat]').forEach(el=>el.onclick=()=>{
+    const b=byLabel[el.dataset.seat];
+    if(!b) return;
+    const card=document.querySelector('[data-bk="'+b.id+'"]');
+    if(card) card.scrollIntoView({ behavior:'smooth', block:'center' });
+  });
+
+  sdList();
+}
+
+function sdList(){
+  const free = SD.plan.tables.filter(p=>!SD.bookings.some(b=>b.table_label===p.label));
+  $('sd-list').innerHTML = SD.bookings.length
+    ? SD.bookings.map(b=>{
+        if(b.id===SD_EDIT){
+          const seatOpts=[b.table_label].concat(free.map(p=>p.label))
+            .map(l=>'<option value="'+esc(l)+'"'+(l===b.table_label?' selected':'')+'>'+esc(l)+'</option>').join('');
+          return '<div class="bk edit" data-bk="'+esc(b.id)+'">'+
+            '<div class="row two"><div><label>Столик</label><select id="bk-seat">'+seatOpts+'</select></div>'+
+              '<div><label>Гостей</label><input id="bk-guests" type="number" min="1" max="20" value="'+esc(String(b.guests||''))+'"></div></div>'+
+            '<div class="row two"><div><label>Имя</label><input id="bk-name" value="'+esc(b.guest_name||'')+'"></div>'+
+              '<div><label>Телефон</label><input id="bk-phone" value="'+esc(b.guest_phone||'')+'"></div></div>'+
+            '<div class="row two"><div><label>Instagram</label><input id="bk-insta" value="'+esc(b.guest_instagram||'')+'"></div>'+
+              '<div><label>Сумма</label><input id="bk-amount" type="number" min="0" step="0.01" value="'+esc(String(b.amount||''))+'"></div></div>'+
+            '<div class="row"><label>Статус оплаты</label><select id="bk-status">'+
+              ['paid','deposit','unpaid'].map(v=>'<option value="'+v+'"'+(b.payment_status===v?' selected':'')+'>'+
+                (v==='paid'?'Оплачено':v==='deposit'?'Депозит':'Не оплачено')+'</option>').join('')+'</select></div>'+
+            '<div class="bk__acts">'+
+              '<button class="btn small" data-save="'+esc(b.id)+'">Сохранить</button>'+
+              '<button class="btn small ghost" data-cancel="1">Отмена</button>'+
+              '<button class="btn small ghost" data-move="'+esc(b.id)+'">Перенести на другой сеанс</button>'+
+              '<button class="btn small danger" data-del="'+esc(b.id)+'">Отменить бронь</button>'+
+            '</div></div>';
+        }
+        const phone=(b.guest_phone||'').replace(/[^\d+]/g,'');
+        return '<div class="bk" data-bk="'+esc(b.id)+'">'+
+          '<div class="bk__top"><span class="bk__seat">'+esc(b.table_label)+'</span>'+
+            '<span><span class="badge '+esc(b.payment_status)+'">'+esc(b.payment_status)+'</span> '+
+            '<span class="badge '+esc(b.source)+'">'+esc(b.source)+'</span></span></div>'+
+          '<div class="bk__who">'+esc(b.guest_name||'—')+' · '+esc(String(b.guests||'?'))+' чел · '+esc(String(Number(b.amount)||0))+' GEL</div>'+
+          '<div class="bk__c">'+
+            (b.guest_phone?'<a href="tel:'+esc(phone)+'">'+esc(b.guest_phone)+'</a>':'без телефона')+
+            (b.guest_instagram?' · <a href="https://instagram.com/'+esc(String(b.guest_instagram).replace(/^@/,''))+'" target="_blank" rel="noopener">'+esc(b.guest_instagram)+'</a>':'')+
+            (b.guest_phone?' · <a href="https://wa.me/'+esc(phone.replace(/\D/g,''))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
+          '</div>'+
+          '<div class="bk__acts"><button class="btn small ghost" data-edit="'+esc(b.id)+'">Изменить</button></div>'+
+        '</div>';
+      }).join('')
+    : '<div class="hint">Броней на этот сеанс пока нет.</div>';
+
+  $('sd-list').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{ SD_EDIT=b.dataset.edit; sdRender(); });
+  $('sd-list').querySelectorAll('[data-cancel]').forEach(b=>b.onclick=()=>{ SD_EDIT=null; sdRender(); });
+  $('sd-list').querySelectorAll('[data-save]').forEach(b=>b.onclick=()=>sdSave(b.dataset.save));
+  $('sd-list').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>sdDelete(b.dataset.del));
+  $('sd-list').querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>sdMove(b.dataset.move));
+}
+
+async function sdPost(payload){
+  const r=await fetch(api('admin-bookings'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload)});
+  if(r.status===401){ handle401(); return null; }
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok || !d.ok){ alert('Ошибка: '+(d.detail||d.error||'?')); return null; }
+  return d;
+}
+
+async function sdSave(id){
+  const ok = await sdPost({
+    action:'update', id,
+    table_label:$('bk-seat').value,
+    guest_name:$('bk-name').value.trim(),
+    guest_phone:$('bk-phone').value.trim(),
+    guest_instagram:$('bk-insta').value.trim(),
+    guests:$('bk-guests').value,
+    amount:$('bk-amount').value,
+    payment_status:$('bk-status').value
+  });
+  if(ok){ SD_EDIT=null; openSession(SD.session.id); loadToday(); }
+}
+
+async function sdDelete(id){
+  if(!confirm('Отменить бронь? Запись будет удалена, место освободится.')) return;
+  const ok=await sdPost({ action:'delete', id });
+  if(ok){ SD_EDIT=null; openSession(SD.session.id); loadToday(); }
+}
+
+async function sdMove(id){
+  // Список ближайших сеансов, чтобы не заставлять вспоминать id.
+  let list=[];
+  try{
+    const r=await fetch(api('admin-sessions'), F);
+    const d=await r.json();
+    list=(d.sessions||[]).filter(x=>x.id!==SD.session.id).slice(0,40);
+  }catch(e){}
+  if(!list.length){ alert('Других сеансов нет.'); return; }
+  const text=list.map((x,i)=>(i+1)+') '+x.title+' — '+x.date+' '+x.time).join('\\n');
+  const pick=prompt('На какой сеанс перенести? Введите номер:\\n\\n'+text);
+  const idx=Number(pick)-1;
+  if(!(idx>=0 && idx<list.length)) return;
+  const ok=await sdPost({ action:'move', id, session_id:list[idx].id });
+  if(ok){ SD_EDIT=null; openSession(SD.session.id); loadToday(); }
+}
+
+// ---------- АРХИВ ----------
+let AR_OFFSET = 0;
+const AR_LIMIT = 30;
+
+async function loadArchive(){
+  const box=$('ar-list');
+  box.innerHTML='<div class="hint">Загрузка…</div>';
+  try{
+    const u=new URL(api('admin-bookings'), location.origin);
+    u.searchParams.set('archive','1');
+    u.searchParams.set('limit', AR_LIMIT);
+    u.searchParams.set('offset', AR_OFFSET);
+    const q=$('ar-q').value.trim();
+    if(q) u.searchParams.set('q', q);
+    const r=await fetch(u, F);
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json();
+    const list=d.sessions||[];
+    box.innerHTML = list.length ? list.map(s=>
+      '<div class="arch-row" data-s="'+esc(s.id)+'">'+
+        '<span class="d">'+esc(s.date)+' '+esc(s.time)+'</span>'+
+        '<span class="t">'+esc(s.title)+'</span>'+
+        '<span class="n">'+s.bookings+' брон. · '+s.guests+' гост. · '+Number(s.revenue)+' GEL</span>'+
+      '</div>'
+    ).join('') : '<div class="hint">Ничего не найдено.</div>';
+    box.querySelectorAll('[data-s]').forEach(el=>el.onclick=()=>openSession(el.dataset.s));
+    $('ar-prev').disabled = false;
+    $('ar-next').disabled = AR_OFFSET===0;
+  }catch(e){ box.innerHTML='<div class="hint">Ошибка загрузки.</div>'; }
+}
+
+$('ar-find').addEventListener('click', ()=>{ AR_OFFSET=0; loadArchive(); searchGuestsUI(); });
+$('ar-q').addEventListener('keydown', e=>{ if(e.key==='Enter'){ AR_OFFSET=0; loadArchive(); searchGuestsUI(); } });
+$('ar-clear').addEventListener('click', ()=>{ $('ar-q').value=''; AR_OFFSET=0; $('ar-guests').innerHTML=''; loadArchive(); });
+$('ar-prev').addEventListener('click', ()=>{ AR_OFFSET+=AR_LIMIT; loadArchive(); });
+$('ar-next').addEventListener('click', ()=>{ AR_OFFSET=Math.max(0, AR_OFFSET-AR_LIMIT); loadArchive(); });
+
+// Поиск гостя отдельно от сеансов: «этот человек у нас уже был?»
+async function searchGuestsUI(){
+  const q=$('ar-q').value.trim();
+  const box=$('ar-guests');
+  if(!q){ box.innerHTML=''; return; }
+  try{
+    const u=new URL(api('admin-bookings'), location.origin);
+    u.searchParams.set('guest', q);
+    const r=await fetch(u, F);
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json();
+    const g=d.guests||[];
+    box.innerHTML = g.length
+      ? '<div class="card"><label style="font-size:13px;font-weight:600">Гости ('+g.length+')</label>'+
+        g.map(x=>'<div class="arch-row" data-gs="'+esc(x.session_id)+'">'+
+          '<span class="d">'+esc(x.date)+' '+esc(x.time)+'</span>'+
+          '<span class="t">'+esc(x.guest_name||'—')+' · '+esc(x.table_label)+'</span>'+
+          '<span class="n">'+esc(x.title)+' · '+esc(x.guest_phone||x.guest_instagram||'')+'</span>'+
+        '</div>').join('')+'</div>'
+      : '';
+    box.querySelectorAll('[data-gs]').forEach(el=>el.onclick=()=>openSession(el.dataset.gs));
+  }catch(e){ box.innerHTML=''; }
+}
+
 // ---------- КОНСТРУКТОР ЗАЛА ----------
 // Метка стола («Стол 5») — ключ, по которому бронь занимает место. Поэтому
 // геометрию можно менять свободно, а переименование и удаление показывают
@@ -1103,6 +1410,7 @@ $('svc-hours').addEventListener('change', ()=>loadSvc());
 // движение мышью не должно менять схему на боевом сайте мгновенно.
 
 let FLOOR = { settings:{}, tables:[], inUse:{} };
+let FL_UID = 0;          // счётчик внутренних идентификаторов
 let FL_SNAP = null;
 let FL_SEL = null;      // выбранная метка
 let FL_DIRTY = false;
@@ -1117,7 +1425,15 @@ async function loadFloor(){
     const r = await fetch(api('admin-floor'), F);
     if(r.status===401){ handle401(); return; }
     const d = await r.json();
-    FLOOR = { settings:d.settings||{}, tables:d.tables||[], inUse:d.inUse||{} };
+    // Внутри редактора столы опознаём по uid, а не по метке: метки может
+    // случайно совпасть (и совпадала), и тогда find() по label находил чужой
+    // стол — двигался не тот, который тянешь.
+    FLOOR = {
+      settings: d.settings||{},
+      tables: (d.tables||[]).map((t,i)=>({ ...t, uid: 'u'+i })),
+      inUse: d.inUse||{}
+    };
+    FL_UID = (d.tables||[]).length;
     FL_SNAP = JSON.stringify(FLOOR.tables);
     FL_DIRTY = false; FL_SEL = null;
     $('fl-save').classList.remove('show');
@@ -1144,12 +1460,12 @@ function flRender(){
 
   cv.innerHTML = '<div class="fl-screen">'+esc(FLOOR.settings.screen_label||'SCREEN')+'</div>'+
     FLOOR.tables.map(t=>{
-      const sel = t.label===FL_SEL;
+      const sel = t.uid===FL_SEL;
       const style = 'left:'+t.x+'px;top:'+t.y+'px;width:'+t.w+'px;height:'+t.h+'px;'+
         'border-radius:'+(t.shape==='circle'?'50%':'10px')+';'+
         (t.rotation?('transform:rotate('+t.rotation+'deg);'):'');
       return '<div class="fl-t'+(t.zone==='bar'?' bar':'')+(t.active===false?' off':'')+(t.bookable===false?' closed':'')+(sel?' sel':'')+
-        '" data-label="'+esc(t.label)+'" style="'+style+'">'+
+        '" data-uid="'+esc(t.uid)+'" style="'+style+'">'+
           '<span>'+esc(t.label)+'<small>'+(t.bookable===false?'закрыт':(t.capacity_min+'–'+t.capacity_max))+'</small></span>'+
           (sel?'<div class="fl-h" data-resize="1"></div>':'')+
         '</div>';
@@ -1162,13 +1478,13 @@ function flRender(){
 function flBindCanvas(){
   $('fl-canvas').querySelectorAll('.fl-t').forEach(el=>{
     el.addEventListener('pointerdown', ev=>{
-      const label = el.dataset.label;
-      const t = FLOOR.tables.find(x=>x.label===label);
+      const uid = el.dataset.uid;
+      const t = FLOOR.tables.find(x=>x.uid===uid);
       if(!t) return;
-      FL_SEL = label;
+      FL_SEL = uid;
       const resizing = ev.target && ev.target.dataset && ev.target.dataset.resize==='1';
       FL_DRAG = {
-        label, resizing,
+        uid, resizing,
         sx: ev.clientX, sy: ev.clientY,
         ox: t.x, oy: t.y, ow: t.w, oh: t.h
       };
@@ -1183,7 +1499,7 @@ function flBindCanvas(){
 
 document.addEventListener('pointermove', ev=>{
   if(!FL_DRAG) return;
-  const t = FLOOR.tables.find(x=>x.label===FL_DRAG.label);
+  const t = FLOOR.tables.find(x=>x.uid===FL_DRAG.uid);
   if(!t) return;
   const dx = ev.clientX - FL_DRAG.sx, dy = ev.clientY - FL_DRAG.sy;
   const W = Number($('fl-cw').value)||1000, H = Number($('fl-ch').value)||700;
@@ -1205,7 +1521,7 @@ document.addEventListener('pointerup', ()=>{ FL_DRAG = null; });
 document.addEventListener('keydown', e=>{
   if(!FL_SEL) return;
   if(!$('panel-floor').classList.contains('active')) return;
-  const t = FLOOR.tables.find(x=>x.label===FL_SEL);
+  const t = FLOOR.tables.find(x=>x.uid===FL_SEL);
   if(!t) return;
   const step = e.shiftKey ? (flGrid()||10) : 1;
   let used = true;
@@ -1213,14 +1529,14 @@ document.addEventListener('keydown', e=>{
   else if(e.key==='ArrowRight') t.x = t.x+step;
   else if(e.key==='ArrowUp')    t.y = Math.max(0, t.y-step);
   else if(e.key==='ArrowDown')  t.y = t.y+step;
-  else if(e.key==='Delete' || e.key==='Backspace'){ flDelete(FL_SEL); return; }
+  else if(e.key==='Delete' || e.key==='Backspace'){ flDelete(t.uid); return; }
   else used = false;
   if(used){ e.preventDefault(); flDirty(); flRender(); }
 });
 
 function flSide(){
   const box = $('fl-side');
-  const t = FLOOR.tables.find(x=>x.label===FL_SEL);
+  const t = FLOOR.tables.find(x=>x.uid===FL_SEL);
   if(!t){ box.innerHTML='<div class="hint">Выбери стол на схеме, чтобы изменить его.</div>'; return; }
   const used = FLOOR.inUse[t.label] || 0;
 
@@ -1255,7 +1571,6 @@ function flSide(){
         if(!nv){ el.value = t.label; return; }
         if(FLOOR.tables.some(x=>x!==t && x.label===nv)){ alert('Метка «'+nv+'» уже занята.'); el.value=t.label; return; }
         if(used && !confirm('У метки «'+t.label+'» есть брони ('+used+'). Переименовать? Старые брони останутся со старой меткой.')){ el.value=t.label; return; }
-        FL_SEL = nv;
       }
       t[key] = v;
       flDirty(); flRender();
@@ -1266,10 +1581,26 @@ function flSide(){
   bind('fl-w','w',true); bind('fl-h','h',true);
   $('fl-active').addEventListener('change', ()=>{ t.active = $('fl-active').checked; flDirty(); flRender(); });
   $('fl-bookable').addEventListener('change', ()=>{ t.bookable = $('fl-bookable').checked; flDirty(); flRender(); });
-  $('fl-del').onclick = ()=>flDelete(t.label);
+  $('fl-del').onclick = ()=>flDelete(t.uid);
 }
 
-async function flDelete(label){
+async function flDelete(uid){
+  const t = FLOOR.tables.find(x=>x.uid===uid);
+  if(!t) return;
+  const label = t.label;
+
+  // Стол, ещё не сохранённый в базе, просто убираем из списка — на сервере
+  // его нет, и запрос вернул бы «не найдено».
+  if(!FLOOR.tables.some(x=>x!==t && x.label===label) && !(label in FLOOR.inUse)){
+    const known = FL_SNAP ? JSON.parse(FL_SNAP).some(x=>x.label===label) : false;
+    if(!known){
+      FLOOR.tables = FLOOR.tables.filter(x=>x.uid!==uid);
+      if(FL_SEL===uid) FL_SEL=null;
+      flDirty(); flRender();
+      return;
+    }
+  }
+
   const used = FLOOR.inUse[label] || 0;
   const msg = used
     ? 'Убрать «'+label+'» из плана?\\n\\nБрони на эту метку ('+used+') сохранятся — они история, но стол исчезнет со схемы брони.'
@@ -1283,11 +1614,13 @@ async function flDelete(label){
   }catch(e){ alert('Сетевая ошибка.'); }
 }
 
+// Метка обязана быть уникальной: по ней бронь занимает место, а совпадение
+// приводило к тому, что редактор находил чужой стол.
 function flNextLabel(prefix){
-  const nums = FLOOR.tables
-    .filter(t=>t.label.indexOf(prefix)===0)
-    .map(t=>Number((t.label.match(/\d+/)||[])[0])||0);
-  return prefix+' '+((nums.length?Math.max.apply(null,nums):0)+1);
+  const taken = new Set(FLOOR.tables.map(t=>t.label));
+  let n = 1;
+  while(taken.has(prefix+' '+n)) n++;
+  return prefix+' '+n;
 }
 
 // Ищем свободное место, чтобы новый стол не лёг ровно поверх предыдущего:
@@ -1311,14 +1644,15 @@ function flAdd(zone){
   const label = flNextLabel(prefix);
   const w = zone==='bar' ? 70 : 90, h = zone==='bar' ? 60 : 90;
   const spot = flFreeSpot(w, h);
+  const uid = 'n'+(++FL_UID);
   FLOOR.tables.push({
-    label, zone, shape: zone==='bar' ? 'rect' : 'circle',
+    uid, label, zone, shape: zone==='bar' ? 'rect' : 'circle',
     x: spot.x, y: spot.y,
     w, h,
     rotation: 0, capacity_min: 1, capacity_max: zone==='bar' ? 2 : 4,
     sort: (FLOOR.tables.length+1)*10, active: true
   });
-  FL_SEL = label;
+  FL_SEL = uid;
   flDirty(); flRender();
 }
 
@@ -1331,7 +1665,7 @@ $('fl-reload').addEventListener('click', loadFloor);
 
 $('fl-undo-btn').addEventListener('click', ()=>{
   if(!FL_SNAP) return;
-  FLOOR.tables = JSON.parse(FL_SNAP);
+  FLOOR.tables = JSON.parse(FL_SNAP).map((t,i)=>({ ...t, uid:'u'+i }));
   FL_DIRTY=false; FL_SEL=null;
   $('fl-save').classList.remove('show');
   flRender();
@@ -1343,7 +1677,10 @@ $('fl-save-btn').addEventListener('click', async ()=>{
     const r=await fetch(api('admin-floor'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         settings:{ canvas_w:Number($('fl-cw').value)||1000, canvas_h:Number($('fl-ch').value)||700, grid:flGrid() },
-        tables: FLOOR.tables.map((t,i)=>({ ...t, sort:(i+1)*10 }))
+        tables: FLOOR.tables.map((t,i)=>{
+          const { uid, ...rest } = t;   // uid живёт только в редакторе
+          return { ...rest, sort:(i+1)*10 };
+        })
       })});
     if(r.status===401){ handle401(); return; }
     const d=await r.json().catch(()=>({}));

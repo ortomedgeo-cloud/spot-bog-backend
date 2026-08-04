@@ -58,3 +58,10 @@ INSERT INTO floor_tables (label, zone, shape, x, y, w, h, capacity_min, capacity
   ('Бар 3',   'bar',  'rect',   320, 520, 70, 60, 1, 2, 130),
   ('Бар 4',   'bar',  'rect',   410, 520, 70, 60, 1, 2, 140)
 ON CONFLICT (label) DO NOTHING;
+
+-- Закрытый стол: виден на схеме, но забронировать его с сайта нельзя.
+-- Отличается от active: active=false убирает стол со схемы совсем, а закрытый
+-- показывается серым с подписью — гость видит, что место существует, но занято
+-- под своё (ремонт, служебный столик, бронь по телефону).
+-- Персонал в админке при этом посадить за него может.
+ALTER TABLE floor_tables ADD COLUMN IF NOT EXISTS bookable BOOLEAN NOT NULL DEFAULT true;

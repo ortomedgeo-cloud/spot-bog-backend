@@ -213,6 +213,21 @@ function page() {
 
   .btn.small.danger { background:#F44336; color:#fff; }
 
+  /* финансы */
+  .fin-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:14px; }
+  .fin-card { background:#fff; border-radius:12px; padding:13px 15px; }
+  .fin-card .l { font-size:12px; color:#777; }
+  .fin-card .v { font-size:21px; font-weight:700; margin-top:3px; }
+  .fin-card .s { font-size:11.5px; color:#999; margin-top:2px; }
+  .fin-card.accent .v { color:#E75228; }
+  .fin-note { background:#fff7e6; border:1px solid #f5d98b; color:#7a5600; font-size:12.5px; padding:10px 12px; border-radius:8px; margin-bottom:12px; line-height:1.5; }
+  .fin-tbl { width:100%; border-collapse:collapse; font-size:13px; }
+  .fin-tbl th { text-align:left; font-size:11.5px; color:#888; font-weight:600; padding:6px 8px; border-bottom:1px solid #eee; white-space:nowrap; }
+  .fin-tbl td { padding:7px 8px; border-bottom:1px solid #f4f4f4; white-space:nowrap; }
+  .fin-tbl td.num, .fin-tbl th.num { text-align:right; }
+  .fin-tbl tr:hover td { background:#fafafa; }
+  .fin-tbl tfoot td { font-weight:700; border-top:2px solid #eee; }
+
   /* окно сеанса и архив */
   .sd-bg { position:fixed; inset:0; z-index:60; background:rgba(0,0,0,.5); display:none; align-items:flex-start; justify-content:center; overflow:auto; padding:20px 12px 60px; }
   .sd-bg.open { display:flex; }
@@ -350,6 +365,7 @@ function page() {
     <div class="tab" data-tab="menu">Меню</div>
     <div class="tab" data-tab="floor">Зал</div>
     <div class="tab" data-tab="archive">Архив</div>
+    <div class="tab" data-tab="finance">Финансы</div>
     <div class="tab" data-tab="svc">Обслуживание<span id="svc-badge"></span></div>
   </div>
 
@@ -514,6 +530,33 @@ function page() {
     </div>
   </div>
 
+  <!-- ===== FINANCE ===== -->
+  <div class="panel" id="panel-finance">
+    <div class="card" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:13px;font-weight:600">Период</label>
+      <input id="fin-from" readonly style="width:130px;padding:8px 10px;border:1px solid #ccc;border-radius:8px;cursor:pointer">
+      <span style="color:#888">—</span>
+      <input id="fin-to" readonly style="width:130px;padding:8px 10px;border:1px solid #ccc;border-radius:8px;cursor:pointer">
+      <button class="btn small" id="fin-go">Показать</button>
+      <button class="btn small ghost" id="fin-month">Этот месяц</button>
+      <button class="btn small ghost" id="fin-prev-month">Прошлый месяц</button>
+      <button class="btn small ghost" id="fin-csv">Выгрузить CSV</button>
+    </div>
+
+    <div id="fin-body"><div class="hint">Загрузка…</div></div>
+
+    <div class="card">
+      <label style="font-size:13px;font-weight:600">Ставки</label>
+      <div class="row two" style="margin-top:8px">
+        <div><label>Комиссия эквайринга, %</label><input id="fin-fee" type="number" min="0" max="100" step="0.01"></div>
+        <div><label>Налог с оборота, %</label><input id="fin-tax" type="number" min="0" max="100" step="0.01"></div>
+      </div>
+      <button class="btn small" id="fin-save">Сохранить ставки</button>
+      <div class="hint">Комиссия зависит от договора с банком, налоговая ставка — от статуса ИП. Уточните обе у бухгалтера: расчёт в отчёте справочный.</div>
+      <div class="msg" id="fin-msg"></div>
+    </div>
+  </div>
+
   <!-- ===== SERVICE ===== -->
   <div class="panel" id="panel-svc">
     <div class="card" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -660,6 +703,7 @@ document.querySelectorAll('#main-tabs .tab').forEach(t => t.addEventListener('cl
   if(t.dataset.tab==='menu') loadMenu();
   if(t.dataset.tab==='floor') loadFloor();
   if(t.dataset.tab==='archive') loadArchive();
+  if(t.dataset.tab==='finance') loadFinance();
   if(t.dataset.tab==='svc') { loadSvc(); loadNotify(); }
 }));
 
@@ -1168,6 +1212,186 @@ async function svcSet(payload){
 
 $('svc-reload').addEventListener('click', ()=>loadSvc());
 $('svc-hours').addEventListener('change', ()=>loadSvc());
+
+// ---------- ФИНАНСЫ ----------
+// Считаем по данным, которые и так проходят через систему. Главное различие,
+// без которого отчёт врёт: у обычных показов и à la carte цена брони —
+// депозит (вычитается из счёта), у киноужина и drinking night — полная
+// стоимость. Поэтому суммы разнесены, а не сложены в одну «выручку».
+
+let FIN = null;
+
+function finIsoToday(shiftDays){
+  const d=new Date(Date.now()+4*3600*1000+(shiftDays||0)*86400000);
+  return d.toISOString().slice(0,10);
+}
+function finMonth(offset){
+  const n=new Date(Date.now()+4*3600*1000);
+  const y=n.getUTCFullYear(), m=n.getUTCMonth()+(offset||0);
+  const a=new Date(Date.UTC(y,m,1)), b=new Date(Date.UTC(y,m+1,0));
+  return { from:a.toISOString().slice(0,10), to:b.toISOString().slice(0,10) };
+}
+function finFmtIso(iso){
+  const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? (m[3]+'-'+m[2]+'-'+m[1]) : iso;
+}
+function money(v){ return (Math.round((Number(v)||0)*100)/100).toLocaleString('ru-RU'); }
+
+async function loadFinance(){
+  const box=$('fin-body');
+  if(!$('fin-from').value){
+    const r=finMonth(0);
+    $('fin-from').value=finFmtIso(r.from);
+    $('fin-to').value=finFmtIso(r.to);
+  }
+  box.innerHTML='<div class="hint">Загрузка…</div>';
+  try{
+    const u=new URL(api('admin-finance'), location.origin);
+    u.searchParams.set('from', finIsoFromField('fin-from'));
+    u.searchParams.set('to', finIsoFromField('fin-to'));
+    const r=await fetch(u, F);
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json();
+    if(!r.ok || !d.ok){ box.innerHTML='<div class="hint">Ошибка: '+esc(d.detail||d.error||'?')+'</div>'; return; }
+    FIN=d;
+    $('fin-fee').value=d.settings.acquiring_fee_pct;
+    $('fin-tax').value=d.settings.tax_pct;
+    finRender();
+  }catch(e){ box.innerHTML='<div class="hint">Сетевая ошибка.</div>'; }
+}
+
+// Поля показывают ДД-ММ-ГГГГ, а API ждёт ISO
+function finIsoFromField(id){
+  const m=String($(id).value||'').match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  return m ? (m[3]+'-'+m[2]+'-'+m[1]) : $(id).value;
+}
+
+function finRender(){
+  const t=FIN.totals, s=FIN.settings;
+  const cur=s.currency||'GEL';
+
+  const ordersActive=(FIN.orders||[]).filter(o=>o.status!=='cancelled')
+    .reduce((n,o)=>n+Number(o.total||0),0);
+
+  const cards =
+    '<div class="fin-cards">'+
+      '<div class="fin-card accent"><div class="l">Получено по броням</div><div class="v">'+money(t.taxBase)+' '+esc(cur)+'</div>'+
+        '<div class="s">билеты '+money(t.ticketsPaid)+' + депозиты '+money(t.depositsPaid)+'</div></div>'+
+      '<div class="fin-card"><div class="l">Онлайн через банк</div><div class="v">'+money(t.onlineCaptured)+' '+esc(cur)+'</div>'+
+        '<div class="s">комиссия '+money(t.fee)+' ('+esc(String(s.acquiring_fee_pct))+'%)</div></div>'+
+      '<div class="fin-card"><div class="l">На месте (ручные брони)</div><div class="v">'+money(t.manualAmount)+' '+esc(cur)+'</div>'+
+        '<div class="s">наличные и терминал</div></div>'+
+      '<div class="fin-card"><div class="l">Налог '+esc(String(s.tax_pct))+'%</div><div class="v">'+money(t.tax)+' '+esc(cur)+'</div>'+
+        '<div class="s">справочно, от '+money(t.taxBase)+'</div></div>'+
+      '<div class="fin-card"><div class="l">После комиссии и налога</div><div class="v">'+money(t.netAfterFeeAndTax)+' '+esc(cur)+'</div>'+
+        '<div class="s">'+t.bookings+' броней · '+t.guests+' гостей</div></div>'+
+      '<div class="fin-card"><div class="l">Заказы со столика</div><div class="v">'+money(ordersActive)+' '+esc(cur)+'</div>'+
+        '<div class="s">оборот кухни и бара, оплата мимо системы</div></div>'+
+    '</div>';
+
+  const note =
+    '<div class="fin-note"><b>Как читать.</b> «Получено по броням» — это полная стоимость киноужинов и drinking night '+
+    'плюс депозиты обычных показов и à la carte. Депозит потом вычитается из счёта гостя, поэтому он не равен '+
+    'итоговой выручке вечера. Заказы со столика показаны отдельно: они оплачиваются наличными или на терминале, '+
+    'мимо системы. Комиссия и налог — расчёт по заданным ставкам, сверяйтесь с бухгалтером.'+
+    (t.depositsUnpaid+t.ticketsUnpaid>0
+      ? ' Неоплаченных броней на '+money(t.depositsUnpaid+t.ticketsUnpaid)+' '+esc(cur)+' — в расчёт не вошли.'
+      : '')+
+    '</div>';
+
+  const rows=(FIN.days||[]).map(d=>
+    '<tr><td>'+esc(d.date)+'</td>'+
+      '<td class="num">'+d.bookings+'</td>'+
+      '<td class="num">'+d.guests+'</td>'+
+      '<td class="num">'+money(d.tickets)+'</td>'+
+      '<td class="num">'+money(d.deposits)+'</td>'+
+      '<td class="num">'+money(d.online)+'</td>'+
+      '<td class="num">'+money(d.manual)+'</td>'+
+      '<td class="num">'+money(d.tickets+d.deposits)+'</td></tr>'
+  ).join('');
+
+  const tbl = rows
+    ? '<div class="card" style="overflow-x:auto"><table class="fin-tbl">'+
+      '<thead><tr><th>Дата</th><th class="num">Броней</th><th class="num">Гостей</th>'+
+      '<th class="num">Билеты</th><th class="num">Депозиты</th><th class="num">Онлайн</th>'+
+      '<th class="num">На месте</th><th class="num">Всего</th></tr></thead>'+
+      '<tbody>'+rows+'</tbody>'+
+      '<tfoot><tr><td>Итого</td><td class="num">'+t.bookings+'</td><td class="num">'+t.guests+'</td>'+
+      '<td class="num">'+money(t.ticketsPaid+t.ticketsUnpaid)+'</td>'+
+      '<td class="num">'+money(t.depositsPaid+t.depositsUnpaid)+'</td>'+
+      '<td class="num">'+money(t.onlineAmount)+'</td><td class="num">'+money(t.manualAmount)+'</td>'+
+      '<td class="num">'+money(t.ticketsPaid+t.depositsPaid)+'</td></tr></tfoot></table></div>'
+    : '<div class="card"><div class="hint">За этот период броней нет.</div></div>';
+
+  // Сверка: расхождение значит, что callback банка не дошёл и бронь
+  // не создалась — это надо чинить, а не списывать на округление.
+  const diff = Number(t.onlineCaptured) - Number(t.onlineAmount);
+  const recon = Math.abs(diff) > 0.5
+    ? '<div class="fin-note">Банк показывает '+money(t.onlineCaptured)+' '+esc(cur)+
+      ' онлайн-оплат, а по броням проходит '+money(t.onlineAmount)+' '+esc(cur)+
+      '. Разница '+money(diff)+' — обычно это платёж, по которому не дошёл callback: проверьте «для Эрика».</div>'
+    : '';
+
+  const top=(FIN.topItems||[]).length
+    ? '<div class="card"><label style="font-size:13px;font-weight:600">Что заказывают со столиков</label>'+
+      '<table class="fin-tbl" style="margin-top:8px"><thead><tr><th>Позиция</th><th class="num">Шт.</th><th class="num">Сумма</th></tr></thead><tbody>'+
+      FIN.topItems.map(i=>'<tr><td>'+esc(i.title)+'</td><td class="num">'+i.qty+'</td><td class="num">'+money(i.amount)+'</td></tr>').join('')+
+      '</tbody></table></div>'
+    : '';
+
+  $('fin-body').innerHTML = cards + note + recon + tbl + top;
+}
+
+$('fin-go').addEventListener('click', loadFinance);
+$('fin-month').addEventListener('click', ()=>{
+  const r=finMonth(0);
+  $('fin-from').value=finFmtIso(r.from); $('fin-to').value=finFmtIso(r.to); loadFinance();
+});
+$('fin-prev-month').addEventListener('click', ()=>{
+  const r=finMonth(-1);
+  $('fin-from').value=finFmtIso(r.from); $('fin-to').value=finFmtIso(r.to); loadFinance();
+});
+$('fin-from').addEventListener('click', ()=>{
+  calOpen($('fin-from'), parseDdMm($('fin-from').value), d=>{ $('fin-from').value=fmtDdMm(d); });
+});
+$('fin-to').addEventListener('click', ()=>{
+  calOpen($('fin-to'), parseDdMm($('fin-to').value), d=>{ $('fin-to').value=fmtDdMm(d); });
+});
+
+// Выгрузка для бухгалтера: CSV с разделителем «;» и BOM — иначе Excel
+// открывает кириллицу кракозябрами и не разбивает строку на колонки.
+$('fin-csv').addEventListener('click', ()=>{
+  if(!FIN) return;
+  const rows=[['Дата','Броней','Гостей','Билеты','Депозиты','Онлайн','На месте','Всего']];
+  (FIN.days||[]).forEach(d=>rows.push([d.date,d.bookings,d.guests,d.tickets,d.deposits,d.online,d.manual,d.tickets+d.deposits]));
+  const t=FIN.totals;
+  rows.push([]);
+  rows.push(['Итого получено по броням', t.taxBase]);
+  rows.push(['в т.ч. билеты (полная стоимость)', t.ticketsPaid]);
+  rows.push(['в т.ч. депозиты', t.depositsPaid]);
+  rows.push(['Онлайн по данным банка', t.onlineCaptured]);
+  rows.push(['Комиссия эквайринга '+FIN.settings.acquiring_fee_pct+'%', t.fee]);
+  rows.push(['Налог '+FIN.settings.tax_pct+'%', t.tax]);
+  rows.push(['После комиссии и налога', t.netAfterFeeAndTax]);
+  const csv='\\ufeff'+rows.map(r=>r.join(';')).join('\\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download='spot-finance-'+finIsoFromField('fin-from')+'_'+finIsoFromField('fin-to')+'.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+$('fin-save').addEventListener('click', async ()=>{
+  const m=$('fin-msg'); m.style.display='none';
+  try{
+    const r=await fetch(api('admin-finance'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ acquiring_fee_pct:$('fin-fee').value, tax_pct:$('fin-tax').value })});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(r.ok&&d.ok){ msg(m,'Ставки сохранены.',true); loadFinance(); }
+    else msg(m,'Ошибка: '+(d.detail||d.error||'?'),false);
+  }catch(e){ msg(m,'Сетевая ошибка.',false); }
+});
 
 // ---------- ОКНО СЕАНСА ----------
 // Рабочее окно администратора: схема зала с занятыми местами и список броней

@@ -218,9 +218,11 @@ function page() {
   .fmt-grp__h { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
   .fmt-grp__h b { font-size:15px; }
   .fmt-grp__h span { font-size:12.5px; color:#888; }
-  .fmt-ev { background:#fff; border-radius:10px; padding:11px 13px; margin-bottom:7px; }
+  .fmt-ev { display:flex; gap:10px; background:#fff; border-radius:10px; padding:11px 13px; margin-bottom:7px; }
+  .fmt-ev img { width:40px; height:56px; object-fit:cover; border-radius:6px; background:#ddd; flex:none; }
+  .fmt-ev__body { flex:1; min-width:0; }
   .fmt-ev__t { display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
-  .fmt-ev__n { font-weight:600; font-size:14px; }
+  .fmt-ev__n { font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .fmt-ss { display:flex; gap:5px; flex-wrap:wrap; margin-top:7px; }
   .fmt-ss span { font-size:11px; padding:3px 8px; border-radius:6px; background:#f1f0ee; color:#555; cursor:pointer; }
   .fmt-ss span:hover { background:#E75228; color:#fff; }
@@ -452,7 +454,10 @@ function page() {
     <div class="card">
       <div class="hint">Форматы расписываются на месяц вперёд, обычные показы меняются каждую неделю — поэтому они разведены по вкладкам. Здесь события форматов din, drink и alacarte; обычные фильмы — во вкладке «Фильмы».</div>
     </div>
-    <div id="fmt-list"><div class="hint">Загрузка…</div></div>
+    <div class="card">
+      <label style="font-size:13px;font-weight:600">Форматы и ближайшие сеансы</label>
+      <div id="fmt-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
+    </div>
   </div>
 
   <!-- ===== SESSIONS ===== -->
@@ -1080,9 +1085,12 @@ async function loadFormats(){
           ? mine.map(x=>'<span data-open="'+esc(x.id)+'">'+esc(x.date)+' '+esc(x.time)+'</span>').join('')
           : '<span style="background:none;color:#bbb;cursor:default">сеансов нет</span>';
         return '<div class="fmt-ev">'+
-          '<div class="fmt-ev__t"><span class="fmt-ev__n">'+esc(e.title)+'</span>'+
-            '<span class="hint">'+esc(String(e.price))+' GEL · '+mine.length+' сеанс.</span></div>'+
-          '<div class="fmt-ss">'+chips+'</div></div>';
+          (e.poster_url?'<img src="'+esc(e.poster_url)+'">':'<img>')+
+          '<div class="fmt-ev__body">'+
+            '<div class="fmt-ev__t"><span class="fmt-ev__n">'+esc(e.title)+'</span>'+
+              '<span class="hint">'+esc(String(e.price))+' GEL · '+mine.length+' сеанс.</span></div>'+
+            '<div class="fmt-ss">'+chips+'</div>'+
+          '</div></div>';
       }).join('');
       return '<div class="fmt-grp"><div class="fmt-grp__h"><b>'+esc(title)+'</b>'+
         '<span>'+list.length+' событий</span></div>'+rows+'</div>';

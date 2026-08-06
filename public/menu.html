@@ -44,6 +44,7 @@
   .bleed{
     display:flex; gap:8px; overflow-x:auto; scrollbar-width:none;
     margin-inline:calc(var(--pad) * -1);
+    padding-inline:var(--pad);
     -webkit-overflow-scrolling:touch;
     scroll-snap-type:x proximity;
   }
@@ -77,7 +78,6 @@
   .hero p{ color:var(--muted); font-size:14px; margin:14px 0 0; max-width:46ch; }
 
   /* ---------- просьбы ---------- */
-  .asks{ padding:0 0 var(--s1); }
   .ask{
     font-size:13.5px; color:var(--text); background:var(--card);
     border:1px solid var(--rule); border-radius:999px;

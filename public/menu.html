@@ -257,6 +257,8 @@
   </div>
 
   <div class="asks bleed" id="asks"></div>
+  <div class="allergy" id="allergy" style="display:none"><span>⚠️</span><span id="allergy-t"></span></div>
+
 
   <h2 class="sec" id="tiles-title"></h2>
   <div class="tiles" id="tiles"></div>
@@ -267,8 +269,7 @@
 <main class="wrap">
   <div class="subs bleed" id="subs"></div>
   <div id="menu"><div class="note" id="state"></div></div>
-  <div class="allergy" id="allergy" style="display:none"><span>⚠️</span><span id="allergy-t"></span></div>
-</main>
+ </main>
 
 <footer class="foot">
   <div class="wrap">
@@ -317,7 +318,7 @@
   const KINDS = ['waiter','bill','blanket','charger','ashtray'];
 
   const T = {
-    ru:{ sub:'Руфтоп-кинобар в Батуми. Кухня и бар — каждый день с 12:00 до 02:00.',
+    ru:{ sub:'Руфтоп-кинобар в Батуми. \n Кухня и бар — каждый день с 12:00 до 02:00.',
          tiles:'Меню', all:'Всё меню', back:'← К разделам', more:'Подробнее', less:'Свернуть', allergy:'Если у вас есть аллергия или непереносимость — предупредите официанта, мы подберём безопасное блюдо.', allSub:'Всё', swap:'Ещё фото',
          waiter:'Официант', bill:'Счёт', blanket:'Плед', charger:'Зарядка', ashtray:'Пепельница',
          sent:'Готово', tooSoon:'Уже передали',

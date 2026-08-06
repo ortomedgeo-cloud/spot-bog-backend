@@ -254,6 +254,7 @@
   <div class="hero">
     <h1><span>SPOT to watch</span><span class="taste">to taste</span><span>to feel.</span></h1>
     <p id="hero-sub"></p>
+    <p id="hero-terms"></p>
   </div>
 
   <div class="asks bleed" id="asks"></div>
@@ -318,7 +319,7 @@
   const KINDS = ['waiter','bill','blanket','charger','ashtray'];
 
   const T = {
-    ru:{ sub:'Руфтоп-кинобар в Батуми. \n Кухня и бар — каждый день с 12:00 до 02:00.',
+    ru:{ sub:'Руфтоп-кинобар в Батуми.', terms: 'Кухня и бар — каждый день с 12:00 до 02:00.',
          tiles:'Меню', all:'Всё меню', back:'← К разделам', more:'Подробнее', less:'Свернуть', allergy:'Если у вас есть аллергия или непереносимость — предупредите официанта, мы подберём безопасное блюдо.', allSub:'Всё', swap:'Ещё фото',
          waiter:'Официант', bill:'Счёт', blanket:'Плед', charger:'Зарядка', ashtray:'Пепельница',
          sent:'Готово', tooSoon:'Уже передали',
@@ -426,6 +427,7 @@
     const t=T[lang];
     document.documentElement.lang=lang;
     $('hero-sub').textContent=t.sub;
+    $('hero-terms').textContent=t.terms;
     $('tiles-title').textContent=t.tiles;
     $('back-btn').textContent=t.back;
     $('allergy-t').textContent=t.allergy;

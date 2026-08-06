@@ -213,6 +213,40 @@ function page() {
 
   .btn.small.danger { background:#F44336; color:#fff; }
 
+  /* форматы */
+  .fmt-grp { margin-bottom:18px; }
+  .fmt-grp__h { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
+  .fmt-grp__h b { font-size:15px; }
+  .fmt-grp__h span { font-size:12.5px; color:#888; }
+  .fmt-ev { background:#fff; border-radius:10px; padding:11px 13px; margin-bottom:7px; }
+  .fmt-ev__t { display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
+  .fmt-ev__n { font-weight:600; font-size:14px; }
+  .fmt-ss { display:flex; gap:5px; flex-wrap:wrap; margin-top:7px; }
+  .fmt-ss span { font-size:11px; padding:3px 8px; border-radius:6px; background:#f1f0ee; color:#555; cursor:pointer; }
+  .fmt-ss span:hover { background:#E75228; color:#fff; }
+
+  /* неделя */
+  .wk-head { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .wk-range { flex:1; min-width:180px; font-size:14px; font-weight:600; }
+  .wk-range small { display:block; font-weight:400; font-size:12px; color:#888; }
+  .wk-day { margin-bottom:18px; }
+  .wk-day__h { display:flex; align-items:baseline; gap:8px; margin:0 0 8px; padding-bottom:6px; border-bottom:1px solid #e6e4e1; }
+  .wk-day__h b { font-size:15px; text-transform:capitalize; }
+  .wk-day__h span { font-size:12.5px; color:#888; }
+  .wk-day.today .wk-day__h b { color:#E75228; }
+  .wk-sess { background:#fff; border-radius:12px; padding:12px 14px; margin-bottom:8px; cursor:pointer; border-left:4px solid #ddd; }
+  .wk-sess:hover { box-shadow:0 2px 10px rgba(0,0,0,.06); }
+  .wk-sess.full { border-left-color:#F44336; }
+  .wk-sess.some { border-left-color:#f59e0b; }
+  .wk-sess.empty { border-left-color:#4CAF50; }
+  .wk-sess__t { display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
+  .wk-sess__n { font-weight:700; font-size:15px; }
+  .wk-sess__m { font-size:12.5px; color:#777; margin-top:3px; }
+  .wk-seats { display:flex; gap:4px; flex-wrap:wrap; margin-top:8px; }
+  .wk-seat { font-size:10.5px; padding:3px 7px; border-radius:6px; background:#eceff1; color:#607d8b; }
+  .wk-seat.busy { background:#ffebee; color:#c62828; }
+  .wk-seat.block { background:#ede7f6; color:#5e35b1; }
+
   /* финансы */
   .fin-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:14px; }
   .fin-card { background:#fff; border-radius:12px; padding:13px 15px; }
@@ -359,8 +393,9 @@ function page() {
   <h1>SPOT. — админ <a href="#" id="erik-link">для Эрика</a></h1>
 
   <div class="tabs" id="main-tabs">
-    <div class="tab active" data-tab="today">Сегодня</div>
-    <div class="tab" data-tab="events">События</div>
+    <div class="tab active" data-tab="today">Неделя</div>
+    <div class="tab" data-tab="events">Фильмы</div>
+    <div class="tab" data-tab="formats">Форматы</div>
     <div class="tab" data-tab="sessions">Сеансы</div>
     <div class="tab" data-tab="menu">Меню</div>
     <div class="tab" data-tab="floor">Зал</div>
@@ -371,10 +406,11 @@ function page() {
 
   <!-- ===== TODAY ===== -->
   <div class="panel active" id="panel-today">
-    <div class="card" style="display:flex;align-items:center;gap:10px;padding:12px 16px">
-      <label style="font-size:13px;font-weight:600">Дата:</label>
-      <input id="today-date" readonly style="flex:1;max-width:160px;padding:9px 12px;font-size:14px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer" placeholder="сегодня">
-      <button class="btn small ghost" id="today-reset">Сегодня</button>
+    <div class="card wk-head">
+      <button class="btn small ghost" id="wk-prev">← Прошлая</button>
+      <div class="wk-range" id="wk-range"></div>
+      <button class="btn small ghost" id="wk-next">Следующая →</button>
+      <button class="btn small ghost" id="wk-this">Текущая</button>
     </div>
     <div id="today-list"><div class="hint">Загрузка…</div></div>
   </div>
@@ -409,6 +445,14 @@ function page() {
       </div>
       <div id="ev-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
     </div>
+  </div>
+
+  <!-- ===== FORMATS ===== -->
+  <div class="panel" id="panel-formats">
+    <div class="card">
+      <div class="hint">Форматы расписываются на месяц вперёд, обычные показы меняются каждую неделю — поэтому они разведены по вкладкам. Здесь события форматов din, drink и alacarte; обычные фильмы — во вкладке «Фильмы».</div>
+    </div>
+    <div id="fmt-list"><div class="hint">Загрузка…</div></div>
   </div>
 
   <!-- ===== SESSIONS ===== -->
@@ -630,6 +674,7 @@ function page() {
     </div>
     <div class="sd__body">
       <div class="sd__stats" id="sd-stats"></div>
+      <div class="hint" style="margin:-6px 0 10px">Клик по свободному столу — закрыть его на этот сеанс (под стафф или бронь по телефону). Клик по закрытому — снова открыть.</div>
       <div class="sd-plan"><div class="sd-plan__in" id="sd-plan"></div></div>
       <div id="sd-list"></div>
     </div>
@@ -699,6 +744,7 @@ document.querySelectorAll('#main-tabs .tab').forEach(t => t.addEventListener('cl
   $('panel-'+t.dataset.tab).classList.add('active');
   if(t.dataset.tab==='today') loadToday();
   if(t.dataset.tab==='events') { loadEventsList(); }
+  if(t.dataset.tab==='formats') loadFormats();
   if(t.dataset.tab==='sessions') { loadEventOptions(); loadSessionsList(); }
   if(t.dataset.tab==='menu') loadMenu();
   if(t.dataset.tab==='floor') loadFloor();
@@ -790,44 +836,88 @@ document.addEventListener('DOMContentLoaded', ()=>{});
 $('ss-date').addEventListener('click', ()=>{
   calOpen($('ss-date'), parseDdMm($('ss-date').value), (d)=>{ $('ss-date').value = fmtDdMm(d); });
 });
-$('today-date').addEventListener('click', ()=>{
-  calOpen($('today-date'), parseDdMm($('today-date').value), (d)=>{
-    $('today-date').value = fmtDdMm(d);
-    TODAY_ISO = d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
-    loadToday();
-  });
-});
-$('today-reset').addEventListener('click', ()=>{
-  TODAY_ISO=null; $('today-date').value='';
+// ---------- НЕДЕЛЯ ----------
+// Расписание живёт неделями, поэтому главный экран — неделя, а не день:
+// видно и сегодняшний вечер, и что будет в выходные.
+
+let WK_FROM = null, WK_TO = null;
+const DOW = ['понедельник','вторник','среда','четверг','пятница','суббота','воскресенье'];
+const MON = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+
+function wkShift(days){
+  if(!WK_FROM) return;
+  const f=new Date(WK_FROM+'T00:00:00Z'), t=new Date(WK_TO+'T00:00:00Z');
+  f.setUTCDate(f.getUTCDate()+days); t.setUTCDate(t.getUTCDate()+days);
+  WK_FROM=f.toISOString().slice(0,10); WK_TO=t.toISOString().slice(0,10);
   loadToday();
-});
+}
+function wkHuman(iso){
+  const d=new Date(iso+'T00:00:00Z');
+  return d.getUTCDate()+' '+MON[d.getUTCMonth()];
+}
+function wkTodayIso(){
+  return new Date(Date.now()+4*3600*1000).toISOString().slice(0,10);
+}
 
-// ---------- TODAY ----------
-let TODAY_ISO = null; // null = today
+$('wk-prev').addEventListener('click', ()=>wkShift(-7));
+$('wk-next').addEventListener('click', ()=>wkShift(7));
+$('wk-this').addEventListener('click', ()=>{ WK_FROM=null; WK_TO=null; loadToday(); });
 
+// Имя loadToday сохранено: его дёргают другие места после изменений броней.
 async function loadToday(){
-  const box=$('today-list'); box.innerHTML='<div class="hint">Загрузка…</div>';
+  const box=$('today-list');
+  box.innerHTML='<div class="hint">Загрузка…</div>';
   try{
-    const u=new URL(api('admin-today'), location.origin);
-    if(TODAY_ISO) u.searchParams.set('date', TODAY_ISO);
+    const u=new URL(api('admin-week'), location.origin);
+    if(WK_FROM && WK_TO){ u.searchParams.set('from', WK_FROM); u.searchParams.set('to', WK_TO); }
     const r=await fetch(u, F);
     if(r.status===401){ handle401(); return; }
     const d=await r.json();
-    const ss=d.sessions||[];
-    if(!ss.length){ box.innerHTML='<div class="hint">На '+esc(d.date)+' сеансов нет.</div>'; return; }
-    box.innerHTML = ss.map(s => {
-      const bks=(s.bookings||[]).map(b =>
-        '<div class="bk"><span class="st">'+esc(b.table_label)+'</span>'+
-        '<span>'+esc(b.guest_name||'—')+' · '+esc(String(b.guests||'?'))+' чел</span>'+
-        '<span><span class="badge '+esc(b.payment_status)+'">'+esc(b.payment_status)+'</span> '+
-        '<span class="badge '+esc(b.source)+'">'+esc(b.source)+'</span></span></div>'
-      ).join('') || '<div class="hint" style="padding:5px 0">Броней нет</div>';
-      return '<div class="sess"><h3>'+esc(s.title)+'</h3><div class="meta">'+esc(s.time)+' · '+esc(s.format)+' · '+esc(String(s.price))+' GEL · занято '+(s.bookings||[]).length+'</div>'+bks+'</div>';
+    WK_FROM=d.from; WK_TO=d.to;
+
+    $('wk-range').innerHTML = wkHuman(d.from)+' — '+wkHuman(d.to)+
+      '<small>'+(d.sessions||[]).length+' сеансов на неделе</small>';
+
+    const today=wkTodayIso();
+    // Раскладываем по дням недели, включая пустые: пустой день — это тоже
+    // информация, сразу видно дыры в расписании.
+    const days=[];
+    for(let i=0;i<7;i++){
+      const dt=new Date(d.from+'T00:00:00Z'); dt.setUTCDate(dt.getUTCDate()+i);
+      const iso=dt.toISOString().slice(0,10);
+      days.push({ iso, dow:DOW[(dt.getUTCDay()+6)%7], human:wkHuman(iso),
+                  items:(d.sessions||[]).filter(s=>s.iso===iso) });
+    }
+
+    box.innerHTML = days.map(day=>{
+      const rows = day.items.length ? day.items.map(s=>{
+        const busy=(s.bookings||[]).length, blocked=(s.blocks||[]).length;
+        const cls = s.free===0 ? 'full' : (busy||blocked ? 'some' : 'empty');
+        const seats=(s.bookings||[]).map(b=>
+            '<span class="wk-seat busy" title="'+esc((b.guest_name||'')+' · '+(b.guest_phone||''))+'">'+
+            esc(b.table_label)+' · '+esc(b.guest_name||'—')+'</span>')
+          .concat((s.blocks||[]).map(b=>
+            '<span class="wk-seat block" title="'+esc(b.reason||'закрыт')+'">'+esc(b.table_label)+' · закрыт</span>'))
+          .join('');
+        return '<div class="wk-sess '+cls+'" data-open="'+esc(s.id)+'">'+
+          '<div class="wk-sess__t"><span class="wk-sess__n">'+esc(s.time)+' · '+esc(s.title)+'</span>'+
+            '<span class="badge '+(s.free===0?'unpaid':'paid')+'">'+(s.free===0?'занято':'свободно '+s.free)+'</span></div>'+
+          '<div class="wk-sess__m">'+esc(s.format)+' · '+esc(String(s.price))+' GEL · '+
+            busy+' брон. · '+s.guests+' гост.'+(blocked?' · '+blocked+' закрыто':'')+'</div>'+
+          (seats?'<div class="wk-seats">'+seats+'</div>':'')+
+        '</div>';
+      }).join('') : '<div class="hint" style="padding:2px 0 6px">Сеансов нет</div>';
+
+      return '<div class="wk-day'+(day.iso===today?' today':'')+'">'+
+        '<div class="wk-day__h"><b>'+esc(day.dow)+'</b><span>'+esc(day.human)+
+          (day.iso===today?' · сегодня':'')+'</span></div>'+rows+'</div>';
     }).join('');
+
+    box.querySelectorAll('[data-open]').forEach(el=>el.onclick=()=>openSession(el.dataset.open));
   }catch(e){ box.innerHTML='<div class="hint">Ошибка загрузки.</div>'; }
 }
 
-// ---------- ФОРМАТЫ ----------
+// ---------- ФОРМАТЫ ----------// ---------- ФОРМАТЫ ----------
 function depositTemplate(fmt){
   const f = CFG.formats[fmt];
   return f ? f.deposit : '';
@@ -928,7 +1018,10 @@ async function loadEventsList(){
   try{
     const r=await fetch(api('admin-events'), F);
     if(r.status===401){ handle401(); return; }
-    const d=await r.json(); const evs=d.events||[];
+    const d=await r.json();
+    // Во вкладке «Фильмы» — только обычные показы: форматы живут отдельно,
+    // у них другой ритм публикации (месяц против недели).
+    const evs=(d.events||[]).filter(e=>e.format==='mov');
     box.innerHTML = evs.length ? evs.map((e,i) =>
       '<div class="srow" data-i="'+i+'" style="cursor:pointer" title="Нажми, чтобы редактировать">'+
       '<input type="checkbox" class="sel" data-id="'+esc(e.id)+'">'+
@@ -956,6 +1049,49 @@ async function loadEventsList(){
       };
     });
   }catch(e){ box.innerHTML='<div class="hint">Ошибка.</div>'; }
+}
+
+// ---------- ФОРМАТЫ ----------
+// Киноужины и прочие форматы расписываются на месяц вперёд, поэтому показываем
+// их вместе с ближайшими сеансами — видно, что уже поставлено в расписание.
+
+async function loadFormats(){
+  const box=$('fmt-list');
+  box.innerHTML='<div class="hint">Загрузка…</div>';
+  try{
+    const [er, sr] = await Promise.all([
+      fetch(api('admin-events'), F),
+      fetch(api('admin-sessions'), F)
+    ]);
+    if(er.status===401 || sr.status===401){ handle401(); return; }
+    const ed=await er.json(), sd=await sr.json();
+    const evs=(ed.events||[]).filter(e=>e.format!=='mov');
+    const ss=sd.sessions||[];
+
+    if(!evs.length){ box.innerHTML='<div class="hint">Событий-форматов нет. Создай во вкладке «Фильмы», выбрав формат din, drink или alacarte.</div>'; return; }
+
+    const groups={};
+    evs.forEach(e=>{ (groups[e.format]=groups[e.format]||[]).push(e); });
+
+    box.innerHTML = Object.keys(groups).map(fmt=>{
+      const title=(CFG.formats[fmt]||{}).title || fmt;
+      const list=groups[fmt];
+      const rows=list.map(e=>{
+        const mine=ss.filter(x=>x.event_id===e.id);
+        const chips=mine.length
+          ? mine.map(x=>'<span data-open="'+esc(x.id)+'">'+esc(x.date)+' '+esc(x.time)+'</span>').join('')
+          : '<span style="background:none;color:#bbb;cursor:default">сеансов нет</span>';
+        return '<div class="fmt-ev">'+
+          '<div class="fmt-ev__t"><span class="fmt-ev__n">'+esc(e.title)+'</span>'+
+            '<span class="hint">'+esc(String(e.price))+' GEL · '+mine.length+' сеанс.</span></div>'+
+          '<div class="fmt-ss">'+chips+'</div></div>';
+      }).join('');
+      return '<div class="fmt-grp"><div class="fmt-grp__h"><b>'+esc(title)+'</b>'+
+        '<span>'+list.length+' событий</span></div>'+rows+'</div>';
+    }).join('');
+
+    box.querySelectorAll('[data-open]').forEach(el=>el.onclick=()=>openSession(el.dataset.open));
+  }catch(e){ box.innerHTML='<div class="hint">Ошибка загрузки.</div>'; }
 }
 
 // ---------- SESSIONS ----------
@@ -1434,6 +1570,7 @@ function sdRender(){
     '<div class="sd__stat">Броней<b>'+t.bookings+'</b></div>'+
     '<div class="sd__stat">Гостей<b>'+t.guests+'</b></div>'+
     '<div class="sd__stat">Свободно столов<b>'+t.free+'</b></div>'+
+    '<div class="sd__stat">Закрыто<b>'+(SD.blocks||[]).length+'</b></div>'+
     '<div class="sd__stat">Сумма<b>'+Number(t.revenue)+' GEL</b></div>';
 
   // схема: занятые столы подписаны именем гостя

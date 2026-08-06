@@ -24,6 +24,14 @@
     {
       "source": "/fail",
       "destination": "/fail.html"
+    },
+    {
+      "source": "/dinners",
+      "destination": "/dinners.html"
+    },
+    {
+      "source": "/events",
+      "destination": "/dinners.html"
     }
   ]
 }

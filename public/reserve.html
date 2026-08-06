@@ -380,7 +380,9 @@
     try{
       const r=await fetch('/api/availability?session_id='+encodeURIComponent(session.session_id||session.id));
       const d=await r.json();
-      booked=new Set((d.booked||[]).map(x=>String(x).trim().toLowerCase()));
+      // unavailable = занятые + закрытые под этот показ
+      const un = d.unavailable || (d.booked||[]);
+      booked=new Set(un.map(x=>String(x).trim().toLowerCase()));
     }catch(e){}
     renderSeats();
   }

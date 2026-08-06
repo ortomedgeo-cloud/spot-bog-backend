@@ -217,7 +217,7 @@
          contactT:'Связаться',
          qMenu:'Меню', qMenuD:'Кухня, авторские коктейли, вино и кальяны',
          qBook:'Бронь столика', qBookD:'Выбрать сеанс и столик на схеме зала',
-         qOrder:'Заказ за столиком', qOrderD:'Позвать официанта или сделать заказ, не вставая из-за стола',
+         qOrder:'Заказ за столиком', qDin:'Киноужины', qDinD:'Специальные программы на месяц вперёд', qOrderD:'Позвать официанта или сделать заказ, не вставая из-за стола',
          perGuest:'за гостя', perGuestDep:'за гостя (депозит)', perGuestInc:'за гостя (сет-меню входит в стоимость)', loading:'Загружаем афишу…',
          empty:'Ближайшие сеансы ещё не объявлены. Загляните позже или напишите нам.',
          fail:'Не удалось загрузить афишу.' },
@@ -230,7 +230,7 @@
          contactT:'კონტაქტი',
          qMenu:'მენიუ', qMenuD:'სამზარეულო, კოქტეილები, ღვინო და კალიანი',
          qBook:'მაგიდის დაჯავშნა', qBookD:'აირჩიეთ სეანსი და ადგილი სქემაზე',
-         qOrder:'შეკვეთა მაგიდიდან', qOrderD:'დაუძახეთ მიმტანს ან შეუკვეთეთ ადგილიდან',
+         qOrder:'შეკვეთა მაგიდიდან', qDin:'კინოვახშმები', qDinD:'სპეციალური პროგრამები თვე წინ', qOrderD:'დაუძახეთ მიმტანს ან შეუკვეთეთ ადგილიდან',
          perGuest:'ერთ სტუმარზე', perGuestDep:'ერთ სტუმარზე (დეპოზიტი)', perGuestInc:'ერთ სტუმარზე (სეტ-მენიუ ფასში შედის)', loading:'აფიშა იტვირთება…',
          empty:'უახლოესი სეანსები ჯერ არ გამოცხადებულა. შემოგვიარეთ მოგვიანებით.',
          fail:'აფიშა ვერ ჩაიტვირთა.' },
@@ -243,7 +243,7 @@
          contactT:'Get in touch',
          qMenu:'Menu', qMenuD:'Kitchen, signature cocktails, wine and hookah',
          qBook:'Book a table', qBookD:'Pick a screening and a seat on the plan',
-         qOrder:'Order from your table', qOrderD:'Call a waiter or order without getting up',
+         qOrder:'Order from your table', qDin:'Dinner nights', qDinD:'Special programmes a month ahead', qOrderD:'Call a waiter or order without getting up',
          perGuest:'per guest', perGuestDep:'per guest (deposit)', perGuestInc:'per guest (set menu included)', loading:'Loading what’s on…',
          empty:'No screenings announced yet. Check back later or message us.',
          fail:'Could not load the programme.' }
@@ -304,7 +304,8 @@
     $('quick').innerHTML=[
       ['/menu',    t.qMenu,  t.qMenuD],
       ['/reserve', t.qBook,  t.qBookD],
-      ['/table',   t.qOrder, t.qOrderD]
+      ['/table',   t.qOrder, t.qOrderD],
+      ['/dinners', t.qDin,   t.qDinD]
     ].map(([href,h,p])=>'<a href="'+href+'"><h3>'+esc(h)+'</h3><p>'+esc(p)+'</p></a>').join('');
   }
 

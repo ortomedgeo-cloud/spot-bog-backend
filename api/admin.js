@@ -396,7 +396,7 @@ function page() {
 
   <div class="tabs" id="main-tabs">
     <div class="tab active" data-tab="today">Неделя</div>
-    <div class="tab" data-tab="events">Фильмы</div>
+    <div class="tab" data-tab="events">События</div>
     <div class="tab" data-tab="formats">Форматы</div>
     <div class="tab" data-tab="sessions">Сеансы</div>
     <div class="tab" data-tab="menu">Меню</div>

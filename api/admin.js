@@ -1577,6 +1577,8 @@ function sdRender(){
   const byLabel={};
   SD.bookings.forEach(b=>{ byLabel[b.table_label]=b; });
   const W=Number(SD.plan.settings.canvas_w)||1000, H=Number(SD.plan.settings.canvas_h)||700;
+  const blocked={};
+  (SD.blocks||[]).forEach(b=>{ blocked[b.table_label]=b.reason||''; });
   const box=$('sd-plan');
   const avail=box.parentElement.clientWidth-24;
   const scale=Math.min(1, avail/W);
@@ -1586,23 +1588,37 @@ function sdRender(){
 
   box.innerHTML = SD.plan.tables.map(p=>{
     const b=byLabel[p.label];
-    const cls = b ? 'busy' : (p.bookable===false ? 'closed' : '');
+    const isBlocked = (p.label in blocked);
+    const cls = b ? 'busy' : ((p.bookable===false || isBlocked) ? 'closed' : '');
     const sel = (b && b.id===SD_EDIT) ? ' sel' : '';
     const style='left:'+p.x+'px;top:'+p.y+'px;width:'+p.w+'px;height:'+p.h+'px;'+
       'border-radius:'+(p.shape==='circle'?'50%':'8px')+';'+
       (p.rotation?('transform:rotate('+p.rotation+'deg);'):'');
-    const note = b ? (b.guest_name||'—') : (p.bookable===false?'закрыт':'свободен');
+    const note = b ? (b.guest_name||'—')
+      : (isBlocked ? (blocked[p.label] || 'закрыт')
+      : (p.bookable===false ? 'закрыт' : 'свободен'));
     return '<div class="sdt '+cls+sel+'" data-seat="'+esc(p.label)+'" style="'+style+'">'+
       '<span>'+esc(p.label.replace('Стол ','').replace('Бар ','B'))+
       '<small>'+esc(note)+'</small></span></div>';
   }).join('');
 
-  // клик по столу — прокрутка к его брони
+  // Клик по столу: занятый — прокрутка к брони, свободный — закрыть на этот
+  // сеанс, закрытый — открыть обратно. Частая операция за стойкой.
   box.querySelectorAll('[data-seat]').forEach(el=>el.onclick=()=>{
-    const b=byLabel[el.dataset.seat];
-    if(!b) return;
-    const card=document.querySelector('[data-bk="'+b.id+'"]');
-    if(card) card.scrollIntoView({ behavior:'smooth', block:'center' });
+    const label=el.dataset.seat;
+    const b=byLabel[label];
+    if(b){
+      const card=document.querySelector('[data-bk="'+b.id+'"]');
+      if(card) card.scrollIntoView({ behavior:'smooth', block:'center' });
+      return;
+    }
+    if(label in blocked){
+      if(confirm('Открыть «'+label+'» для брони с сайта?')) sdBlock(label, false);
+      return;
+    }
+    const reason=prompt('Закрыть «'+label+'» на этот сеанс. Причина:','под стафф');
+    if(reason===null) return;
+    sdBlock(label, true, reason);
   });
 
   sdList();
@@ -1653,6 +1669,18 @@ function sdList(){
   $('sd-list').querySelectorAll('[data-save]').forEach(b=>b.onclick=()=>sdSave(b.dataset.save));
   $('sd-list').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>sdDelete(b.dataset.del));
   $('sd-list').querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>sdMove(b.dataset.move));
+}
+
+async function sdBlock(label, block, reason){
+  try{
+    const r=await fetch(api('admin-blocks'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ action: block?'block':'unblock', session_id:SD.session.id, table_label:label, reason })});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok || !d.ok){ alert('Ошибка: '+(d.detail||d.error||'?')); return; }
+    SD.blocks=d.blocks||[];
+    sdRender(); loadToday();
+  }catch(e){ alert('Сетевая ошибка.'); }
 }
 
 async function sdPost(payload){

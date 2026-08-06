@@ -627,11 +627,9 @@ function page() {
       <div id="notify-list" style="margin-top:10px"><div class="hint">Загрузка…</div></div>
     </div>
 
+    <div class="hint" style="margin-bottom:8px">Заказы теперь идут только в Telegram — принимай/отменяй кнопками под сообщением бота.</div>
     <label style="font-size:13px;font-weight:600">Просьбы</label>
-    <div id="svc-reqs" style="margin:8px 0 22px"><div class="hint">Загрузка…</div></div>
-
-    <label style="font-size:13px;font-weight:600">Заказы</label>
-    <div id="svc-orders" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
+    <div id="svc-reqs" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
   </div>
 
   <!-- ===== ERIK ===== -->
@@ -1280,8 +1278,8 @@ function startSvcPoll(){
 }
 
 async function loadSvc(quiet){
-  const reqBox = $('svc-reqs'), ordBox = $('svc-orders');
-  if(!quiet){ reqBox.innerHTML='<div class="hint">Загрузка…</div>'; ordBox.innerHTML='<div class="hint">Загрузка…</div>'; }
+  const reqBox = $('svc-reqs');
+  if(!quiet){ reqBox.innerHTML='<div class="hint">Загрузка…</div>'; }
   try{
     const u = new URL(api('admin-service'), location.origin);
     u.searchParams.set('hours', $('svc-hours').value);
@@ -1289,10 +1287,10 @@ async function loadSvc(quiet){
     if(r.status===401){ handle401(); return; }
     const d = await r.json();
 
-    const reqs = d.requests || [], orders = d.orders || [];
+    const reqs = d.requests || [];
 
     // счётчик непринятых
-    const pending = reqs.filter(x=>x.status==='new').length + orders.filter(o=>o.status==='new').length;
+    const pending = reqs.filter(x=>x.status==='new').length;
     const badge = $('svc-badge');
     if(badge){ badge.textContent = pending || ''; badge.classList.toggle('on', pending>0); }
     document.title = pending ? ('(' + pending + ') SPOT. — админ') : 'SPOT. — админ';
@@ -1310,35 +1308,11 @@ async function loadSvc(quiet){
       '</div>'
     ).join('') : '<div class="hint">Просьб нет.</div>';
 
-    ordBox.innerHTML = orders.length ? orders.map(o => {
-      const lines = (o.items||[]).map(i =>
-        '<div class="li"><span>'+esc(i.title)+' × '+esc(String(i.qty))+'</span><span>'+esc(String(Number(i.price)*i.qty))+' GEL</span></div>'
-      ).join('');
-      const acts = o.status==='new'
-        ? '<button class="btn small" data-or="'+esc(o.id)+'" data-st="accepted">Принять</button>'+
-          '<button class="btn small ghost" data-or="'+esc(o.id)+'" data-st="cancelled">Отменить</button>'
-        : (o.status==='accepted'
-            ? '<button class="btn small" data-or="'+esc(o.id)+'" data-st="done">Готово</button>'
-            : '');
-      return '<div class="svc '+esc(o.status)+'">'+
-        '<div class="svc__top"><span class="svc__seat">'+esc(o.table_label)+
-          (o.mode==='takeaway'?' <span class="badge manual">с собой</span>':'')+
-          (o.guest_name?' · '+esc(o.guest_name):'')+'</span>'+
-          '<span class="svc__when">'+esc(ago(o.created_at))+'</span></div>'+
-        '<div class="svc__body">'+lines+'<div class="svc__total">Итого: '+esc(String(Number(o.total)))+' GEL</div></div>'+
-        (o.comment?'<div class="svc__note">'+esc(o.comment)+'</div>':'')+
-        (acts?'<div class="svc__acts">'+acts+'</div>':'')+
-      '</div>';
-    }).join('') : '<div class="hint">Заказов нет.</div>';
-
-    ordBox.querySelectorAll('button[data-or]').forEach(b=>{
-      b.onclick=()=>svcSet({ kind:'order', id:b.dataset.or, status:b.dataset.st });
-    });
     reqBox.querySelectorAll('button[data-rq]').forEach(b=>{
       b.onclick=()=>svcSet({ kind:'request', id:b.dataset.rq, status:b.dataset.st });
     });
   }catch(e){
-    if(!quiet){ ordBox.innerHTML='<div class="hint">Ошибка загрузки.</div>'; }
+    if(!quiet){ reqBox.innerHTML='<div class="hint">Ошибка загрузки.</div>'; }
   }
 }
 

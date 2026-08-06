@@ -5,6 +5,7 @@ import {
   createBookingIfNotExists
 } from "../lib/db.js";
 import { notify, notifyGuest } from "../lib/notify.js";
+import { escapeHtml } from "../lib/telegram.js";
 import { json } from "../lib/utils.js";
 
 export const config = {
@@ -117,14 +118,14 @@ export default async function handler(req, res) {
         const text =
 `✅ Новая оплаченная бронь
 
-Событие: ${payment.event_title}
-Стол: ${payment.table_label}
+Событие: ${escapeHtml(payment.event_title)}
+Стол: ${escapeHtml(payment.table_label)}
 Гостей: ${payment.guests}
-Имя: ${payment.guest_name}
-Телефон: ${payment.guest_phone}${payment.guest_instagram ? `\nInstagram: ${payment.guest_instagram}` : ""}
+Имя: ${escapeHtml(payment.guest_name)}
+Телефон: ${escapeHtml(payment.guest_phone)}${payment.guest_instagram ? `\nInstagram: ${escapeHtml(payment.guest_instagram)}` : ""}
 Сумма: ${payment.amount} GEL
-BOG order: ${bogOrderId || payment.bog_order_id}
-Booking ID: ${payment.internal_order_id}`;
+BOG order: ${escapeHtml(bogOrderId || payment.bog_order_id)}
+Booking ID: ${escapeHtml(payment.internal_order_id)}`;
 
         try {
           await notify(text);

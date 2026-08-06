@@ -5,6 +5,7 @@ import {
   createServiceRequest
 } from "../lib/db.js";
 import { notify } from "../lib/notify.js";
+import { escapeHtml } from "../lib/telegram.js";
 import { json } from "../lib/utils.js";
 
 // Быстрая просьба со стола: официант / счёт / плед / зарядка / пепельница.
@@ -63,7 +64,7 @@ export default async function handler(req, res) {
 
     try {
       await notify(
-        `🔔 <b>${LABEL[kind]}</b> — ${table}${comment ? `\nКомментарий: ${comment}` : ""}`
+        `🔔 <b>${LABEL[kind]}</b> — ${escapeHtml(table)}${comment ? `\nКомментарий: ${escapeHtml(comment)}` : ""}`
       );
     } catch (e) {
       // Просьба уже в базе и видна в админке — уведомление не критично.

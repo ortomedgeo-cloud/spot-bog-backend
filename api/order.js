@@ -1,5 +1,6 @@
 import { normalizeSeat, createOrder } from "../lib/db.js";
 import { notify } from "../lib/notify.js";
+import { escapeHtml } from "../lib/telegram.js";
 import { json } from "../lib/utils.js";
 
 // Заказ из меню за столом. Публичный эндпоинт: цены берутся ИЗ БАЗЫ по id
@@ -52,13 +53,21 @@ export default async function handler(req, res) {
 
     try {
       const body = order.lines
-        .map((l) => `• ${l.title} × ${l.qty} — ${l.price * l.qty} GEL`)
+        .map((l) => `• ${escapeHtml(l.title)} × ${l.qty} — ${l.price * l.qty} GEL`)
         .join("\n");
       await notify(
-        `🧾 <b>Новый заказ</b> — ${order.table_label}` +
-        `${b.name ? `\nГость: ${String(b.name).trim()}` : ""}` +
+        `🧾 <b>Новый заказ</b> — ${escapeHtml(order.table_label)}` +
+        `${b.name ? `\nГость: ${escapeHtml(String(b.name).trim())}` : ""}` +
         `${b.mode === "takeaway" ? `\n<b>С собой</b>` : ""}\n\n${body}\n\n<b>Итого: ${order.total} GEL</b>` +
-        `${b.comment ? `\n\nКомментарий: ${String(b.comment).trim()}` : ""}`
+        `${b.comment ? `\n\nКомментарий: ${escapeHtml(String(b.comment).trim())}` : ""}`,
+        {
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "✅ Принять", callback_data: `o:accept:${order.id}` },
+              { text: "✖ Отменить", callback_data: `o:cancel:${order.id}` }
+            ]]
+          }
+        }
       );
     } catch (e) {
       console.error("order notify failed", e);

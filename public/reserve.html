@@ -177,37 +177,37 @@
          insta:'Instagram (необязательно)', comment:'Комментарий',
          free:'свободно', busy:'занято', closed:'закрыт', pick:'ваш выбор',
          pickSeat:'Выберите столик на схеме.', seatTaken:'Этот столик уже занят на этот сеанс.',
-         chosen:t=>'Выбран '+t, deposit:'Депозит', pay:'Оплатить',
+         chosen:t=>'Выбран '+t, deposit:'Депозит', total:'Итого', pay:'Оплатить',
          perGuest:'за гостя', perGuestDep:'за гостя (депозит)', perGuestInc:'за гостя (сет-меню входит в стоимость)', noSessions:'Ближайших сеансов пока нет. Загляните позже или напишите нам.',
          loading:'Загружаем…', fail:'Что-то пошло не так. Попробуйте ещё раз.',
          needName:'Введите имя.', needPhone:'Введите номер телефона.',
          badPhone:'Похоже, это не номер. Инстаграм — в отдельное поле ниже.',
          needSeat:'Выберите столик.', going:'Переходим к оплате…',
-         addr:'ул. Реджеба Ниджарадзе, 18, Батуми — мы на три ступени выше 15-го этажа.', gel:'GEL' },
+         addr:'ул. Реджеба Ниджарадзе, 18, Батуми', gel:'GEL' },
     ka:{ title:'მაგიდის დაჯავშნა', lead:'აირჩიეთ სეანსი, მაგიდა და დატოვეთ კონტაქტი — დეპოზიტი ონლაინ იხდება.',
          date:'თარიღი', time:'სეანსი', guests:'სტუმრები', name:'თქვენი სახელი', phone:'ტელეფონი',
          insta:'Instagram (არასავალდებულო)', comment:'კომენტარი',
          free:'თავისუფალია', busy:'დაკავებულია', closed:'დაკეტილია', pick:'თქვენი არჩევანი',
          pickSeat:'აირჩიეთ მაგიდა სქემაზე.', seatTaken:'ეს მაგიდა უკვე დაკავებულია.',
-         chosen:t=>'არჩეულია '+t, deposit:'დეპოზიტი', pay:'გადახდა',
+         chosen:t=>'არჩეულია '+t, deposit:'დეპოზიტი', total:'ჯამში', pay:'გადახდა',
          perGuest:'ერთ სტუმარზე', perGuestDep:'ერთ სტუმარზე (დეპოზიტი)', perGuestInc:'ერთ სტუმარზე (სეტ-მენიუ ფასში შედის)', noSessions:'უახლოესი სეანსები ჯერ არ არის. შემოგვიარეთ მოგვიანებით.',
          loading:'იტვირთება…', fail:'რაღაც შეცდომაა. სცადეთ ხელახლა.',
          needName:'შეიყვანეთ სახელი.', needPhone:'შეიყვანეთ ტელეფონის ნომერი.',
          badPhone:'ეს ნომერს არ ჰგავს. ინსტაგრამი — ცალკე ველში.',
          needSeat:'აირჩიეთ მაგიდა.', going:'გადავდივართ გადახდაზე…',
-         addr:'რეჯებ ნიჟარაძის 18, ბათუმი — მე-15 სართულზე სამი საფეხურით მაღლა.', gel:'GEL' },
+         addr:'რეჯებ ნიჟარაძის 18, ბათუმი', gel:'GEL' },
     en:{ title:'Book a table', lead:'Pick a screening and a table, leave your contacts — the deposit is paid online.',
          date:'Date', time:'Screening', guests:'Guests', name:'Your name', phone:'Phone',
          insta:'Instagram (optional)', comment:'Comment',
          free:'free', busy:'taken', closed:'closed', pick:'your pick',
          pickSeat:'Pick a table on the plan.', seatTaken:'That table is already taken for this screening.',
-         chosen:t=>t+' selected', deposit:'Deposit', pay:'Pay',
+         chosen:t=>t+' selected', deposit:'Deposit', total:'Total', pay:'Pay',
          perGuest:'per guest', perGuestDep:'per guest (deposit)', perGuestInc:'per guest (set menu included)', noSessions:'No upcoming screenings yet. Check back later or message us.',
          loading:'Loading…', fail:'Something went wrong. Please try again.',
          needName:'Enter your name.', needPhone:'Enter your phone number.',
          badPhone:"That doesn't look like a number. Instagram goes in the field below.",
          needSeat:'Pick a table.', going:'Taking you to payment…',
-         addr:'18 Rejeb Nijaradze, Batumi — three steps above the 15th floor.', gel:'GEL' }
+         addr:'18 Rejeb Nijaradze, Batumi', gel:'GEL' }
   };
 
   // Цена значит разное в зависимости от формата: у обычного показа и
@@ -369,7 +369,8 @@
   function renderSum(){
     const t=T[lang];
     const total=session ? Number(session.price)*guests : 0;
-    $('sum').innerHTML=esc(t.deposit)+' · '+guests+' × '+(session?session.price:0)+
+    const label = session && INCLUDED_FORMATS.indexOf(session.format)!==-1 ? t.total : t.deposit;
+    $('sum').innerHTML=esc(label)+' · '+guests+' × '+(session?session.price:0)+
       '<b>'+total+' '+esc(t.gel)+'</b>';
     $('pay').disabled=!session;
   }
@@ -393,7 +394,7 @@
     const d=await r.json();
     if(!r.ok||!d.ok) throw new Error('no session');
     session={ session_id:d.session_id, title:d.title, date:d.date, time:d.time,
-              price:d.price, poster_url:d.poster_url, deposit_text:d.deposit_text };
+              price:d.price, poster_url:d.poster_url, deposit_text:d.deposit_text, format:d.format };
     renderEvent(); renderSum(); await loadAvailability();
   }
 

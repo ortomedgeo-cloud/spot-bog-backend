@@ -1019,9 +1019,7 @@ async function loadEventsList(){
     const r=await fetch(api('admin-events'), F);
     if(r.status===401){ handle401(); return; }
     const d=await r.json();
-    // Во вкладке «Фильмы» — только обычные показы: форматы живут отдельно,
-    // у них другой ритм публикации (месяц против недели).
-    const evs=(d.events||[]).filter(e=>e.format==='mov');
+    const evs=d.events||[];
     box.innerHTML = evs.length ? evs.map((e,i) =>
       '<div class="srow" data-i="'+i+'" style="cursor:pointer" title="Нажми, чтобы редактировать">'+
       '<input type="checkbox" class="sel" data-id="'+esc(e.id)+'">'+

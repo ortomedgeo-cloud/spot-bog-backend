@@ -149,6 +149,7 @@
     <p class="hero__sub" id="hero-sub"></p>
     <div class="cta">
       <a class="btn" href="/reserve" id="cta-book"></a>
+      <a class="btn ghost" href="/dinners" id="cta-dinners"></a>
       <a class="btn ghost" href="/menu" id="cta-menu"></a>
     </div>
   </div>
@@ -289,6 +290,7 @@
     document.documentElement.lang=lang;
     $('hero-sub').textContent=t.sub;
     $('cta-book').textContent=t.book;
+    $('cta-dinners').textContent=t.qDin;
     $('cta-menu').textContent=t.menu;
     $('shows-all').textContent=t.showsAll;
     $('quick-title').textContent=t.quick;
@@ -304,8 +306,7 @@
     $('quick').innerHTML=[
       ['/menu',    t.qMenu,  t.qMenuD],
       ['/reserve', t.qBook,  t.qBookD],
-      ['/table',   t.qOrder, t.qOrderD],
-      ['/dinners', t.qDin,   t.qDinD]
+      ['/table',   t.qOrder, t.qOrderD]
     ].map(([href,h,p])=>'<a href="'+href+'"><h3>'+esc(h)+'</h3><p>'+esc(p)+'</p></a>').join('');
   }
 

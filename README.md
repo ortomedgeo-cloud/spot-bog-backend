@@ -1,14 +1,34 @@
 # spot-bog-backend
 
-Backend под Vercel для схемы:
+Backend под Vercel для Spot Bar: бронирования, меню, оплата через Bank of
+Georgia и уведомления персоналу. Данные — в Neon Postgres (`lib/db.js`,
+`db/schema.sql`), без внешних листов и таблиц.
 
-- Tilda / кастомный фронт отправляет данные формы в `/api/payment`
-- backend читает лист `events` в Google Sheets
-- берет цену и название события по `eid`
-- создает заказ в Bank of Georgia
-- пишет строку в лист `payments`
-- BOG шлет callback в `/api/callback`
-- backend обновляет статус в `payments` и шлет уведомление в WhatsApp через GreenAPI
+## Схема оплаты
+
+- Tilda / кастомный фронт отправляет данные брони в `/api/payment`
+- backend читает сеанс/событие и цену из Postgres
+- создаёт заказ в Bank of Georgia (`lib/bog.js`)
+- пишет строку в таблицу `payments`
+- BOG шлёт callback в `/api/callback`
+- backend обновляет статус оплаты и шлёт уведомление персоналу (и, при
+  наличии телефона, гостю) через `lib/notify.js`
+
+## Админка
+
+- `/admin` (`api/admin.js`, `api/admin-*.js`) — сегодня/события/сеансы/брони/
+  меню/floor-plan/финансы. Логин по `ADMIN_USER`/`ADMIN_PASS`, сессия —
+  HMAC-токен в cookie `spot_admin` (`lib/utils.js`).
+- Отдельная панель «для Эрика» (`api/erik-login.js`, `api/erik-payments.js`,
+  `api/erik-payment-detail.js`) — второй пароль (`ERIK_PANEL_PASS`), список
+  платежей из БД и живые детали по конкретному заказу напрямую из BOG.
+
+## Уведомления
+
+`lib/notify.js` — единая точка отправки: Telegram, WhatsApp (GreenAPI) и
+почта (Resend), любой канал можно включать/выключать из админки. Ключи
+берутся из БД (`notify_secrets`, зашифрованы, см. `lib/secrets.js`) либо из
+переменных окружения, если в БД пусто.
 
 ## Переменные окружения для BOG
 
@@ -19,25 +39,21 @@ Backend под Vercel для схемы:
 | `BOG_LANGUAGE` | `en` | Заголовок `Accept-Language` для страницы оплаты: `ka` или `en`. |
 | `BOG_CURRENCY` | `GEL` | Валюта заказа. |
 
+Полный список переменных окружения (БД, BOG, админка, уведомления, TMDB) —
+см. `.env.example`.
+
 ## Диагностика неудачных оплат
 
-```bash
-node --env-file=.env scripts/audit-orders.js
-node --env-file=.env scripts/audit-orders.js --since=2026-07-01
-node --env-file=.env scripts/audit-orders.js --since=2026-07-01 --csv > audit.csv
-```
+Панель «для Эрика» (`/admin`, вкладка Erik) показывает историю платежей из
+БД и по клику подтягивает актуальные детали заказа напрямую из BOG
+(`GET /payments/v1/receipt/:order_id`).
 
-Скрипт берет все `bog_order_id` из листа `payments`, запрашивает по каждому
-`GET /payments/v1/receipt/:order_id` и группирует результат по причинам отказа.
-
-Что означают коды в отчете:
+Что означают коды в деталях заказа:
 
 - `code 122` — отказ **эквайера**, то есть самого BOG. Это сторона мерчанта:
-  лимиты, антифрод, конфигурация e-commerce POS. Такие `pg_trx_id` скрипт
-  выводит отдельным списком — их и отправлять в банк.
+  лимиты, антифрод, конфигурация e-commerce POS. Такие `pg_trx_id` стоит
+  отправлять в банк.
 - `code 101/103/105/106/107` — отказ банка-эмитента клиента (лимиты по карте,
   недостаточно средств, истекшая карта). Это нормальный фон.
 - `expiration (no attempt)` — клиент вообще не дошел до ввода карты, заказ
   протух. Это воронка и UX, а не платежи.
-
-

@@ -1348,7 +1348,7 @@ function finMonth(offset){
   return { from:a.toISOString().slice(0,10), to:b.toISOString().slice(0,10) };
 }
 function finFmtIso(iso){
-  const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const m=String(iso||'').match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
   return m ? (m[3]+'-'+m[2]+'-'+m[1]) : iso;
 }
 function money(v){ return (Math.round((Number(v)||0)*100)/100).toLocaleString('ru-RU'); }
@@ -1378,7 +1378,7 @@ async function loadFinance(){
 
 // Поля показывают ДД-ММ-ГГГГ, а API ждёт ISO
 function finIsoFromField(id){
-  const m=String($(id).value||'').match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  const m=String($(id).value||'').match(/^(\\d{2})-(\\d{2})-(\\d{4})$/);
   return m ? (m[3]+'-'+m[2]+'-'+m[1]) : $(id).value;
 }
 
@@ -1628,7 +1628,7 @@ function sdList(){
               '<button class="btn small danger" data-del="'+esc(b.id)+'">Отменить бронь</button>'+
             '</div></div>';
         }
-        const phone=(b.guest_phone||'').replace(/[^\d+]/g,'');
+        const phone=(b.guest_phone||'').replace(/[^\\d+]/g,'');
         return '<div class="bk" data-bk="'+esc(b.id)+'">'+
           '<div class="bk__top"><span class="bk__seat">'+esc(b.table_label)+'</span>'+
             '<span><span class="badge '+esc(b.payment_status)+'">'+esc(b.payment_status)+'</span> '+
@@ -1637,7 +1637,7 @@ function sdList(){
           '<div class="bk__c">'+
             (b.guest_phone?'<a href="tel:'+esc(phone)+'">'+esc(b.guest_phone)+'</a>':'без телефона')+
             (b.guest_instagram?' · <a href="https://instagram.com/'+esc(String(b.guest_instagram).replace(/^@/,''))+'" target="_blank" rel="noopener">'+esc(b.guest_instagram)+'</a>':'')+
-            (b.guest_phone?' · <a href="https://wa.me/'+esc(phone.replace(/\D/g,''))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
+            (b.guest_phone?' · <a href="https://wa.me/'+esc(phone.replace(/\\D/g,''))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
           '</div>'+
           '<div class="bk__acts"><button class="btn small ghost" data-edit="'+esc(b.id)+'">Изменить</button></div>'+
         '</div>';

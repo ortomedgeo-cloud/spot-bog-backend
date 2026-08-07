@@ -52,7 +52,7 @@ export default function handler(req, res) {
   let token;
   try {
     token = createAdminToken(TTL_MS);
-  } catch (e) {
+  } catch {
     return json(res, 500, { error: "Token secret not configured" });
   }
 

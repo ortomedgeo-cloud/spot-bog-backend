@@ -8,11 +8,9 @@ bookmig.mjs
 fetch-tilda-menu.mjs
 prepare-menu.mjs
 *:Zone.Identifier
-*.patch
 menu-raw.json
 menu-prepared.json
 menu-translations.json
 sitemap-store.xml
 tilda-reserve-scripts-v3.html
 import-menu.mjs
-prepare-menu.mjs

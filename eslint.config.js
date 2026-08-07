@@ -24,5 +24,13 @@ export default [
         alert: "readonly"
       }
     }
+  },
+  {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        setTimeout: "readonly"
+      }
+    }
   }
 ];

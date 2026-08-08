@@ -302,6 +302,15 @@ function page() {
   .arch-row .t { flex:1; font-weight:600; font-size:14px; }
   .arch-row .n { font-size:12.5px; color:#666; white-space:nowrap; }
 
+  /* размещения позиции в других категориях */
+  .plc { display:flex; gap:5px; flex-wrap:wrap; align-items:center; margin-top:5px; }
+  .plc span { font-size:11px; padding:3px 8px; border-radius:6px; background:#ede7f6; color:#5e35b1; }
+  .plc span b { font-weight:600; }
+  .plc span i { font-style:normal; margin-left:5px; cursor:pointer; opacity:.6; }
+  .plc span i:hover { opacity:1; }
+  .plc button { font-size:11px; padding:3px 9px; border:1px dashed #ccc; background:none; border-radius:6px; cursor:pointer; color:#777; }
+  .plc button:hover { border-color:#E75228; color:#E75228; }
+
   /* загрузка фото */
   .up { display:flex; gap:6px; align-items:center; margin-top:5px; }
   .up input[type=file] { display:none; }
@@ -2266,7 +2275,7 @@ async function clearSecretField(channel, name){
 }
 
 // ---------- MENU ----------
-let MENU = { categories:[], subcategories:[], items:[] };
+let MENU = { categories:[], subcategories:[], items:[], placements:[] };
 let MC_EDIT = null, MI_EDIT = null;
 
 // Конструктор меню: порядок категорий и позиций правится перетаскиванием или
@@ -2309,7 +2318,7 @@ async function loadMenu(){
     const r=await fetch(api('admin-menu'), F);
     if(r.status===401){ handle401(); return; }
     const d=await r.json();
-    MENU={ categories:d.categories||[], subcategories:d.subcategories||[], items:d.items||[] };
+    MENU={ categories:d.categories||[], subcategories:d.subcategories||[], items:d.items||[], placements:d.placements||[] };
     MB_SNAPSHOT = JSON.stringify(MENU);
     MB_DIRTY = false;
     $('mb-save').classList.remove('show');
@@ -2363,6 +2372,7 @@ function mbRender(){
         '<button data-idn="'+esc(i.id)+'"'+(ii===total-1?' disabled':'')+'>▼</button></span>'+
       '<button class="btn small ghost" data-mi="'+esc(i.id)+'">Изм.</button>'+
       '<button class="btn small danger" data-di="'+esc(i.id)+'" title="Удалить">✕</button>'+
+      plcChips(i)+
     '</div>';
 
   const group = (catId, sub, si, subTotal) => {
@@ -2413,6 +2423,16 @@ function mbRender(){
 
 function mbBind(){
   const box=$('menu-list');
+
+  // --- размещение позиции в других категориях ---
+  box.querySelectorAll('[data-place]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation(); mbPlace(b.dataset.place);
+  });
+  box.querySelectorAll('[data-unplace]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    const parts=b.dataset.unplace.split('|');
+    if(confirm('Убрать позицию из этой категории?')) mbUnplace(parts[0], parts[1]);
+  });
 
   // --- перестановка стрелками ---
   const swapIn=(list,id,dir)=>{

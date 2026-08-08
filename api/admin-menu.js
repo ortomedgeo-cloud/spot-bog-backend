@@ -1,6 +1,8 @@
 import {
   getAdminMenu,
   reorderMenu,
+  addPlacement,
+  removePlacement,
   createMenuSubcategory,
   updateMenuSubcategory,
   deleteMenuSubcategories,
@@ -53,6 +55,28 @@ export default async function handler(req, res) {
         }
         const n = await reorderMenu({ categories: cats, subcategories: subs, items: its });
         return json(res, 200, { ok: true, ...n });
+      }
+
+      // Дополнительное размещение позиции в другой категории.
+      // { action:'placement', item_id, category_id, subcategory_id?, price? }
+      if (b.action === "placement") {
+        const item_id = String(b.item_id || "").trim();
+        const category_id = String(b.category_id || "").trim();
+        if (!item_id || !category_id) {
+          return json(res, 400, { error: "Missing item_id or category_id" });
+        }
+        const p = await addPlacement({
+          item_id, category_id,
+          subcategory_id: b.subcategory_id || null,
+          price: b.price,
+          sort: b.sort
+        });
+        return json(res, 200, { ok: true, placement: p });
+      }
+
+      if (b.action === "unplace") {
+        const ok = await removePlacement(String(b.item_id || ""), String(b.category_id || ""));
+        return ok ? json(res, 200, { ok: true }) : json(res, 404, { error: "Not found" });
       }
 
       if (b.action === "delete") {
@@ -124,6 +148,9 @@ export default async function handler(req, res) {
     return json(res, 405, { error: "Method not allowed" });
   } catch (error) {
     console.error("admin-menu error", error);
+    if (error?.code === "SAME_CATEGORY" || error?.code === "NOT_FOUND") {
+      return json(res, 400, { error: error.code, detail: error.message });
+    }
     return json(res, 500, { error: "Failed", detail: String(error?.message || error) });
   }
 }

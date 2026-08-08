@@ -2627,6 +2627,53 @@ function mbBind(){
   });
 }
 
+// Позиция может стоять в нескольких категориях, оставаясь одной записью:
+// описание и фото правятся в одном месте. Цена в дополнительной категории
+// может отличаться — у бара у бассейна свой прайс.
+function plcChips(item){
+  const mine=(MENU.placements||[]).filter(p=>p.item_id===item.id);
+  const chips=mine.map(p=>{
+    const c=MENU.categories.find(x=>x.id===p.category_id);
+    const price=(p.price!=null && p.price!=='') ? (' <b>'+esc(String(Number(p.price)))+'</b>') : '';
+    return '<span>'+esc(c?c.title_ru:'?')+price+
+      '<i data-unplace="'+esc(item.id)+'|'+esc(p.category_id)+'" title="Убрать">✕</i></span>';
+  }).join('');
+  return '<div class="plc">'+chips+
+    '<button type="button" data-place="'+esc(item.id)+'">+ в категорию</button></div>';
+}
+
+async function mbPlace(itemId){
+  const item=MENU.items.find(x=>x.id===itemId); if(!item) return;
+  const opts=MENU.categories.filter(c=>c.id!==item.category_id);
+  if(!opts.length){ alert('Других категорий нет.'); return; }
+
+  const text=opts.map((c,i)=>(i+1)+') '+c.title_ru+(c.menu_key==='pool'?' (бассейн)':'')).join('\\n');
+  const pick=prompt('В какую категорию добавить «'+item.title_ru+'»?\\n\\n'+text);
+  const idx=Number(pick)-1;
+  if(!(idx>=0 && idx<opts.length)) return;
+
+  const price=prompt('Цена в этой категории.\\n\\nПусто — та же, что у позиции ('+item.price+' GEL).','');
+  if(price===null) return;
+
+  try{
+    const r=await fetch(api('admin-menu'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ action:'placement', item_id:itemId, category_id:opts[idx].id, price:price.trim() })});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok || !d.ok){ alert('Ошибка: '+(d.detail||d.error||'?')); return; }
+    loadMenu();
+  }catch(e){ alert('Сетевая ошибка.'); }
+}
+
+async function mbUnplace(itemId, categoryId){
+  try{
+    const r=await fetch(api('admin-menu'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ action:'unplace', item_id:itemId, category_id:categoryId })});
+    if(r.status===401){ handle401(); return; }
+    loadMenu();
+  }catch(e){ alert('Сетевая ошибка.'); }
+}
+
 async function mbSaveSub(payload){
   try{
     const r=await fetch(api('admin-menu'),{method:'POST',...F,headers:{'Content-Type':'application/json'},

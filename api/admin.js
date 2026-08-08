@@ -302,6 +302,15 @@ function page() {
   .arch-row .t { flex:1; font-weight:600; font-size:14px; }
   .arch-row .n { font-size:12.5px; color:#666; white-space:nowrap; }
 
+  /* загрузка фото */
+  .up { display:flex; gap:6px; align-items:center; margin-top:5px; }
+  .up input[type=file] { display:none; }
+  .up button { font-size:12px; padding:6px 11px; border:1px solid #ddd; background:#fff; border-radius:7px; cursor:pointer; color:#444; }
+  .up button:hover { border-color:#E75228; color:#E75228; }
+  .up button:disabled { opacity:.5; cursor:default; }
+  .up .st { font-size:11.5px; color:#888; }
+  .up img { width:32px; height:32px; object-fit:cover; border-radius:5px; background:#eee; }
+
   /* конструктор зала */
   .fl-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
   .fl-bar .grp { display:flex; gap:6px; align-items:center; background:#fff; border-radius:10px; padding:6px 10px; }
@@ -765,6 +774,7 @@ function boot(){
   loadEventOptions();
   loadSessionsList();
   fillFormatSelects();
+  ['mi-photo','mi-photo2','ev-poster','ss-poster'].forEach(attachUpload);
   $('ev-deposit').value = depositTemplate('mov');
   loadMenu();
   loadSvc();
@@ -919,6 +929,63 @@ async function loadToday(){
 
     box.querySelectorAll('[data-open]').forEach(el=>el.onclick=()=>openSession(el.dataset.open));
   }catch(e){ box.innerHTML='<div class="hint">Ошибка загрузки.</div>'; }
+}
+
+// ---------- ЗАГРУЗКА ФОТО ----------
+// Файл уходит через наш эндпоинт: ключ ImgBB лежит на сервере, в браузер
+// его отдавать нельзя. Ссылка подставляется в поле, дальше всё как раньше.
+
+function attachUpload(inputId){
+  const input=$(inputId);
+  if(!input || input.dataset.upWired) return;
+  input.dataset.upWired='1';
+
+  const box=document.createElement('div');
+  box.className='up';
+  box.innerHTML='<input type="file" accept="image/*"><button type="button">Загрузить файл</button>'+
+    '<span class="st"></span><img alt="" style="display:none">';
+  input.parentElement.appendChild(box);
+
+  const file=box.querySelector('input[type=file]');
+  const btn=box.querySelector('button');
+  const st=box.querySelector('.st');
+  const prev=box.querySelector('img');
+
+  const showPreview=()=>{
+    const v=input.value.trim();
+    if(v){ prev.src=v; prev.style.display=''; } else { prev.style.display='none'; }
+  };
+  input.addEventListener('change', showPreview);
+  showPreview();
+
+  btn.onclick=()=>file.click();
+
+  file.onchange=async()=>{
+    const f=file.files && file.files[0];
+    if(!f) return;
+    if(f.size > 8*1024*1024){ st.textContent='Файл больше 8 МБ'; return; }
+
+    btn.disabled=true; st.textContent='Загружаю…';
+    try{
+      const base64=await new Promise((res,rej)=>{
+        const rd=new FileReader();
+        rd.onload=()=>res(String(rd.result).split(',')[1]);
+        rd.onerror=()=>rej(new Error('read'));
+        rd.readAsDataURL(f);
+      });
+      const r=await fetch(api('admin-upload'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ image:base64, name:f.name })});
+      if(r.status===401){ handle401(); return; }
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok || !d.ok){ st.textContent='Ошибка: '+(d.detail||d.error||'?'); return; }
+      input.value=d.url;
+      input.dispatchEvent(new Event('change',{bubbles:true}));
+      showPreview();
+      st.textContent='Готово';
+      setTimeout(()=>{ st.textContent=''; }, 2000);
+    }catch(e){ st.textContent='Не загрузилось'; }
+    finally{ btn.disabled=false; file.value=''; }
+  };
 }
 
 // ---------- ФОРМАТЫ ----------// ---------- ФОРМАТЫ ----------

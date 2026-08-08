@@ -259,7 +259,10 @@
   <div class="allergy" id="allergy" style="display:none"><span>⚠️</span><span id="allergy-t"></span></div>
 
 
-  <h2 class="sec" id="tiles-title"></h2>
+  <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+    <h2 class="sec" id="tiles-title" style="margin-bottom:0"></h2>
+    <a id="menu-switch" href="/menu?p=pool" style="font-size:13px;color:var(--muted);text-decoration:none;border-bottom:1px solid var(--rule)"></a>
+  </div>
   <div class="tiles" id="tiles"></div>
 </main>
 
@@ -318,7 +321,7 @@
 
   const T = {
     ru:{ sub:'Руфтоп-кинобар в Батуми.', terms: 'Кухня и бар — каждый день с 12:00 до 02:00.',
-         tiles:'Меню', all:'Всё меню', back:'← К разделам', more:'Подробнее', less:'Свернуть', allergy:'Если у вас есть аллергия или непереносимость — предупредите официанта, мы подберём безопасное блюдо.', allSub:'Всё', swap:'Ещё фото',
+         tiles:'Меню', all:'Всё меню', poolTitle:'Бар у бассейна', toMain:'Основное меню', toPool:'Меню у бассейна', back:'← К разделам', more:'Подробнее', less:'Свернуть', allergy:'Если у вас есть аллергия или непереносимость — предупредите официанта, мы подберём безопасное блюдо.', allSub:'Всё', swap:'Ещё фото',
          waiter:'Официант', bill:'Счёт', blanket:'Плед', charger:'Зарядка', ashtray:'Пепельница',
          sent:'Готово', tooSoon:'Уже передали',
          cart:'Ваш заказ', clear:'Очистить', checkout:'Заказать', send:'Отправить заказ',
@@ -332,7 +335,7 @@
          loading:'Загружаем меню…', empty:'Меню пока пустое.',
          addr:'ул. Реджеба Ниджарадзе, 18, Батуми', gel:'GEL' },
     ka:{ sub:'რუფთოფ კინობარი ბათუმში. სამზარეულო და ბარი — ყოველდღე 12:00-დან 02:00-მდე.',
-         tiles:'მენიუ', all:'სრული მენიუ', back:'← განყოფილებებში', more:'დაწვრილებით', less:'დახურვა', allergy:'თუ გაქვთ ალერგია ან აუტანლობა — გააფრთხილეთ მიმტანი, შევარჩევთ უსაფრთხო კერძს.', allSub:'ყველა', swap:'კიდევ ფოტო',
+         tiles:'მენიუ', all:'სრული მენიუ', poolTitle:'ბარი აუზთან', toMain:'ძირითადი მენიუ', toPool:'მენიუ აუზთან', back:'← განყოფილებებში', more:'დაწვრილებით', less:'დახურვა', allergy:'თუ გაქვთ ალერგია ან აუტანლობა — გააფრთხილეთ მიმტანი, შევარჩევთ უსაფრთხო კერძს.', allSub:'ყველა', swap:'კიდევ ფოტო',
          waiter:'მიმტანი', bill:'ანგარიში', blanket:'პლედი', charger:'დამტენი', ashtray:'საფერფლე',
          sent:'მზადაა', tooSoon:'უკვე გადავეცით',
          cart:'თქვენი შეკვეთა', clear:'გასუფთავება', checkout:'შეკვეთა', send:'შეკვეთის გაგზავნა',
@@ -345,7 +348,7 @@
          loading:'მენიუ იტვირთება…', empty:'მენიუ ჯერ ცარიელია.',
          addr:'რეჯებ ნიჟარაძის 18, ბათუმი', gel:'GEL' },
     en:{ sub:'Rooftop cinema bar in Batumi. Kitchen and bar, every day 12 pm – 2 am.',
-         tiles:'Menu', all:'Everything', back:'← All sections', more:'Read more', less:'Show less', allergy:'If you have any allergies or intolerances, please tell your waiter — we will find something safe for you.', allSub:'All', swap:'More photo',
+         tiles:'Menu', all:'Everything', poolTitle:'Pool bar', toMain:'Main menu', toPool:'Pool menu', back:'← All sections', more:'Read more', less:'Show less', allergy:'If you have any allergies or intolerances, please tell your waiter — we will find something safe for you.', allSub:'All', swap:'More photo',
          waiter:'Waiter', bill:'Bill', blanket:'Blanket', charger:'Charger', ashtray:'Ashtray',
          sent:'Done', tooSoon:'Already sent',
          cart:'Your order', clear:'Clear', checkout:'Order', send:'Send the order',
@@ -380,6 +383,8 @@
     return LANGS.some(l=>l.c===n)?n:'ru';
   })();
 
+  // ?p=pool — барная карта у бассейна: свой набор коктейлей и свои цены.
+  const MENU_KEY = (new URL(location.href).searchParams.get('p') || 'main').toLowerCase();
   let MENU = [];
   let active = -1;   // -1 = показать все разделы
   let activeSub = null;   // выбранная подкатегория внутри категории
@@ -425,7 +430,12 @@
     const t=T[lang];
     document.documentElement.lang=lang;
     $('hero-terms').textContent=t.terms;
-    $('tiles-title').textContent=t.tiles;
+    $('tiles-title').textContent = MENU_KEY==='pool' ? t.poolTitle : t.tiles;
+    // Переключатель между меню: гость у бассейна должен видеть, что есть
+    // полное меню, и наоборот.
+    const sw=$('menu-switch');
+    sw.textContent = MENU_KEY==='pool' ? t.toMain : t.toPool;
+    sw.href = MENU_KEY==='pool' ? '/menu' : '/menu?p=pool';
     $('back-btn').textContent=t.back;
     $('allergy-t').textContent=t.allergy;
     $('foot-addr').textContent=t.addr;
@@ -468,7 +478,7 @@
     const t=T[lang];
     $('menu').innerHTML='<div class="note">'+esc(t.loading)+'</div>';
     try{
-      const r=await fetch('/api/menu?lang='+encodeURIComponent(lang));
+      const r=await fetch('/api/menu?lang='+encodeURIComponent(lang)+'&menu='+encodeURIComponent(MENU_KEY));
       const d=await r.json();
       MENU=(d.menu||[]).filter(c=>(c.items||[]).length);
       if(!MENU.length){ $('tiles').innerHTML=''; $('rail').innerHTML=''; $('subs').innerHTML=''; $('menu').innerHTML='<div class="note">'+esc(t.empty)+'</div>'; return; }

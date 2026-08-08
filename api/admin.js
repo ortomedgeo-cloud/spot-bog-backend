@@ -218,11 +218,9 @@ function page() {
   .fmt-grp__h { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
   .fmt-grp__h b { font-size:15px; }
   .fmt-grp__h span { font-size:12.5px; color:#888; }
-  .fmt-ev { display:flex; gap:10px; background:#fff; border-radius:10px; padding:11px 13px; margin-bottom:7px; }
-  .fmt-ev img { width:40px; height:56px; object-fit:cover; border-radius:6px; background:#ddd; flex:none; }
-  .fmt-ev__body { flex:1; min-width:0; }
+  .fmt-ev { background:#fff; border-radius:10px; padding:11px 13px; margin-bottom:7px; }
   .fmt-ev__t { display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
-  .fmt-ev__n { font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .fmt-ev__n { font-weight:600; font-size:14px; }
   .fmt-ss { display:flex; gap:5px; flex-wrap:wrap; margin-top:7px; }
   .fmt-ss span { font-size:11px; padding:3px 8px; border-radius:6px; background:#f1f0ee; color:#555; cursor:pointer; }
   .fmt-ss span:hover { background:#E75228; color:#fff; }
@@ -396,7 +394,7 @@ function page() {
 
   <div class="tabs" id="main-tabs">
     <div class="tab active" data-tab="today">Неделя</div>
-    <div class="tab" data-tab="events">События</div>
+    <div class="tab" data-tab="events">Фильмы</div>
     <div class="tab" data-tab="formats">Форматы</div>
     <div class="tab" data-tab="sessions">Сеансы</div>
     <div class="tab" data-tab="menu">Меню</div>
@@ -454,10 +452,7 @@ function page() {
     <div class="card">
       <div class="hint">Форматы расписываются на месяц вперёд, обычные показы меняются каждую неделю — поэтому они разведены по вкладкам. Здесь события форматов din, drink и alacarte; обычные фильмы — во вкладке «Фильмы».</div>
     </div>
-    <div class="card">
-      <label style="font-size:13px;font-weight:600">Форматы и ближайшие сеансы</label>
-      <div id="fmt-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
-    </div>
+    <div id="fmt-list"><div class="hint">Загрузка…</div></div>
   </div>
 
   <!-- ===== SESSIONS ===== -->
@@ -492,6 +487,10 @@ function page() {
       <label style="font-size:13px;font-weight:600">Категория</label>
       <div class="row two" style="margin-top:8px">
         <div><label>Название (RU) *</label><input id="mc-ru" placeholder="Кухня"></div>
+        <div><label>Меню</label><select id="mc-menu">
+          <option value="main">Основное</option>
+          <option value="pool">Бар у бассейна</option>
+        </select></div>
         <div><label>Порядок</label><input id="mc-sort" type="number" value="0"></div>
       </div>
       <div class="row two">
@@ -627,9 +626,11 @@ function page() {
       <div id="notify-list" style="margin-top:10px"><div class="hint">Загрузка…</div></div>
     </div>
 
-    <div class="hint" style="margin-bottom:8px">Заказы теперь идут только в Telegram — принимай/отменяй кнопками под сообщением бота.</div>
     <label style="font-size:13px;font-weight:600">Просьбы</label>
-    <div id="svc-reqs" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
+    <div id="svc-reqs" style="margin:8px 0 22px"><div class="hint">Загрузка…</div></div>
+
+    <label style="font-size:13px;font-weight:600">Заказы</label>
+    <div id="svc-orders" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
   </div>
 
   <!-- ===== ERIK ===== -->
@@ -1022,7 +1023,9 @@ async function loadEventsList(){
     const r=await fetch(api('admin-events'), F);
     if(r.status===401){ handle401(); return; }
     const d=await r.json();
-    const evs=d.events||[];
+    // Во вкладке «Фильмы» — только обычные показы: форматы живут отдельно,
+    // у них другой ритм публикации (месяц против недели).
+    const evs=(d.events||[]).filter(e=>e.format==='mov');
     box.innerHTML = evs.length ? evs.map((e,i) =>
       '<div class="srow" data-i="'+i+'" style="cursor:pointer" title="Нажми, чтобы редактировать">'+
       '<input type="checkbox" class="sel" data-id="'+esc(e.id)+'">'+
@@ -1083,12 +1086,9 @@ async function loadFormats(){
           ? mine.map(x=>'<span data-open="'+esc(x.id)+'">'+esc(x.date)+' '+esc(x.time)+'</span>').join('')
           : '<span style="background:none;color:#bbb;cursor:default">сеансов нет</span>';
         return '<div class="fmt-ev">'+
-          (e.poster_url?'<img src="'+esc(e.poster_url)+'">':'<img>')+
-          '<div class="fmt-ev__body">'+
-            '<div class="fmt-ev__t"><span class="fmt-ev__n">'+esc(e.title)+'</span>'+
-              '<span class="hint">'+esc(String(e.price))+' GEL · '+mine.length+' сеанс.</span></div>'+
-            '<div class="fmt-ss">'+chips+'</div>'+
-          '</div></div>';
+          '<div class="fmt-ev__t"><span class="fmt-ev__n">'+esc(e.title)+'</span>'+
+            '<span class="hint">'+esc(String(e.price))+' GEL · '+mine.length+' сеанс.</span></div>'+
+          '<div class="fmt-ss">'+chips+'</div></div>';
       }).join('');
       return '<div class="fmt-grp"><div class="fmt-grp__h"><b>'+esc(title)+'</b>'+
         '<span>'+list.length+' событий</span></div>'+rows+'</div>';
@@ -1278,8 +1278,8 @@ function startSvcPoll(){
 }
 
 async function loadSvc(quiet){
-  const reqBox = $('svc-reqs');
-  if(!quiet){ reqBox.innerHTML='<div class="hint">Загрузка…</div>'; }
+  const reqBox = $('svc-reqs'), ordBox = $('svc-orders');
+  if(!quiet){ reqBox.innerHTML='<div class="hint">Загрузка…</div>'; ordBox.innerHTML='<div class="hint">Загрузка…</div>'; }
   try{
     const u = new URL(api('admin-service'), location.origin);
     u.searchParams.set('hours', $('svc-hours').value);
@@ -1287,10 +1287,10 @@ async function loadSvc(quiet){
     if(r.status===401){ handle401(); return; }
     const d = await r.json();
 
-    const reqs = d.requests || [];
+    const reqs = d.requests || [], orders = d.orders || [];
 
     // счётчик непринятых
-    const pending = reqs.filter(x=>x.status==='new').length;
+    const pending = reqs.filter(x=>x.status==='new').length + orders.filter(o=>o.status==='new').length;
     const badge = $('svc-badge');
     if(badge){ badge.textContent = pending || ''; badge.classList.toggle('on', pending>0); }
     document.title = pending ? ('(' + pending + ') SPOT. — админ') : 'SPOT. — админ';
@@ -1308,11 +1308,35 @@ async function loadSvc(quiet){
       '</div>'
     ).join('') : '<div class="hint">Просьб нет.</div>';
 
+    ordBox.innerHTML = orders.length ? orders.map(o => {
+      const lines = (o.items||[]).map(i =>
+        '<div class="li"><span>'+esc(i.title)+' × '+esc(String(i.qty))+'</span><span>'+esc(String(Number(i.price)*i.qty))+' GEL</span></div>'
+      ).join('');
+      const acts = o.status==='new'
+        ? '<button class="btn small" data-or="'+esc(o.id)+'" data-st="accepted">Принять</button>'+
+          '<button class="btn small ghost" data-or="'+esc(o.id)+'" data-st="cancelled">Отменить</button>'
+        : (o.status==='accepted'
+            ? '<button class="btn small" data-or="'+esc(o.id)+'" data-st="done">Готово</button>'
+            : '');
+      return '<div class="svc '+esc(o.status)+'">'+
+        '<div class="svc__top"><span class="svc__seat">'+esc(o.table_label)+
+          (o.mode==='takeaway'?' <span class="badge manual">с собой</span>':'')+
+          (o.guest_name?' · '+esc(o.guest_name):'')+'</span>'+
+          '<span class="svc__when">'+esc(ago(o.created_at))+'</span></div>'+
+        '<div class="svc__body">'+lines+'<div class="svc__total">Итого: '+esc(String(Number(o.total)))+' GEL</div></div>'+
+        (o.comment?'<div class="svc__note">'+esc(o.comment)+'</div>':'')+
+        (acts?'<div class="svc__acts">'+acts+'</div>':'')+
+      '</div>';
+    }).join('') : '<div class="hint">Заказов нет.</div>';
+
+    ordBox.querySelectorAll('button[data-or]').forEach(b=>{
+      b.onclick=()=>svcSet({ kind:'order', id:b.dataset.or, status:b.dataset.st });
+    });
     reqBox.querySelectorAll('button[data-rq]').forEach(b=>{
       b.onclick=()=>svcSet({ kind:'request', id:b.dataset.rq, status:b.dataset.st });
     });
   }catch(e){
-    if(!quiet){ reqBox.innerHTML='<div class="hint">Ошибка загрузки.</div>'; }
+    if(!quiet){ ordBox.innerHTML='<div class="hint">Ошибка загрузки.</div>'; }
   }
 }
 
@@ -1348,7 +1372,7 @@ function finMonth(offset){
   return { from:a.toISOString().slice(0,10), to:b.toISOString().slice(0,10) };
 }
 function finFmtIso(iso){
-  const m=String(iso||'').match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+  const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return m ? (m[3]+'-'+m[2]+'-'+m[1]) : iso;
 }
 function money(v){ return (Math.round((Number(v)||0)*100)/100).toLocaleString('ru-RU'); }
@@ -1378,7 +1402,7 @@ async function loadFinance(){
 
 // Поля показывают ДД-ММ-ГГГГ, а API ждёт ISO
 function finIsoFromField(id){
-  const m=String($(id).value||'').match(/^(\\d{2})-(\\d{2})-(\\d{4})$/);
+  const m=String($(id).value||'').match(/^(\d{2})-(\d{2})-(\d{4})$/);
   return m ? (m[3]+'-'+m[2]+'-'+m[1]) : $(id).value;
 }
 
@@ -1628,7 +1652,7 @@ function sdList(){
               '<button class="btn small danger" data-del="'+esc(b.id)+'">Отменить бронь</button>'+
             '</div></div>';
         }
-        const phone=(b.guest_phone||'').replace(/[^\\d+]/g,'');
+        const phone=(b.guest_phone||'').replace(/[^\d+]/g,'');
         return '<div class="bk" data-bk="'+esc(b.id)+'">'+
           '<div class="bk__top"><span class="bk__seat">'+esc(b.table_label)+'</span>'+
             '<span><span class="badge '+esc(b.payment_status)+'">'+esc(b.payment_status)+'</span> '+
@@ -1637,7 +1661,7 @@ function sdList(){
           '<div class="bk__c">'+
             (b.guest_phone?'<a href="tel:'+esc(phone)+'">'+esc(b.guest_phone)+'</a>':'без телефона')+
             (b.guest_instagram?' · <a href="https://instagram.com/'+esc(String(b.guest_instagram).replace(/^@/,''))+'" target="_blank" rel="noopener">'+esc(b.guest_instagram)+'</a>':'')+
-            (b.guest_phone?' · <a href="https://wa.me/'+esc(phone.replace(/\\D/g,''))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
+            (b.guest_phone?' · <a href="https://wa.me/'+esc(phone.replace(/\D/g,''))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
           '</div>'+
           '<div class="bk__acts"><button class="btn small ghost" data-edit="'+esc(b.id)+'">Изменить</button></div>'+
         '</div>';
@@ -2478,7 +2502,7 @@ function mbBind(){
     const c=MENU.categories.find(x=>x.id===b.dataset.mc); if(!c) return;
     MC_EDIT=c.id;
     $('mc-ru').value=c.title_ru||''; $('mc-ka').value=c.title_ka||'';
-    $('mc-en').value=c.title_en||''; $('mc-sort').value=c.sort;
+    $('mc-en').value=c.title_en||''; $('mc-sort').value=c.sort; $('mc-menu').value=c.menu_key||'main';
     $('mc-save').textContent='Сохранить категорию'; $('mc-cancel').style.display='inline-block';
     window.scrollTo({top:0,behavior:'smooth'});
   });
@@ -2590,7 +2614,7 @@ $('mb-undo-btn').addEventListener('click', ()=>{
 });
 
 function mcReset(){
-  MC_EDIT=null; ['mc-ru','mc-ka','mc-en'].forEach(id=>$(id).value=''); $('mc-sort').value='0';
+  MC_EDIT=null; ['mc-ru','mc-ka','mc-en'].forEach(id=>$(id).value=''); $('mc-sort').value='0'; $('mc-menu').value='main';
   $('mc-save').textContent='Добавить категорию'; $('mc-cancel').style.display='none';
 }
 function miReset(){
@@ -2605,7 +2629,7 @@ $('mc-save').addEventListener('click', async ()=>{
   const m=$('mc-msg'); m.style.display='none';
   const title_ru=$('mc-ru').value.trim();
   if(!title_ru){ msg(m,'Укажи название на русском.',false); return; }
-  const body={ kind:'category', title_ru, title_ka:$('mc-ka').value.trim(), title_en:$('mc-en').value.trim(), sort:$('mc-sort').value };
+  const body={ kind:'category', title_ru, title_ka:$('mc-ka').value.trim(), title_en:$('mc-en').value.trim(), sort:$('mc-sort').value, menu_key:$('mc-menu').value };
   if(MC_EDIT) body.id=MC_EDIT;
   try{
     const r=await fetch(api('admin-menu'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});

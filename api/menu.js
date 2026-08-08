@@ -26,8 +26,10 @@ export default async function handler(req, res) {
 
   try {
     const lang = String(req.query?.lang || "ru").toLowerCase();
-    const menu = await getPublicMenu(lang);
-    return json(res, 200, { ok: true, lang, menu });
+    // ?menu=pool — барная карта у бассейна, свой набор и свои цены
+    const menuKey = String(req.query?.menu || "main").toLowerCase().slice(0, 20);
+    const menu = await getPublicMenu(lang, menuKey);
+    return json(res, 200, { ok: true, lang, menu_key: menuKey, menu });
   } catch (error) {
     console.error("menu error", error);
     return json(res, 500, { error: "Failed", detail: String(error?.message || error) });

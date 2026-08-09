@@ -568,7 +568,7 @@
       return '<h2 class="sec">'+esc(c.title)+'</h2><div class="grid">'+
       list.map(it=>{
         const inCart=cart.get(it.id);
-        const ctl = inCart
+        const ctl = MENU_KEY==='pool' ? '' : inCart
           ? '<div class="qty"><button type="button" data-m="'+esc(it.id)+'" aria-label="−">−</button><span>'+inCart.qty+'</span><button type="button" data-p="'+esc(it.id)+'" aria-label="+">+</button></div>'
           : '<button class="add" type="button" data-a="'+esc(it.id)+'" aria-label="+">+</button>';
         // Вторая фотография: на мышке — по наведению, на телефоне — по кнопке.
@@ -633,7 +633,7 @@
 
   function renderCart(){
     const t=T[lang], n=count();
-    $('cartbar').classList.toggle('show', n>0);
+    $('cartbar').classList.toggle('show', MENU_KEY!=='pool' && n>0);
     $('cart-sum').innerHTML = esc(t.items(n))+'<b>'+total()+' '+esc(t.gel)+'</b>';
     $('total-val').textContent = total()+' '+t.gel;
     $('cart-lines').innerHTML = [...cart.values()].map(l=>

@@ -454,7 +454,7 @@
   /* ---------- быстрые просьбы ---------- */
   function renderAsks(){
     const t=T[lang];
-    $('asks').innerHTML = KINDS.map(k=>'<button class="ask" type="button" data-k="'+k+'">'+esc(t[k])+'</button>').join('');
+    $('asks').innerHTML = MENU_KEY==='pool' ? '' : KINDS.map(k=>'<button class="ask" type="button" data-k="'+k+'">'+esc(t[k])+'</button>').join('');
     $('asks').querySelectorAll('button').forEach(b=>b.onclick=()=>sendAsk(b));
   }
 

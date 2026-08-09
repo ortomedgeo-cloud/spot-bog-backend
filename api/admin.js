@@ -412,7 +412,7 @@ function page() {
 
   <div class="tabs" id="main-tabs">
     <div class="tab active" data-tab="today">Неделя</div>
-    <div class="tab" data-tab="events">Фильмы</div>
+    <div class="tab" data-tab="events">События</div>
     <div class="tab" data-tab="formats">Форматы</div>
     <div class="tab" data-tab="sessions">Сеансы</div>
     <div class="tab" data-tab="menu">Меню</div>
@@ -468,7 +468,7 @@ function page() {
   <!-- ===== FORMATS ===== -->
   <div class="panel" id="panel-formats">
     <div class="card">
-      <div class="hint">Форматы расписываются на месяц вперёд, обычные показы меняются каждую неделю — поэтому они разведены по вкладкам. Здесь события форматов din, drink и alacarte; обычные фильмы — во вкладке «Фильмы».</div>
+      <div class="hint">Форматы расписываются на месяц вперёд, обычные показы меняются каждую неделю — поэтому они разведены по вкладкам. Здесь события форматов din, drink и alacarte; все события (включая форматы) — во вкладке «События».</div>
     </div>
     <div id="fmt-list"><div class="hint">Загрузка…</div></div>
   </div>
@@ -1099,9 +1099,9 @@ async function loadEventsList(){
     const r=await fetch(api('admin-events'), F);
     if(r.status===401){ handle401(); return; }
     const d=await r.json();
-    // Во вкладке «Фильмы» — только обычные показы: форматы живут отдельно,
-    // у них другой ритм публикации (месяц против недели).
-    const evs=(d.events||[]).filter(e=>e.format==='mov');
+    // Во вкладке «События» — все показы, включая форматы (форматы также
+    // дублируются во вкладке «Форматы» с своим ритмом публикации).
+    const evs=(d.events||[]);
     box.innerHTML = evs.length ? evs.map((e,i) =>
       '<div class="srow" data-i="'+i+'" style="cursor:pointer" title="Нажми, чтобы редактировать">'+
       '<input type="checkbox" class="sel" data-id="'+esc(e.id)+'">'+
@@ -1148,7 +1148,7 @@ async function loadFormats(){
     const evs=(ed.events||[]).filter(e=>e.format!=='mov');
     const ss=sd.sessions||[];
 
-    if(!evs.length){ box.innerHTML='<div class="hint">Событий-форматов нет. Создай во вкладке «Фильмы», выбрав формат din, drink или alacarte.</div>'; return; }
+    if(!evs.length){ box.innerHTML='<div class="hint">Событий-форматов нет. Создай во вкладке «События», выбрав формат din, drink или alacarte.</div>'; return; }
 
     const groups={};
     evs.forEach(e=>{ (groups[e.format]=groups[e.format]||[]).push(e); });

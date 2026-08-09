@@ -32,6 +32,10 @@
     {
       "source": "/events",
       "destination": "/dinners.html"
+    },
+    {
+      "source": "/sessions",
+      "destination": "/sessions.html"
     }
   ]
 }

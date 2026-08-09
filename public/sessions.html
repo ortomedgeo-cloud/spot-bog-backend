@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SPOT. — расписание</title>
+<meta name="description" content="Расписание всех сеансов SPOT. в Батуми: обычные показы и специальные форматы.">
+
+<link rel="icon" href="/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Noto+Sans:wght@400;500;600&family=Noto+Sans+Georgian:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ink:#0B0B0B; --card:#151312; --card-2:#1D1A18; --rule:#2A2724;
+    --text:#F4F1EC; --muted:#8B857D; --accent:#E75228;
+    --display:'Oswald','Noto Sans Georgian',sans-serif;
+    --body:'Noto Sans','Noto Sans Georgian',sans-serif;
+    --pad:clamp(16px,4.5vw,32px); --r:14px;
+    --s1:8px; --s2:14px; --s3:22px; --s4:clamp(28px,5vw,44px); --s5:clamp(44px,8vw,84px);
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+  body{ margin:0; background:var(--ink); color:var(--text); font-family:var(--body);
+        font-size:16px; line-height:1.55; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+  @media (prefers-reduced-motion:reduce){ html{scroll-behavior:auto} *{transition-duration:.01ms!important} }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:3px; }
+  img{ display:block; max-width:100%; }
+  a{ color:inherit; }
+  .wrap{ max-width:1080px; margin:0 auto; padding-inline:var(--pad); }
+
+  header.top{ position:sticky; top:0; z-index:30; background:rgba(11,11,11,.94); backdrop-filter:blur(10px); border-bottom:1px solid var(--rule); }
+  .top__row{ display:flex; align-items:center; gap:12px; padding:10px 0 10px 4px; }
+  .top__logo{ height:26px; width:auto; filter:invert(1) hue-rotate(180deg); }
+  .langs{ display:flex; gap:2px; margin-left:auto; }
+  .langs button{ font-size:13px; color:var(--muted); background:none; border:1px solid transparent;
+                 border-radius:999px; padding:7px 12px; cursor:pointer; min-height:36px; font-family:var(--body); }
+  .langs button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); }
+
+  .hero{ padding:var(--s5) 0 var(--s3); }
+  .hero h1{ font-family:var(--display); font-weight:500; font-size:clamp(30px,8vw,58px);
+            line-height:1; letter-spacing:.03em; text-transform:uppercase; margin:0 0 var(--s2); }
+  .hero p{ color:var(--muted); font-size:15px; margin:0; max-width:52ch; }
+
+  .filters{ display:flex; gap:8px; overflow-x:auto; scrollbar-width:none;
+            margin-inline:calc(var(--pad) * -1); padding:var(--s3) var(--pad) var(--s2); }
+  .filters::-webkit-scrollbar{ display:none; }
+  .filters button{ flex:none; white-space:nowrap; font-size:13px; color:var(--muted);
+                   background:var(--card); border:1px solid var(--rule); border-radius:999px;
+                   padding:9px 15px; cursor:pointer; min-height:40px; font-family:var(--body); }
+  .filters button[aria-pressed="true"]{ color:#fff; background:var(--accent); border-color:var(--accent); }
+
+  .month{ font-family:var(--display); font-weight:500; font-size:clamp(19px,3.6vw,26px);
+          letter-spacing:.08em; text-transform:uppercase; margin:var(--s4) 0 var(--s2); color:var(--muted); }
+
+  .ev{ display:grid; grid-template-columns:110px 1fr auto; gap:var(--s2); align-items:center;
+       background:var(--card); border-radius:var(--r); padding:var(--s2); margin-bottom:10px;
+       text-decoration:none; transition:transform .18s; }
+  @media (hover:hover){ .ev:hover{ transform:translateY(-2px); } }
+  .ev img{ width:110px; aspect-ratio:2/3; object-fit:cover; object-position:center top;
+           border-radius:9px; background:var(--card-2); }
+  .ev__none{ width:110px; aspect-ratio:2/3; border-radius:9px; background:var(--card-2);
+             display:flex; align-items:center; justify-content:center; color:#3a3632;
+             font-family:var(--display); font-size:22px; letter-spacing:.1em; }
+  .ev__in{ min-width:0; }
+  .ev__d{ font-family:var(--display); font-size:13px; letter-spacing:.1em; color:var(--accent); }
+  .ev__t{ font-family:var(--display); font-weight:400; font-size:clamp(17px,3vw,21px);
+          letter-spacing:.03em; text-transform:uppercase; margin:4px 0 6px; overflow-wrap:anywhere; }
+  .ev__f{ display:inline-block; font-size:11.5px; color:var(--muted); border:1px solid var(--rule);
+          border-radius:999px; padding:3px 10px; }
+  .ev__p{ text-align:right; }
+  .ev__p b{ display:block; font-family:var(--display); font-weight:500; font-size:20px; letter-spacing:.03em; }
+  .ev__p span{ font-size:11.5px; color:var(--muted); }
+  .ev__p span.ev__cta{ font-family:var(--display); font-size:12px; letter-spacing:.08em; text-transform:uppercase;
+            color:#fff; background:var(--accent); border-radius:9px; padding:9px 14px; margin-top:8px; display:inline-block; }
+
+  @media (max-width:640px){
+    .ev{ grid-template-columns:84px 1fr; }
+    .ev img, .ev__none{ width:84px; }
+    .ev__p{ grid-column:1 / -1; text-align:left; display:flex; align-items:center; gap:12px; }
+    .ev__p b{ display:inline; font-size:18px; }
+    .ev__cta{ margin-top:0; margin-left:auto; }
+  }
+
+  .note{ color:var(--muted); font-size:15px; padding:var(--s5) 0; }
+  footer.foot{ margin-top:var(--s5); padding:var(--s3) 0 var(--s4); border-top:1px solid var(--rule);
+               color:var(--muted); font-size:13px; }
+  footer.foot a{ text-decoration:none; border-bottom:1px solid var(--rule); }
+  footer.foot a:hover{ border-color:var(--accent); }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top__row">
+    <a href="/" aria-label="SPOT."><img class="top__logo" src="/logo.png" alt="SPOT."></a>
+    <div class="langs" id="langs" role="group" aria-label="Language"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <h1 id="h-title"></h1>
+    <p id="h-lead"></p>
+  </div>
+  <div class="filters" id="filters"></div>
+  <div id="list"><div class="note" id="state"></div></div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div id="foot-addr"></div>
+    <p style="margin:10px 0 0">
+      <a href="/menu" id="f-menu"></a> ·
+      <a href="/reserve" id="f-book"></a> ·
+      <a href="https://www.instagram.com/spot.rooftop" target="_blank" rel="noopener">Instagram</a>
+    </p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const LANGS=[{c:'ka',l:'ქარ'},{c:'ru',l:'рус'},{c:'en',l:'eng'}];
+
+  const T={
+    ru:{ title:'Афиша', lead:'Все ближайшие сеансы: обычные показы и специальные форматы — киноужины, drinking nights и à la carte. Нажмите на сеанс, чтобы забронировать столик.',
+         all:'Все', book:'Забронировать',
+         perGuestInc:'за гостя, сет-меню входит', perGuestDep:'за гостя, депозит',
+         loading:'Загружаем расписание…', empty:'Ближайших сеансов пока нет. Загляните позже или напишите нам в Instagram.',
+         fail:'Не удалось загрузить расписание.',
+         menu:'Меню', bookLink:'Бронь',
+         addr:'ул. Реджеба Ниджарадзе, 18, Батуми',
+         months:['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'],
+         dows:['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'] },
+    ka:{ title:'აფიშა', lead:'ყველა უახლოესი სეანსი: ჩვეულებრივი ჩვენებები და სპეციალური ფორმატები — კინოვახშმები, drinking night და à la carte. აირჩიეთ სეანსი მაგიდის დასაჯავშნად.',
+         all:'ყველა', book:'დაჯავშნა',
+         perGuestInc:'ერთ სტუმარზე, სეტ-მენიუ შედის', perGuestDep:'ერთ სტუმარზე, დეპოზიტი',
+         loading:'განრიგი იტვირთება…', empty:'უახლოესი სეანსები ჯერ არ გამოცხადებულა.',
+         fail:'განრიგი ვერ ჩაიტვირთა.',
+         menu:'მენიუ', bookLink:'ჯავშანი',
+         addr:'რეჯებ ნიჟარაძის 18, ბათუმი',
+         months:['იანვრის','თებერვლის','მარტის','აპრილის','მაისის','ივნისის','ივლისის','აგვისტოს','სექტემბრის','ოქტომბრის','ნოემბრის','დეკემბრის'],
+         dows:['კვირა','ორშაბათი','სამშაბათი','ოთხშაბათი','ხუთშაბათი','პარასკევი','შაბათი'] },
+    en:{ title:'Screenings', lead:'All upcoming sessions: regular screenings plus special formats — dinner nights, drinking nights and à la carte. Tap a session to book a table.',
+         all:'All', book:'Book',
+         perGuestInc:'per guest, set menu included', perGuestDep:'per guest, deposit',
+         loading:'Loading the schedule…', empty:'No sessions announced yet. Check back later or message us on Instagram.',
+         fail:'Could not load the schedule.',
+         menu:'Menu', bookLink:'Booking',
+         addr:'18 Rejeb Nijaradze, Batumi',
+         months:['January','February','March','April','May','June','July','August','September','October','November','December'],
+         dows:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'] }
+  };
+
+  const $=(id)=>document.getElementById(id);
+  const esc=(s)=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  let lang=(()=>{
+    const u=new URL(location.href).searchParams.get('lang');
+    if(LANGS.some(l=>l.c===u)) return u;
+    try{ const s=localStorage.getItem('spot_lang'); if(LANGS.some(l=>l.c===s)) return s; }catch{}
+    const n=(navigator.language||'ru').slice(0,2);
+    return LANGS.some(l=>l.c===n)?n:'ru';
+  })();
+
+  const INCLUDED=['din','drink'];
+  let ALL=[], filter='';
+
+  function parseDdMm(v){
+    const m=String(v||'').match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    return m ? new Date(Number(m[3]), Number(m[2])-1, Number(m[1])) : null;
+  }
+
+  function renderLangs(){
+    $('langs').innerHTML=LANGS.map(l=>'<button type="button" data-l="'+l.c+'" aria-pressed="'+(l.c===lang)+'">'+l.l+'</button>').join('');
+    $('langs').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+      lang=b.dataset.l;
+      try{ localStorage.setItem('spot_lang',lang); }catch{}
+      const u=new URL(location.href); u.searchParams.set('lang',lang); history.replaceState(null,'',u);
+      renderLangs(); applyStatic(); render();
+    });
+  }
+
+  function applyStatic(){
+    const t=T[lang];
+    document.documentElement.lang=lang;
+    document.title='SPOT. — '+t.title;
+    $('h-title').textContent=t.title;
+    $('h-lead').textContent=t.lead;
+    $('foot-addr').textContent=t.addr;
+    $('f-menu').textContent=t.menu;
+    $('f-book').textContent=t.bookLink;
+  }
+
+  async function load(){
+    const t=T[lang];
+    $('list').innerHTML='<div class="note">'+esc(t.loading)+'</div>';
+    try{
+      const r=await fetch('/api/upcoming-sessions');
+      const d=await r.json();
+      ALL=d.sessions||[];
+      render();
+    }catch(e){ $('list').innerHTML='<div class="note">'+esc(T[lang].fail)+'</div>'; }
+  }
+
+  function render(){
+    const t=T[lang];
+    if(!ALL.length){ $('filters').innerHTML=''; $('list').innerHTML='<div class="note">'+esc(t.empty)+'</div>'; return; }
+
+    // Фильтры только по тем форматам, что реально есть в расписании.
+    const present=[...new Set(ALL.map(s=>s.format))];
+    const label={ mov:'Movie Night', din:'Movie Dinner Night', drink:'Movie Drinking Night', alacarte:'Á La Carte' };
+    $('filters').innerHTML =
+      '<button type="button" data-f="" aria-pressed="'+(filter==='')+'">'+esc(t.all)+'</button>'+
+      present.map(f=>'<button type="button" data-f="'+esc(f)+'" aria-pressed="'+(filter===f)+'">'+esc(label[f]||f)+'</button>').join('');
+    $('filters').querySelectorAll('button').forEach(b=>b.onclick=()=>{ filter=b.dataset.f; render(); });
+
+    const list = filter ? ALL.filter(s=>s.format===filter) : ALL;
+    if(!list.length){ $('list').innerHTML='<div class="note">'+esc(t.empty)+'</div>'; return; }
+
+    // Группируем по месяцам: показы расписаны надолго, и без разбивки
+    // список превращается в сплошную ленту дат.
+    const groups=[];
+    list.forEach(s=>{
+      const d=parseDdMm(s.date);
+      const key=d ? d.getFullYear()+'-'+d.getMonth() : 'x';
+      let g=groups.find(x=>x.key===key);
+      if(!g){ g={ key, title:d ? (t.months[d.getMonth()]+' '+d.getFullYear()) : '', items:[] }; groups.push(g); }
+      g.items.push(s);
+    });
+
+    $('list').innerHTML = groups.map(g=>
+      '<h2 class="month">'+esc(g.title)+'</h2>'+
+      g.items.map(s=>{
+        const d=parseDdMm(s.date);
+        const when = d ? (d.getDate()+' '+t.months[d.getMonth()]+' · '+t.dows[d.getDay()]+' · '+s.time) : (s.date+' · '+s.time);
+        const note = INCLUDED.indexOf(s.format)!==-1 ? t.perGuestInc : t.perGuestDep;
+        return '<a class="ev" href="/reserve?session_id='+encodeURIComponent(s.session_id)+'">'+
+          (s.poster_url
+            ? '<img src="'+esc(s.poster_url)+'" alt="" loading="lazy" decoding="async">'
+            : '<div class="ev__none">SPOT.</div>')+
+          '<div class="ev__in">'+
+            '<div class="ev__d">'+esc(when)+'</div>'+
+            '<h3 class="ev__t">'+esc(s.title)+'</h3>'+
+            '<span class="ev__f">'+esc(label[s.format]||s.format)+'</span>'+
+          '</div>'+
+          '<div class="ev__p"><b>'+esc(String(s.price))+' GEL</b><span>'+esc(note)+'</span>'+
+            '<span class="ev__cta">'+esc(t.book)+'</span></div>'+
+        '</a>';
+      }).join('')
+    ).join('');
+  }
+
+  renderLangs(); applyStatic(); load();
+})();
+</script>
+</body>
+</html>

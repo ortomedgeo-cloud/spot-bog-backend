@@ -5,6 +5,11 @@
       "source": "/pooleng",
       "destination": "/menu?p=pool&lang=en",
       "permanent": false
+    },
+    {
+      "source": "/pool",
+      "destination": "/menu?p=pool&lang=ru",
+      "permanent" : false
     }
   ],
   "rewrites": [

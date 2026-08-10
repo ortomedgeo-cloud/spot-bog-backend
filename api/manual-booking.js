@@ -50,7 +50,8 @@ export default async function handler(req, res) {
       payment_status: ["paid", "deposit", "unpaid"].includes(b.payment_status)
         ? b.payment_status
         : "unpaid",
-      source: "manual"
+      source: "manual",
+      comment: String(b.comment || "").trim() || null
     });
 
     return json(res, 200, {

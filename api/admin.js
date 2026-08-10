@@ -699,6 +699,7 @@ function page() {
     <div class="row"><label>Instagram</label><input id="mb-instagram" placeholder="@nickname"></div>
     <div class="row two"><div><label>Персон</label><input id="mb-guests" type="number" min="1" value="2"></div><div><label>Сумма (GEL)</label><input id="mb-amount" type="number" min="0" step="0.01"></div></div>
     <div class="row"><label>Статус оплаты</label><select id="mb-payment"><option value="paid">Оплачено</option><option value="deposit">Депозит внесён</option><option value="unpaid">Не оплачено</option></select></div>
+    <div class="row"><label>Комментарий</label><textarea id="mb-comment" placeholder="день рождения, аллергия, просьба перезвонить и т.п."></textarea></div>
     <button class="btn" style="width:100%" id="mb-submit">Создать бронь</button>
     <div class="msg" id="mb-msg"></div>
   </div>
@@ -1391,7 +1392,8 @@ $('mb-submit').addEventListener('click', async ()=>{
     name:$('mb-name').value.trim(), phone:$('mb-phone').value.trim(),
     instagram:$('mb-instagram').value.trim(),
     guests:$('mb-guests').value.trim(), amount:$('mb-amount').value.trim(),
-    payment_status:$('mb-payment').value };
+    payment_status:$('mb-payment').value,
+    comment:$('mb-comment').value.trim() };
   if(!p.session_id||!p.table){ msg(m,'Выбери сеанс и стол.',false); return; }
   const btn=$('mb-submit'); btn.disabled=true; btn.textContent='Сохранение…';
   try{
@@ -1400,7 +1402,7 @@ $('mb-submit').addEventListener('click', async ()=>{
     const d=await r.json().catch(()=>({}));
     if(r.ok&&d.ok){
       msg(m,'Бронь создана: '+d.table+', '+d.title+' '+d.date+' '+d.time,true);
-      $('mb-name').value=''; $('mb-phone').value=''; $('mb-instagram').value=''; $('mb-amount').value=''; $('mb-table').value='';
+      $('mb-name').value=''; $('mb-phone').value=''; $('mb-instagram').value=''; $('mb-amount').value=''; $('mb-table').value=''; $('mb-comment').value='';
       $('mb-session').dispatchEvent(new Event('change'));
       loadToday();
     } else if(r.status===409){ msg(m,'Стол уже занят на этот сеанс.',false); $('mb-session').dispatchEvent(new Event('change')); }
@@ -1800,6 +1802,7 @@ function sdList(){
             '<div class="row"><label>Статус оплаты</label><select id="bk-status">'+
               ['paid','deposit','unpaid'].map(v=>'<option value="'+v+'"'+(b.payment_status===v?' selected':'')+'>'+
                 (v==='paid'?'Оплачено':v==='deposit'?'Депозит':'Не оплачено')+'</option>').join('')+'</select></div>'+
+            '<div class="row"><label>Комментарий</label><textarea id="bk-comment">'+esc(b.comment||'')+'</textarea></div>'+
             '<div class="bk__acts">'+
               '<button class="btn small" data-save="'+esc(b.id)+'">Сохранить</button>'+
               '<button class="btn small ghost" data-cancel="1">Отмена</button>'+
@@ -1818,6 +1821,7 @@ function sdList(){
             (b.guest_instagram?' · <a href="https://instagram.com/'+esc(String(b.guest_instagram).replace(/^@/,''))+'" target="_blank" rel="noopener">'+esc(b.guest_instagram)+'</a>':'')+
             (b.guest_phone?' · <a href="https://wa.me/'+esc(phone.replace(/\D/g,''))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
           '</div>'+
+          (b.comment?'<div class="bk__c">💬 '+esc(b.comment)+'</div>':'')+
           '<div class="bk__acts"><button class="btn small ghost" data-edit="'+esc(b.id)+'">Изменить</button></div>'+
         '</div>';
       }).join('')
@@ -1860,7 +1864,8 @@ async function sdSave(id){
     guest_instagram:$('bk-insta').value.trim(),
     guests:$('bk-guests').value,
     amount:$('bk-amount').value,
-    payment_status:$('bk-status').value
+    payment_status:$('bk-status').value,
+    comment:$('bk-comment').value.trim()
   });
   if(ok){ SD_EDIT=null; openSession(SD.session.id); loadToday(); }
 }
@@ -2888,7 +2893,7 @@ $('ev-batch-del').addEventListener('click', async ()=>{
     const r=await fetch(api('admin-events'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',ids})});
     if(r.status===401){ handle401(); return; }
     const d=await r.json().catch(()=>({}));
-    if(r.ok&&d.ok){ loadEventsList(); loadEventOptions(); loadSessionsList(); loadToday(); evBatchRefresh(); }
+    if(r.ok&&d.ok){ await Promise.all([loadEventsList(), loadEventOptions(), loadSessionsList(), loadToday()]); evBatchRefresh(); }
     else alert('Ошибка: '+(d.detail||d.error||'?'));
   }catch(e){ alert('Сетевая ошибка.'); }
 });
@@ -2901,7 +2906,7 @@ $('ev-batch-apply').addEventListener('click', async ()=>{
     const r=await fetch(api('admin-events'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'bulk',ids,price:price||null,format:format||null})});
     if(r.status===401){ handle401(); return; }
     const d=await r.json().catch(()=>({}));
-    if(r.ok&&d.ok){ $('ev-batch-price').value=''; $('ev-batch-format').value=''; loadEventsList(); loadEventOptions(); loadSessionsList(); }
+    if(r.ok&&d.ok){ $('ev-batch-price').value=''; $('ev-batch-format').value=''; await Promise.all([loadEventsList(), loadEventOptions(), loadSessionsList()]); evBatchRefresh(); }
     else alert('Ошибка: '+(d.detail||d.error||'?'));
   }catch(e){ alert('Сетевая ошибка.'); }
 });
@@ -2925,7 +2930,7 @@ $('ss-batch-del').addEventListener('click', async ()=>{
     const r=await fetch(api('admin-sessions'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',ids})});
     if(r.status===401){ handle401(); return; }
     const d=await r.json().catch(()=>({}));
-    if(r.ok&&d.ok){ loadSessionsList(); loadToday(); ssBatchRefresh(); }
+    if(r.ok&&d.ok){ await Promise.all([loadSessionsList(), loadToday()]); ssBatchRefresh(); }
     else alert('Ошибка: '+(d.detail||d.error||'?'));
   }catch(e){ alert('Сетевая ошибка.'); }
 });
@@ -2937,7 +2942,7 @@ $('ss-batch-apply').addEventListener('click', async ()=>{
     const r=await fetch(api('admin-sessions'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'reassign',ids,event_id})});
     if(r.status===401){ handle401(); return; }
     const d=await r.json().catch(()=>({}));
-    if(r.ok&&d.ok){ loadSessionsList(); loadToday(); ssBatchRefresh(); }
+    if(r.ok&&d.ok){ await Promise.all([loadSessionsList(), loadToday()]); ssBatchRefresh(); }
     else alert('Ошибка: '+(d.detail||d.error||'?'));
   }catch(e){ alert('Сетевая ошибка.'); }
 });

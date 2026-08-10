@@ -132,6 +132,7 @@
          menu:'Меню', bookLink:'Бронь',
          addr:'ул. Реджеба Ниджарадзе, 18, Батуми',
          months:['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'],
+         monthsNom:['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'],
          dows:['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'] },
     ka:{ title:'აფიშა', lead:'ყველა უახლოესი სეანსი: ჩვეულებრივი ჩვენებები და სპეციალური ფორმატები — კინოვახშმები, drinking night და à la carte. აირჩიეთ სეანსი მაგიდის დასაჯავშნად.',
          all:'ყველა', book:'დაჯავშნა',
@@ -141,6 +142,7 @@
          menu:'მენიუ', bookLink:'ჯავშანი',
          addr:'რეჯებ ნიჟარაძის 18, ბათუმი',
          months:['იანვრის','თებერვლის','მარტის','აპრილის','მაისის','ივნისის','ივლისის','აგვისტოს','სექტემბრის','ოქტომბრის','ნოემბრის','დეკემბრის'],
+         monthsNom:['იანვარი','თებერვალი','მარტი','აპრილი','მაისი','ივნისი','ივლისი','აგვისტო','სექტემბერი','ოქტომბერი','ნოემბერი','დეკემბერი'],
          dows:['კვირა','ორშაბათი','სამშაბათი','ოთხშაბათი','ხუთშაბათი','პარასკევი','შაბათი'] },
     en:{ title:'Screenings', lead:'All upcoming sessions: regular screenings plus special formats — dinner nights, drinking nights and à la carte. Tap a session to book a table.',
          all:'All', book:'Book',
@@ -226,7 +228,7 @@
       const d=parseDdMm(s.date);
       const key=d ? d.getFullYear()+'-'+d.getMonth() : 'x';
       let g=groups.find(x=>x.key===key);
-      if(!g){ g={ key, title:d ? (t.months[d.getMonth()]+' '+d.getFullYear()) : '', items:[] }; groups.push(g); }
+      if(!g){ g={ key, title:d ? ((t.monthsNom||t.months)[d.getMonth()]+' '+d.getFullYear()) : '', items:[] }; groups.push(g); }
       g.items.push(s);
     });
 

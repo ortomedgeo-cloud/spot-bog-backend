@@ -9,41 +9,11 @@ const SEATS = [
   "Бар 1", "Бар 2", "Бар 3", "Бар 4"
 ];
 
-// Форматы событий. Один справочник на всё: подпись в админке, шаблон условий
-// и то, как объясняется цена гостю на сайте. Добавить формат — дописать сюда.
-//
-// deposit — «цена это депозит, он вычитается из счёта»
-// included — «в стоимость уже всё входит»
-const FORMATS = {
-  mov: {
-    title: "Movie Night — обычный показ",
-    priceKind: "deposit",
-    deposit:
-      "(вычитается из общей суммы счёта) ❗️Бронь столика на фильм нельзя отменить. Если у Вас не получается посетить этот показ, мы можем перенести Ваше бронирование на другой день! По всем вопросам обращайтесь к нам в директ Instagram."
-  },
-  din: {
-    title: "Movie Dinner Night — киноужин",
-    priceKind: "included",
-    deposit:
-      "(сет-меню входит в стоимость) ❗️Условия отмены: отмена за 3 дня до мероприятия и ранее - возвращается 100% суммы\n- отмена за 2 дня - взвращается 50%\n- отмена за день и в день мероприятия - сумма за билет сгорает."
-  },
-  drink: {
-    title: "Movie Drinking Night",
-    priceKind: "included",
-    // Условия те же, что у киноужина.
-    deposit:
-      "(сет-меню входит в стоимость) ❗️Условия отмены: отмена за 3 дня до мероприятия и ранее - возвращается 100% суммы\n- отмена за 2 дня - взвращается 50%\n- отмена за день и в день мероприятия - сумма за билет сгорает."
-  },
-  alacarte: {
-    title: "Movie Night Á La Carte",
-    priceKind: "deposit",
-    deposit:
-      "(депозит вычитается из общей суммы счёта) ❗️Бронь столика на фильм нельзя отменить. Если у Вас не получается посетить этот показ, мы можем перенести Ваше бронирование на другой день! По всем вопросам обращайтесь к нам в директ Instagram."
-  }
-};
-
 function page() {
-  const cfg = JSON.stringify({ seats: SEATS, formats: FORMATS });
+  // Форматы событий (подпись в админке, шаблон условий, тип цены) живут в
+  // таблице event_formats — грузятся с клиента через /api/admin-formats, а не
+  // зашиты здесь, чтобы их можно было добавлять из вкладки «Форматы».
+  const cfg = JSON.stringify({ seats: SEATS, formats: {} });
   return `<!doctype html>
 <html lang="ru">
 <head>
@@ -468,7 +438,21 @@ function page() {
   <!-- ===== FORMATS ===== -->
   <div class="panel" id="panel-formats">
     <div class="card">
-      <div class="hint">Форматы расписываются на месяц вперёд, обычные показы меняются каждую неделю — поэтому они разведены по вкладкам. Здесь события форматов din, drink и alacarte; все события (включая форматы) — во вкладке «События».</div>
+      <div class="hint">Формат — это ярлык события: подпись в списке, тип цены и шаблон условий отмены. «Movie Night (mov)» и «Movie Dinner (din)» уже есть, новые (например «Movie Brunch») можно добавить здесь.</div>
+      <div class="row"><label>Код * (латиница, без пробелов, напр. brunch)</label><input id="fm-code" placeholder="brunch"></div>
+      <div class="row"><label>Название *</label><input id="fm-title" placeholder="Movie Brunch"></div>
+      <div class="row"><label>Тип цены</label><select id="fm-kind">
+        <option value="deposit">Депозит (вычитается из счёта)</option>
+        <option value="included">Включено в стоимость</option>
+      </select></div>
+      <div class="row"><label>Текст условий (шаблон, подставится в форму события)</label><textarea id="fm-deposit"></textarea></div>
+      <button class="btn" id="fm-create">Добавить формат</button>
+      <button class="btn ghost" id="fm-cancel" style="display:none;margin-left:8px">Отмена</button>
+      <div class="msg" id="fm-msg"></div>
+    </div>
+    <div class="card">
+      <label style="font-size:13px;font-weight:600">Существующие форматы</label>
+      <div id="fm-mgmt-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
     </div>
     <div id="fmt-list"><div class="hint">Загрузка…</div></div>
   </div>
@@ -766,7 +750,7 @@ document.querySelectorAll('#main-tabs .tab').forEach(t => t.addEventListener('cl
   $('panel-'+t.dataset.tab).classList.add('active');
   if(t.dataset.tab==='today') loadToday();
   if(t.dataset.tab==='events') { loadEventsList(); }
-  if(t.dataset.tab==='formats') loadFormats();
+  if(t.dataset.tab==='formats') { loadFormatMgmt(); loadFormats(); }
   if(t.dataset.tab==='sessions') { loadEventOptions(); loadSessionsList(); }
   if(t.dataset.tab==='menu') loadMenu();
   if(t.dataset.tab==='floor') loadFloor();
@@ -776,15 +760,16 @@ document.querySelectorAll('#main-tabs .tab').forEach(t => t.addEventListener('cl
 }));
 
 let BOOTED=false;
-function boot(){
+async function boot(){
   if(BOOTED) return; BOOTED=true;
   loadToday();
   loadEventsList();
   loadEventOptions();
   loadSessionsList();
+  await loadFormatsCfg();
   fillFormatSelects();
   ['mi-photo','mi-photo2','ev-poster','ss-poster'].forEach(attachUpload);
-  $('ev-deposit').value = depositTemplate('mov');
+  $('ev-deposit').value = depositTemplate($('ev-format').value || 'mov');
   loadMenu();
   loadSvc();
   loadNotify();
@@ -998,14 +983,24 @@ function attachUpload(inputId){
 }
 
 // ---------- ФОРМАТЫ ----------// ---------- ФОРМАТЫ ----------
+async function loadFormatsCfg(){
+  try{
+    const r=await fetch(api('admin-formats'), F);
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json();
+    const formats={};
+    (d.formats||[]).forEach(f=>{ formats[f.code]={ title:f.title, price_kind:f.price_kind, deposit_text:f.deposit_text||'' }; });
+    CFG.formats=formats;
+  }catch(e){ /* оставляем CFG.formats как есть — пусто, форма покажет это */ }
+}
 function depositTemplate(fmt){
   const f = CFG.formats[fmt];
-  return f ? f.deposit : '';
+  return f ? f.deposit_text : '';
 }
 function fillFormatSelects(){
   const opts = Object.keys(CFG.formats)
     .map(k=>'<option value="'+esc(k)+'">'+esc(CFG.formats[k].title)+'</option>').join('');
-  $('ev-format').innerHTML = opts;
+  $('ev-format').innerHTML = opts || '<option value="">нет форматов — добавь во вкладке «Форматы»</option>';
   $('ev-batch-format').innerHTML = '<option value="">формат —</option>'+opts;
 }
 
@@ -1055,7 +1050,7 @@ $('ev-format').addEventListener('change', ()=>{
   const cur=$('ev-deposit').value.trim();
   // Перезаписываем условия только если в поле стоит нетронутый шаблон:
   // отредактированный вручную текст затирать нельзя.
-  const templates = Object.keys(CFG.formats).map(k=>CFG.formats[k].deposit);
+  const templates = Object.keys(CFG.formats).map(k=>CFG.formats[k].deposit_text);
   if(!cur || templates.indexOf(cur)!==-1){
     $('ev-deposit').value = depositTemplate($('ev-format').value);
   }
@@ -1171,6 +1166,90 @@ async function loadFormats(){
     }).join('');
 
     box.querySelectorAll('[data-open]').forEach(el=>el.onclick=()=>openSession(el.dataset.open));
+  }catch(e){ box.innerHTML='<div class="hint">Ошибка загрузки.</div>'; }
+}
+
+// ---------- УПРАВЛЕНИЕ ФОРМАТАМИ (создание/редактирование/удаление) ----------
+let FM_EDIT = null; // код формата, который сейчас редактируем
+
+function fmResetForm(){
+  FM_EDIT=null;
+  $('fm-code').value=''; $('fm-code').disabled=false;
+  $('fm-title').value=''; $('fm-kind').value='deposit'; $('fm-deposit').value='';
+  $('fm-create').textContent='Добавить формат';
+  $('fm-cancel').style.display='none';
+}
+
+$('fm-cancel').addEventListener('click', fmResetForm);
+
+$('fm-create').addEventListener('click', async ()=>{
+  const m=$('fm-msg'); m.style.display='none';
+  const code=$('fm-code').value.trim().toLowerCase();
+  const title=$('fm-title').value.trim();
+  if(!FM_EDIT && !/^[a-z0-9_-]{1,32}$/.test(code)){ msg(m,'Код: латиница/цифры/-/_, до 32 символов.',false); return; }
+  if(!title){ msg(m,'Укажи название.',false); return; }
+  const body={
+    id: FM_EDIT || undefined,
+    code: FM_EDIT ? undefined : code,
+    title,
+    price_kind: $('fm-kind').value,
+    deposit_text: $('fm-deposit').value
+  };
+  const btn=$('fm-create'); btn.disabled=true;
+  try{
+    const r=await fetch(api('admin-formats'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(r.ok&&d.ok){
+      msg(m,(FM_EDIT?'Формат обновлён: ':'Формат создан: ')+d.format.title,true);
+      fmResetForm();
+      await loadFormatsCfg(); fillFormatSelects();
+      loadFormatMgmt(); loadFormats();
+    }
+    else msg(m,'Ошибка: '+(d.detail||d.error||'?'),false);
+  }catch(e){ msg(m,'Сетевая ошибка.',false); }
+  finally{ btn.disabled=false; }
+});
+
+async function loadFormatMgmt(){
+  const box=$('fm-mgmt-list');
+  try{
+    const r=await fetch(api('admin-formats'), F);
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json();
+    const list=d.formats||[];
+    box.innerHTML = list.length ? list.map((f,i)=>
+      '<div class="srow" data-i="'+i+'" style="cursor:pointer" title="Нажми, чтобы редактировать">'+
+      '<div class="info"><div class="t">'+esc(f.title)+'</div><div class="d">'+esc(f.code)+' · '+esc(f.price_kind==='included'?'включено в стоимость':'депозит')+'</div></div>'+
+      '<button class="btn small ghost" data-del="'+esc(f.code)+'">Удалить</button></div>'
+    ).join('') : '<div class="hint">Форматов нет.</div>';
+    box.querySelectorAll('.srow').forEach(row=>{
+      row.addEventListener('click', (e)=>{
+        if(e.target.closest('[data-del]')) return;
+        const f=list[Number(row.dataset.i)];
+        FM_EDIT=f.code;
+        $('fm-code').value=f.code; $('fm-code').disabled=true;
+        $('fm-title').value=f.title;
+        $('fm-kind').value=f.price_kind||'deposit';
+        $('fm-deposit').value=f.deposit_text||'';
+        $('fm-create').textContent='Сохранить изменения';
+        $('fm-cancel').style.display='inline-block';
+        window.scrollTo({top:0,behavior:'smooth'});
+      });
+    });
+    box.querySelectorAll('[data-del]').forEach(btn=>{
+      btn.addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        const code=btn.dataset.del;
+        if(!confirm('Удалить формат «'+code+'»? События с этим форматом останутся, но формат пропадёт из списков.')) return;
+        try{
+          const r=await fetch(api('admin-formats'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',code})});
+          if(r.status===401){ handle401(); return; }
+          await loadFormatsCfg(); fillFormatSelects();
+          loadFormatMgmt(); loadFormats();
+        }catch(e){ alert('Сетевая ошибка.'); }
+      });
+    });
   }catch(e){ box.innerHTML='<div class="hint">Ошибка загрузки.</div>'; }
 }
 

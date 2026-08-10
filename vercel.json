@@ -1,5 +1,12 @@
 {
   "cleanUrls": false,
+  "redirects": [
+    {
+      "source": "/pooleng",
+      "destination": "/menu?p=pool&lang=en",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/admin",

@@ -1,4 +1,4 @@
-import { getPaymentDetails } from "../lib/bog.js";
+import { getPaymentDetails, parseRefundState } from "../lib/bog.js";
 import { json, isErikAuthed } from "../lib/utils.js";
 
 // Live BOG receipt for one order, parsed into a compact human-readable shape.
@@ -19,9 +19,16 @@ function summarize(raw) {
   const code = pd.code || "";
   const codeDesc = pd.code_description || "";
   const rejectReason = b.reject_reason || "";
+  const { statusKey, refundAmount } = parseRefundState(b);
 
   let verdict = "";
-  if (String(b.order_status?.key || "").includes("complete")) {
+  if (statusKey.includes("refunded_partially")) {
+    verdict = "Частично возвращён";
+  } else if (statusKey.includes("refunded")) {
+    verdict = "Возвращён клиенту";
+  } else if (statusKey.includes("refund")) {
+    verdict = "Возврат запрошен — ожидает подтверждения BOG";
+  } else if (String(b.order_status?.key || "").includes("complete")) {
     verdict = "Оплачен успешно";
   } else if (code === "122") {
     verdict = "Отклонён эквайером (BOG) — это на стороне банка-эквайера, можно эскалировать в BOG";
@@ -41,6 +48,7 @@ function summarize(raw) {
     verdict,
     amount_requested: pu.request_amount || "",
     amount_transferred: pu.transfer_amount || "",
+    amount_refunded: refundAmount ?? (pu.refund_amount || ""),
     currency: pu.currency_code || "",
     payment_method: pd.transfer_method?.key || "",
     payer: pd.payer_identifier || "",

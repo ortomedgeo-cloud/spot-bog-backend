@@ -19,7 +19,7 @@ import { looksLikePhone } from "../lib/greenapi.js";
 //   POST { action:'move',   id, session_id } -> перенос на другой сеанс
 //   POST { action:'delete', id }             -> отмена брони
 
-const STATUSES = ["paid", "deposit", "unpaid"];
+const STATUSES = ["paid", "deposit", "unpaid", "refunded"];
 
 function safeBody(body) {
   if (!body) return {};

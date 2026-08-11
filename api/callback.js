@@ -2,7 +2,8 @@ import {
   findPaymentByBogOrderId,
   findPaymentByInternalOrderId,
   updatePayment,
-  createBookingIfNotExists
+  createBookingIfNotExists,
+  syncRefundState
 } from "../lib/db.js";
 import { notify, notifyGuest } from "../lib/notify.js";
 import { escapeHtml } from "../lib/telegram.js";
@@ -57,6 +58,10 @@ function normalizeStatus(payload) {
     ""
   ).toLowerCase();
 
+  if (raw.includes("refunded_partially")) return "refunded_partially";
+  if (raw.includes("refunded")) return "refunded";
+  if (raw.includes("refund")) return "refund_requested";
+
   if (raw.includes("complete") || raw.includes("paid") || raw.includes("success")) {
     return "paid";
   }
@@ -65,6 +70,14 @@ function normalizeStatus(payload) {
   }
   return "unknown";
 }
+
+function extractRefundAmount(payload) {
+  const v = payload?.body?.purchase_units?.refund_amount ?? payload?.purchase_units?.refund_amount;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+const REFUND_STATUSES = new Set(["refund_requested", "refunded", "refunded_partially"]);
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -104,6 +117,15 @@ export default async function handler(req, res) {
 
     if (!payment) {
       console.error("callback payment not found", { bogOrderId, internalOrderId });
+      return json(res, 200, { ok: true });
+    }
+
+    if (REFUND_STATUSES.has(normalizedStatus)) {
+      await syncRefundState(payment, {
+        statusKey: normalizedStatus,
+        refundAmount: extractRefundAmount(payload),
+        rawCallback: payload
+      });
       return json(res, 200, { ok: true });
     }
 

@@ -71,6 +71,7 @@ function page() {
   .badge.paid { background:#eefaf0; color:#166534; }
   .badge.deposit { background:#fff7e6; color:#92400e; }
   .badge.unpaid { background:#fdecec; color:#991b1b; }
+  .badge.refunded { background:#f3e8ff; color:#6b21a8; }
   .badge.online { background:#eef4ff; color:#1e40af; }
   .badge.manual { background:#f3f4f6; color:#374151; }
 
@@ -1800,13 +1801,16 @@ function sdList(){
             '<div class="row two"><div><label>Instagram</label><input id="bk-insta" value="'+esc(b.guest_instagram||'')+'"></div>'+
               '<div><label>Сумма</label><input id="bk-amount" type="number" min="0" step="0.01" value="'+esc(String(b.amount||''))+'"></div></div>'+
             '<div class="row"><label>Статус оплаты</label><select id="bk-status">'+
-              ['paid','deposit','unpaid'].map(v=>'<option value="'+v+'"'+(b.payment_status===v?' selected':'')+'>'+
-                (v==='paid'?'Оплачено':v==='deposit'?'Депозит':'Не оплачено')+'</option>').join('')+'</select></div>'+
+              ['paid','deposit','unpaid','refunded'].map(v=>'<option value="'+v+'"'+(b.payment_status===v?' selected':'')+'>'+
+                (v==='paid'?'Оплачено':v==='deposit'?'Депозит':v==='refunded'?'Возвращено':'Не оплачено')+'</option>').join('')+'</select></div>'+
             '<div class="row"><label>Комментарий</label><textarea id="bk-comment">'+esc(b.comment||'')+'</textarea></div>'+
             '<div class="bk__acts">'+
               '<button class="btn small" data-save="'+esc(b.id)+'">Сохранить</button>'+
               '<button class="btn small ghost" data-cancel="1">Отмена</button>'+
               '<button class="btn small ghost" data-move="'+esc(b.id)+'">Перенести на другой сеанс</button>'+
+              (b.source==='online' && b.payment_status==='paid'
+                ? '<button class="btn small danger" data-refund="'+esc(b.id)+'">Возврат</button>'
+                : '')+
               '<button class="btn small danger" data-del="'+esc(b.id)+'">Отменить бронь</button>'+
             '</div></div>';
         }
@@ -1832,6 +1836,7 @@ function sdList(){
   $('sd-list').querySelectorAll('[data-save]').forEach(b=>b.onclick=()=>sdSave(b.dataset.save));
   $('sd-list').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>sdDelete(b.dataset.del));
   $('sd-list').querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>sdMove(b.dataset.move));
+  $('sd-list').querySelectorAll('[data-refund]').forEach(b=>b.onclick=()=>sdRefund(b.dataset.refund));
 }
 
 async function sdBlock(label, block, reason){
@@ -1874,6 +1879,26 @@ async function sdDelete(id){
   if(!confirm('Отменить бронь? Запись будет удалена, место освободится.')) return;
   const ok=await sdPost({ action:'delete', id });
   if(ok){ SD_EDIT=null; openSession(SD.session.id); loadToday(); }
+}
+
+async function sdRefund(id){
+  const full = confirm('Вернуть деньги гостю? Это действие нельзя отменить после отправки запроса в банк.\n\nOK — полный возврат.\nОтмена — ввести частичную сумму.');
+  let amount = null;
+  if(!full){
+    const raw = prompt('Сумма частичного возврата, GEL:');
+    if(raw===null) return;
+    amount = Number(String(raw).replace(',', '.'));
+    if(!Number.isFinite(amount) || amount<=0){ alert('Некорректная сумма.'); return; }
+  }
+  try{
+    const r=await fetch(api('admin-refund'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(amount!=null ? { id, amount } : { id })});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok || !d.ok){ alert('Ошибка возврата: '+(d.detail||d.error||'?')); return; }
+    alert('Возврат отправлен в BOG. Подтверждение придёт по вебхуку — статус обновится автоматически.');
+    SD_EDIT=null; openSession(SD.session.id); loadToday();
+  }catch(e){ alert('Сетевая ошибка.'); }
 }
 
 async function sdMove(id){
@@ -2993,10 +3018,11 @@ async function loadErik(){
     const d=await r.json(); const ps=d.payments||[];
     if(!ps.length){ box.innerHTML='<div class="hint">Платежей за период нет.</div>'; return; }
     box.innerHTML = ps.map(p => {
-      const badge = p.status==='paid' ? 'paid' : (p.status==='failed' ? 'unpaid' : 'deposit');
+      const badge = p.refund_status ? 'refunded' : (p.status==='paid' ? 'paid' : (p.status==='failed' ? 'unpaid' : 'deposit'));
+      const label = p.refund_status ? p.refund_status : p.status;
       return '<div class="pay" data-bog="'+esc(p.bog_order_id||'')+'">'+
         '<div class="top"><span><b>'+esc(p.guest_name||'—')+'</b> · '+esc(p.event_title||'')+' · '+esc(p.table_label||'')+'</span>'+
-        '<span class="badge '+badge+'">'+esc(p.status)+'</span></div>'+
+        '<span class="badge '+badge+'">'+esc(label)+'</span></div>'+
         '<div class="sub">'+esc(String(p.amount||''))+' GEL · '+esc(new Date(p.created_at).toLocaleString('ru-RU'))+' · '+esc(p.internal_order_id||'')+'</div>'+
         '<div class="detail"><div class="hint">Клик — загрузить детали из BOG…</div></div></div>';
     }).join('');
@@ -3030,6 +3056,7 @@ async function toggleDetail(el){
       kv('Карта', t.payer + (t.card_expiry ? ' · до '+t.card_expiry : '')) +
       kv('Запрошено', t.amount_requested ? t.amount_requested+' '+t.currency : '') +
       kv('Списано', t.amount_transferred ? t.amount_transferred+' '+t.currency : '') +
+      kv('Возвращено', t.amount_refunded ? t.amount_refunded+' '+t.currency : '') +
       kv('Код ответа', t.response_code ? t.response_code+' — '+t.response_desc : '') +
       kv('Причина отказа', t.reject_reason) +
       kv('Transaction ID', t.transaction_id) +

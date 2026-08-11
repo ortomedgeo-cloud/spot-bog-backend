@@ -47,6 +47,7 @@ export default async function handler(req, res) {
     return json(res, 200, {
       ok: true,
       session_id: s.id,
+      event_id: s.event_id,
       title: s.title,
       date: s.date,
       time: s.time,

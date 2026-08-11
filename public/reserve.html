@@ -310,9 +310,10 @@
   // одна и та же расстановка одинаково читается на телефоне и на десктопе.
   let PLAN = null;
 
-  async function loadPlan(){
+  async function loadPlan(eventId){
     try{
-      const r = await fetch('/api/floor-plan');
+      const url = '/api/floor-plan' + (eventId ? ('?event_id='+encodeURIComponent(eventId)) : '');
+      const r = await fetch(url);
       const d = await r.json();
       if(d && d.ok) PLAN = d;
     }catch(e){ PLAN = null; }
@@ -393,8 +394,9 @@
     const r=await fetch('/api/session-info?session_id='+encodeURIComponent(sid));
     const d=await r.json();
     if(!r.ok||!d.ok) throw new Error('no session');
-    session={ session_id:d.session_id, title:d.title, date:d.date, time:d.time,
+    session={ session_id:d.session_id, event_id:d.event_id, title:d.title, date:d.date, time:d.time,
               price:d.price, poster_url:d.poster_url, deposit_text:d.deposit_text, format:d.format };
+    await loadPlan(session.event_id);
     renderEvent(); renderSum(); await loadAvailability();
   }
 
@@ -418,7 +420,9 @@
     const pick=async ()=>{
       const s=SESSIONS.find(x=>x.session_id===$('f-time').value);
       if(!s) return;
-      session=s; renderEvent(); renderSum(); await loadAvailability();
+      session=s;
+      await loadPlan(session.event_id);
+      renderEvent(); renderSum(); await loadAvailability();
     };
     $('f-date').addEventListener('change', fillTimes);
     $('f-time').addEventListener('change', pick);
@@ -428,6 +432,7 @@
   async function boot(){
     const t=T[lang];
     $('ev').innerHTML='<div class="note">'+esc(t.loading)+'</div>';
+    await loadPlan(); // общий план для первой отрисовки, до выбора события
     const sid=new URL(location.href).searchParams.get('session_id');
     try{
       if(sid) await loadFromLink(sid);
@@ -481,7 +486,7 @@
     }
   };
 
-  renderLangs(); applyStatic(); loadPlan().then(boot);
+  renderLangs(); applyStatic(); boot();
 })();
 </script>
 </body>

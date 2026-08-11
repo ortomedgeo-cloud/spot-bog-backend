@@ -425,6 +425,13 @@ function page() {
       <button class="btn ghost" id="ev-cancel" style="display:none;margin-left:8px">Отмена</button>
       <div class="msg" id="ev-msg"></div>
     </div>
+    <div class="card" id="ev-seating" style="display:none">
+      <label style="font-size:13px;font-weight:600">Рассадка для этого события</label>
+      <div class="hint">Вместимость по умолчанию — из вкладки «Зал». Здесь можно уменьшить/увеличить её только для этого события (на все его сеансы). Пустое поле = вместимость по умолчанию.</div>
+      <div id="ev-seating-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
+      <button class="btn small" id="ev-seating-save" style="margin-top:8px">Сохранить рассадку</button>
+      <div class="msg" id="ev-seating-msg"></div>
+    </div>
     <div class="card">
       <label style="font-size:13px;font-weight:600">Существующие события</label>
       <div class="batchbar" id="ev-batch">
@@ -1020,7 +1027,58 @@ function evResetForm(){
   $('ev-deposit').value = depositTemplate($('ev-format').value);
   $('ev-create').textContent='Создать событие';
   $('ev-cancel').style.display='none';
+  $('ev-seating').style.display='none';
 }
+
+// ---------- Рассадка под событие ----------
+async function loadEventSeating(eventId){
+  const box=$('ev-seating-list'), m=$('ev-seating-msg');
+  box.innerHTML='<div class="hint">Загрузка…</div>'; m.style.display='none';
+  try{
+    const [fr, orr] = await Promise.all([
+      fetch(api('admin-floor'), F),
+      fetch(api('admin-event-overrides')+'?event_id='+encodeURIComponent(eventId), F)
+    ]);
+    if(fr.status===401 || orr.status===401){ handle401(); return; }
+    const fd=await fr.json(), od=await orr.json();
+    const tables=(fd.tables||[]).filter(t=>t.active!==false);
+    const byLabel={};
+    (od.overrides||[]).forEach(o=>{ byLabel[o.table_label]=o; });
+
+    box.innerHTML = tables.length ? tables.map(t=>{
+      const o=byLabel[t.label];
+      return '<div class="row two" data-label="'+esc(t.label)+'" style="align-items:end">'+
+        '<div><label>'+esc(t.label)+' <span class="hint">(по умолчанию '+t.capacity_min+'–'+t.capacity_max+')</span></label></div>'+
+        '<div style="display:flex;gap:8px">'+
+          '<input class="ev-seat-min" type="number" min="1" placeholder="'+t.capacity_min+'" value="'+(o?o.capacity_min:'')+'" style="width:70px">'+
+          '<input class="ev-seat-max" type="number" min="1" placeholder="'+t.capacity_max+'" value="'+(o?o.capacity_max:'')+'" style="width:70px">'+
+        '</div></div>';
+    }).join('') : '<div class="hint">В плане зала нет активных столов.</div>';
+  }catch(e){ box.innerHTML='<div class="hint">Ошибка загрузки.</div>'; }
+}
+
+$('ev-seating-save').addEventListener('click', async ()=>{
+  if(!EV_EDIT) return;
+  const m=$('ev-seating-msg'); m.style.display='none';
+  const overrides=[];
+  $('ev-seating-list').querySelectorAll('[data-label]').forEach(row=>{
+    const min=row.querySelector('.ev-seat-min').value.trim();
+    const max=row.querySelector('.ev-seat-max').value.trim();
+    if(min===''&&max==='') return;
+    if(min===''||max===''){ return; } // требуем обе границы, если задаём override
+    overrides.push({ table_label: row.dataset.label, capacity_min:Number(min), capacity_max:Number(max) });
+  });
+  const btn=$('ev-seating-save'); btn.disabled=true;
+  try{
+    const r=await fetch(api('admin-event-overrides'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ event_id:EV_EDIT.id, overrides })});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(r.ok&&d.ok) msg(m,'Рассадка сохранена.',true);
+    else msg(m,'Ошибка: '+(d.detail||d.error||'?'),false);
+  }catch(e){ msg(m,'Сетевая ошибка.',false); }
+  finally{ btn.disabled=false; }
+});
 
 
 $('ev-searchbtn').addEventListener('click', evSearch);
@@ -1128,6 +1186,8 @@ async function loadEventsList(){
         $('ev-picked').textContent='Редактирование: '+e.title+(e.poster_url?'':' — постера нет, найди фильм в TMDB или впиши свой URL выше');
         $('ev-create').textContent='Сохранить изменения';
         $('ev-cancel').style.display='inline-block';
+        $('ev-seating').style.display='';
+        loadEventSeating(e.id);
         window.scrollTo({top:0,behavior:'smooth'});
       };
     });

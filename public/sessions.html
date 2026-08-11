@@ -195,6 +195,16 @@
     $('f-book').textContent=t.bookLink;
   }
 
+  // «Movie Night» переименован в «Кинопоказы» на публичных страницах —
+  // остальные форматы берут название прямо из админки (ef.title, отдаётся
+  // как s.format_title из /api/upcoming-sessions).
+  const MOV_LABEL={ ru:'Кинопоказы', ka:'კინოჩვენებები', en:'Movie Screenings' };
+  function formatLabel(code){
+    if(code==='mov') return MOV_LABEL[lang]||MOV_LABEL.en;
+    const s=ALL.find(x=>x.format===code);
+    return (s&&s.format_title)||code;
+  }
+
   async function load(){
     const t=T[lang];
     $('list').innerHTML='<div class="note">'+esc(t.loading)+'</div>';
@@ -212,10 +222,9 @@
 
     // Фильтры только по тем форматам, что реально есть в расписании.
     const present=[...new Set(ALL.map(s=>s.format))];
-    const label={ mov:'Movie Night', din:'Movie Dinner Night', drink:'Movie Drinking Night', alacarte:'Á La Carte' };
     $('filters').innerHTML =
       '<button type="button" data-f="" aria-pressed="'+(filter==='')+'">'+esc(t.all)+'</button>'+
-      present.map(f=>'<button type="button" data-f="'+esc(f)+'" aria-pressed="'+(filter===f)+'">'+esc(label[f]||f)+'</button>').join('');
+      present.map(f=>'<button type="button" data-f="'+esc(f)+'" aria-pressed="'+(filter===f)+'">'+esc(formatLabel(f))+'</button>').join('');
     $('filters').querySelectorAll('button').forEach(b=>b.onclick=()=>{ filter=b.dataset.f; render(); });
 
     const list = filter ? ALL.filter(s=>s.format===filter) : ALL;
@@ -245,7 +254,7 @@
           '<div class="ev__in">'+
             '<div class="ev__d">'+esc(when)+'</div>'+
             '<h3 class="ev__t">'+esc(s.title)+'</h3>'+
-            '<span class="ev__f">'+esc(label[s.format]||s.format)+'</span>'+
+            '<span class="ev__f">'+esc(formatLabel(s.format))+'</span>'+
           '</div>'+
           '<div class="ev__p"><b>'+esc(String(s.price))+' GEL</b><span>'+esc(note)+'</span>'+
             '<span class="ev__cta">'+esc(t.book)+'</span></div>'+

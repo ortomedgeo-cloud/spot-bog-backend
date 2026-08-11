@@ -18,7 +18,8 @@ export default async function handler(req, res) {
   if (req.method !== "GET") return json(res, 405, { error: "Method not allowed" });
 
   try {
-    return json(res, 200, { ok: true, ...(await getPublicFloorPlan()) });
+    const eventId = String(req.query?.event_id || "").trim() || undefined;
+    return json(res, 200, { ok: true, ...(await getPublicFloorPlan(eventId)) });
   } catch (error) {
     console.error("floor-plan error", error);
     return json(res, 500, { error: "Failed", detail: String(error?.message || error) });

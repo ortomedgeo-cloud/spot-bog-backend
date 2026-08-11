@@ -407,7 +407,9 @@ function page() {
   <!-- ===== EVENTS ===== -->
   <div class="panel" id="panel-events">
     <div class="card">
-      <div class="row"><label>Фильм (поиск TMDB) *</label>
+      <div class="row"><label>Название события *</label><input id="ev-title" placeholder="Название — фильм, вечеринка, концерт, что угодно"></div>
+      <div class="row"><label>Поиск в TMDB (необязательно)</label>
+        <div class="hint">Только для фильмов — подставит название и постер. Вечеринки, концерты и всё остальное просто впиши в название выше.</div>
         <div class="search"><input id="ev-query" placeholder="например Рататуй"><button class="btn small" id="ev-searchbtn">Искать</button></div>
         <div class="cards" id="ev-results"></div>
         <div class="hint" id="ev-picked"></div>
@@ -1012,6 +1014,7 @@ let EV_EDIT = null; // event being edited: {id,title,poster_url}
 
 function evResetForm(){
   EV_EDIT=null; EV_PICK={ title:'', poster:'', tmdb_id:null };
+  $('ev-title').value='';
   $('ev-picked').textContent=''; $('ev-price').value=''; $('ev-poster').value='';
   $('ev-results').innerHTML='';
   $('ev-deposit').value = depositTemplate($('ev-format').value);
@@ -1040,6 +1043,7 @@ async function evSearch(){
         document.querySelectorAll('#ev-results .mcard').forEach(k=>k.classList.remove('picked'));
         c.classList.add('picked');
         EV_PICK={ title:m.title, poster:m.poster||'', tmdb_id:m.tmdb_id||null };
+        $('ev-title').value=m.title;         // подставили, но можно переписать
         $('ev-poster').value=m.poster||'';   // подставили, но можно заменить своей
         $('ev-picked').textContent='Выбрано: '+m.title+yr;
       };
@@ -1062,15 +1066,16 @@ $('ev-cancel').addEventListener('click', evResetForm);
 
 $('ev-create').addEventListener('click', async ()=>{
   const m=$('ev-msg'); m.style.display='none';
-  // In edit mode a new TMDB pick is optional: keep the existing title/poster
-  // unless a new film was picked.
-  const title = EV_PICK.title || (EV_EDIT && EV_EDIT.title) || '';
+  // Название вводится вручную (TMDB — необязательная подсказка, только
+  // подставляет название/постер для фильмов; вечеринки и концерты просто
+  // вписываются в поле напрямую).
+  const title = $('ev-title').value.trim();
   // Приоритет у поля: если туда вписали свой URL — используем его,
   // иначе постер выбранного в TMDB фильма, иначе прежний у события.
   const poster = $('ev-poster').value.trim()
     || (EV_PICK.title ? EV_PICK.poster : '')
     || (EV_EDIT ? (EV_EDIT.poster_url||'') : '');
-  if(!title){ msg(m,'Найди и выбери фильм.',false); return; }
+  if(!title){ msg(m,'Введи название события.',false); return; }
   const price=$('ev-price').value.trim();
   if(!price){ msg(m,'Укажи цену.',false); return; }
   const btn=$('ev-create'); btn.disabled=true;
@@ -1115,11 +1120,12 @@ async function loadEventsList(){
         const e=evs[Number(row.dataset.i)];
         EV_EDIT={ id:e.id, title:e.title, poster_url:e.poster_url||'' };
         EV_PICK={ title:'', poster:'', tmdb_id:null };
+        $('ev-title').value=e.title||'';
         $('ev-format').value=e.format||'mov';
         $('ev-price').value=e.price;
         $('ev-poster').value=e.poster_url||'';
         $('ev-deposit').value=e.deposit_text||depositTemplate($('ev-format').value);
-        $('ev-picked').textContent='Редактирование: '+e.title+(e.poster_url?'':' — постера нет, найди фильм в TMDB чтобы добавить');
+        $('ev-picked').textContent='Редактирование: '+e.title+(e.poster_url?'':' — постера нет, найди фильм в TMDB или впиши свой URL выше');
         $('ev-create').textContent='Сохранить изменения';
         $('ev-cancel').style.display='inline-block';
         window.scrollTo({top:0,behavior:'smooth'});

@@ -1047,7 +1047,7 @@ async function loadEventSeating(eventId){
 
     box.innerHTML = tables.length ? tables.map(t=>{
       const o=byLabel[t.label];
-      return '<div class="row two" data-label="'+esc(t.label)+'" style="align-items:end">'+
+      return '<div class="row two" data-label="'+esc(t.label)+'" data-defmin="'+t.capacity_min+'" data-defmax="'+t.capacity_max+'" style="align-items:end">'+
         '<div><label>'+esc(t.label)+' <span class="hint">(по умолчанию '+t.capacity_min+'–'+t.capacity_max+')</span></label></div>'+
         '<div style="display:flex;gap:8px">'+
           '<input class="ev-seat-min" type="number" min="1" placeholder="'+t.capacity_min+'" value="'+(o?o.capacity_min:'')+'" style="width:70px">'+
@@ -1062,11 +1062,13 @@ $('ev-seating-save').addEventListener('click', async ()=>{
   const m=$('ev-seating-msg'); m.style.display='none';
   const overrides=[];
   $('ev-seating-list').querySelectorAll('[data-label]').forEach(row=>{
-    const min=row.querySelector('.ev-seat-min').value.trim();
-    const max=row.querySelector('.ev-seat-max').value.trim();
-    if(min===''&&max==='') return;
-    if(min===''||max===''){ return; } // требуем обе границы, если задаём override
-    overrides.push({ table_label: row.dataset.label, capacity_min:Number(min), capacity_max:Number(max) });
+    const minRaw=row.querySelector('.ev-seat-min').value.trim();
+    const maxRaw=row.querySelector('.ev-seat-max').value.trim();
+    if(minRaw===''&&maxRaw==='') return; // ничего не задали для этого стола — берём план по умолчанию
+    // Задали только одну границу — вторая берётся из плана по умолчанию, а не отбрасывает всю строку.
+    const min = minRaw!=='' ? Number(minRaw) : Number(row.dataset.defmin);
+    const max = maxRaw!=='' ? Number(maxRaw) : Number(row.dataset.defmax);
+    overrides.push({ table_label: row.dataset.label, capacity_min:min, capacity_max:max });
   });
   const btn=$('ev-seating-save'); btn.disabled=true;
   try{

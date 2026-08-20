@@ -1770,8 +1770,12 @@ let SD_EDIT = null;     // id брони в режиме правки
 
 function bkTime(iso){
   if(!iso) return '';
-  try{ return new Date(iso).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tbilisi'}); }
-  catch(e){ return ''; }
+  try{
+    const d=new Date(iso);
+    const date=d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',timeZone:'Asia/Tbilisi'});
+    const time=d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tbilisi'});
+    return date+' '+time;
+  }catch(e){ return ''; }
 }
 
 async function openSession(sessionId){

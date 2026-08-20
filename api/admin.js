@@ -454,6 +454,7 @@ function page() {
       <div class="row"><label>Тип цены</label><select id="fm-kind">
         <option value="deposit">Депозит (вычитается из счёта)</option>
         <option value="included">Включено в стоимость</option>
+        <option value="free">Свободный вход (бесплатно)</option>
       </select></div>
       <div class="row"><label>Текст условий (шаблон, подставится в форму события)</label><textarea id="fm-deposit"></textarea></div>
       <button class="btn" id="fm-create">Добавить формат</button>
@@ -1290,7 +1291,7 @@ async function loadFormatMgmt(){
     const list=d.formats||[];
     box.innerHTML = list.length ? list.map((f,i)=>
       '<div class="srow" data-i="'+i+'" style="cursor:pointer" title="Нажми, чтобы редактировать">'+
-      '<div class="info"><div class="t">'+esc(f.title)+'</div><div class="d">'+esc(f.code)+' · '+esc(f.price_kind==='included'?'включено в стоимость':'депозит')+'</div></div>'+
+      '<div class="info"><div class="t">'+esc(f.title)+'</div><div class="d">'+esc(f.code)+' · '+esc(f.price_kind==='included'?'включено в стоимость':f.price_kind==='free'?'свободный вход':'депозит')+'</div></div>'+
       '<button class="btn small ghost" data-del="'+esc(f.code)+'">Удалить</button></div>'
     ).join('') : '<div class="hint">Форматов нет.</div>';
     box.querySelectorAll('.srow').forEach(row=>{
@@ -1767,6 +1768,12 @@ $('fin-save').addEventListener('click', async ()=>{
 let SD = null;          // текущий сеанс
 let SD_EDIT = null;     // id брони в режиме правки
 
+function bkTime(iso){
+  if(!iso) return '';
+  try{ return new Date(iso).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tbilisi'}); }
+  catch(e){ return ''; }
+}
+
 async function openSession(sessionId){
   $('sd-bg').classList.add('open');
   $('sd-title').textContent='Загрузка…';
@@ -1884,7 +1891,7 @@ function sdList(){
         }
         const phone=(b.guest_phone||'').replace(/[^\d+]/g,'');
         return '<div class="bk" data-bk="'+esc(b.id)+'">'+
-          '<div class="bk__top"><span class="bk__seat">'+esc(b.table_label)+'</span>'+
+          '<div class="bk__top"><span class="bk__seat">'+esc(b.table_label)+' · '+esc(bkTime(b.created_at))+'</span>'+
             '<span><span class="badge '+esc(b.payment_status)+'">'+esc(b.payment_status)+'</span> '+
             '<span class="badge '+esc(b.source)+'">'+esc(b.source)+'</span></span></div>'+
           '<div class="bk__who">'+esc(b.guest_name||'—')+' · '+esc(String(b.guests||'?'))+' чел · '+esc(String(Number(b.amount)||0))+' GEL</div>'+
@@ -2981,7 +2988,7 @@ function evBatchRefresh(){
 }
 $('ev-batch-del').addEventListener('click', async ()=>{
   const ids=evSelected(); if(!ids.length) return;
-  if(!confirm('Удалить событий: '+ids.length+'?\\n\\n⚠️ Удалятся также ВСЕ их сеансы и ВСЕ брони этих сеансов. Это необратимо.')) return;
+  if(!confirm('Удалить событий: '+ids.length+'?\\n\\n⚠️ Удалятся также ВСЕ их БУДУЩИЕ сеансы и брони. Прошедшие сеансы и брони останутся в архиве. Это необратимо.')) return;
   try{
     const r=await fetch(api('admin-events'),{method:'POST',...F,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',ids})});
     if(r.status===401){ handle401(); return; }

@@ -37,7 +37,7 @@ export default async function handler(req, res) {
       const code = String(b.id || b.code || "").trim().toLowerCase();
       const titleRaw = String(b.title || "").trim();
       const title = titleRaw ? titleRaw.charAt(0).toUpperCase() + titleRaw.slice(1) : titleRaw;
-      const price_kind = b.price_kind === "included" ? "included" : "deposit";
+      const price_kind = ["included", "free"].includes(b.price_kind) ? b.price_kind : "deposit";
       const deposit_text = String(b.deposit_text || "").trim() || null;
       const sort_order = Number.isFinite(Number(b.sort_order)) ? Number(b.sort_order) : 0;
 

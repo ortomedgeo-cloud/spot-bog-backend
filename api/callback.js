@@ -132,66 +132,12 @@ export default async function handler(req, res) {
     const alreadyPaid = payment.status === "paid";
 
     if (normalizedStatus === "paid" && !alreadyPaid) {
-      // 1) Notify WhatsApp once. green_notified_at guards against re-sending on
-      //    a duplicate callback.
-      let greenNotifiedAt = payment.green_notified_at;
-
-      if (!greenNotifiedAt) {
-        const text =
-`✅ Новая оплаченная бронь
-
-Событие: ${escapeHtml(payment.event_title)}
-Стол: ${escapeHtml(payment.table_label)}
-Гостей: ${payment.guests}
-Имя: ${escapeHtml(payment.guest_name)}
-Телефон: ${escapeHtml(payment.guest_phone)}${payment.guest_instagram ? `\nInstagram: ${escapeHtml(payment.guest_instagram)}` : ""}
-Сумма: ${payment.amount} GEL
-BOG order: ${escapeHtml(bogOrderId || payment.bog_order_id)}
-Booking ID: ${escapeHtml(payment.internal_order_id)}`;
-
-        try {
-          await notify(text);
-          greenNotifiedAt = new Date().toISOString();
-          // persist the notify timestamp immediately so a retry won't re-send
-          await updatePayment(payment.id, {
-            bog_order_id: bogOrderId || payment.bog_order_id,
-            green_notified_at: greenNotifiedAt,
-            raw_callback: payload
-          });
-        } catch (error) {
-          console.error("whatsapp notification failed", error);
-        }
-
-        // Подтверждение самому гостю на номер из брони. Тот же флаг
-        // green_notified_at защищает от повторной отправки при дубле callback.
-        // Если в контакте инстаграм, а не телефон, notifyGuest тихо вернёт
-        // not_a_phone — это штатная ситуация, а не сбой.
-        try {
-          const guestText =
-`Здравствуйте${payment.guest_name ? ", " + payment.guest_name : ""}! Ваша бронь в SPOT. подтверждена ✅
-
-${payment.event_title}
-Стол: ${payment.table_label}
-Гостей: ${payment.guests}
-Оплачено: ${payment.amount} GEL
-
-Адрес: ул. Реджеба Ниджарадзе 18, Батуми — тремя ступенями выше 15-го этажа.
-Номер брони: ${payment.internal_order_id}
-
-Если планы изменятся, напишите нам в этот чат — перенесём бронь на другой день.`;
-
-          const res = await notifyGuest(payment.guest_phone, guestText);
-          if (!res.sent && res.reason !== "not_a_phone") {
-            console.warn("guest notification skipped", res);
-          }
-        } catch (error) {
-          console.error("guest notification failed", error);
-        }
-      }
-
-      // 2) Create the booking (idempotent). Uses the internal_order_id as the
-      //    booking id, so a duplicate callback can't double-book. The unique
-      //    (session_id, table_label) constraint is the final guard.
+      // 1) Create the booking FIRST — this is the atomic guard against
+      //    double-booking (unique (session_id, table_label) at the DB level).
+      //    Several guests can race to pay for the same table since payment.js
+      //    doesn't hold the seat; only one insert here can win. We must not
+      //    tell anyone "confirmed" until we actually know who won.
+      let tableTaken = false;
       try {
         await createBookingIfNotExists({
           id: payment.internal_order_id,
@@ -204,11 +150,97 @@ ${payment.event_title}
           amount: payment.amount,
           payment_status: "paid",
           source: "online",
-          wa_status: greenNotifiedAt || null
+          wa_status: null
         });
       } catch (error) {
-        console.error("create booking failed", error);
-        throw error; // don't mark handled; BOG will retry
+        if (error?.code !== "TABLE_TAKEN") {
+          console.error("create booking failed", error);
+          throw error; // unexpected DB error — don't mark handled, BOG will retry
+        }
+        tableTaken = true;
+      }
+
+      // green_notified_at guards against re-sending on a duplicate callback
+      // (BOG retry), for either outcome below.
+      if (!payment.green_notified_at) {
+        if (tableTaken) {
+          // Money was captured by BOG but the table was already taken by a
+          // faster payment — do NOT send the "confirmed" messages. Flag it
+          // for staff to manually reseat or refund instead.
+          console.error("callback: table taken after payment captured", {
+            internalOrderId: payment.internal_order_id,
+            sessionId: payment.session_id,
+            tableLabel: payment.table_label
+          });
+          try {
+            await notify(
+`⚠️ Оплата прошла, но стол уже занят другой бронью
+
+Событие: ${escapeHtml(payment.event_title)}
+Стол: ${escapeHtml(payment.table_label)}
+Гостей: ${payment.guests}
+Имя: ${escapeHtml(payment.guest_name)}
+Телефон: ${escapeHtml(payment.guest_phone)}
+Сумма: ${payment.amount} GEL
+BOG order: ${escapeHtml(bogOrderId || payment.bog_order_id)}
+Booking ID: ${escapeHtml(payment.internal_order_id)}
+
+Деньги списаны, брони нет — пересадите гостя вручную или сделайте возврат.`
+            );
+          } catch (error) {
+            console.error("conflict notification failed", error);
+          }
+        } else {
+          const text =
+`✅ Новая оплаченная бронь
+
+Событие: ${escapeHtml(payment.event_title)}
+Стол: ${escapeHtml(payment.table_label)}
+Гостей: ${payment.guests}
+Имя: ${escapeHtml(payment.guest_name)}
+Телефон: ${escapeHtml(payment.guest_phone)}${payment.guest_instagram ? `\nInstagram: ${escapeHtml(payment.guest_instagram)}` : ""}
+Сумма: ${payment.amount} GEL
+BOG order: ${escapeHtml(bogOrderId || payment.bog_order_id)}
+Booking ID: ${escapeHtml(payment.internal_order_id)}`;
+
+          try {
+            await notify(text);
+          } catch (error) {
+            console.error("whatsapp notification failed", error);
+          }
+
+          // Подтверждение самому гостю на номер из брони. Если в контакте
+          // инстаграм, а не телефон, notifyGuest тихо вернёт not_a_phone —
+          // это штатная ситуация, а не сбой.
+          try {
+            const guestText =
+`Здравствуйте${payment.guest_name ? ", " + payment.guest_name : ""}! Ваша бронь в SPOT. подтверждена ✅
+
+${payment.event_title}
+Стол: ${payment.table_label}
+Гостей: ${payment.guests}
+Оплачено: ${payment.amount} GEL
+
+Адрес: ул. Реджеба Ниджарадзе 18, Батуми — тремя ступенями выше 15-го этажа.
+Номер брони: ${payment.internal_order_id}
+
+Если планы изменятся, напишите нам в этот чат — перенесём бронь на другой день.`;
+
+            const res = await notifyGuest(payment.guest_phone, guestText);
+            if (!res.sent && res.reason !== "not_a_phone") {
+              console.warn("guest notification skipped", res);
+            }
+          } catch (error) {
+            console.error("guest notification failed", error);
+          }
+        }
+
+        // persist the notify timestamp immediately so a retry won't re-send
+        await updatePayment(payment.id, {
+          bog_order_id: bogOrderId || payment.bog_order_id,
+          green_notified_at: new Date().toISOString(),
+          raw_callback: payload
+        });
       }
     }
 

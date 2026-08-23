@@ -72,6 +72,7 @@ function page() {
   .badge.deposit { background:#fff7e6; color:#92400e; }
   .badge.unpaid { background:#fdecec; color:#991b1b; }
   .badge.refunded { background:#f3e8ff; color:#6b21a8; }
+  .badge.conflict { background:#fef2f2; color:#b91c1c; }
   .badge.online { background:#eef4ff; color:#1e40af; }
   .badge.manual { background:#f3f4f6; color:#374151; }
 
@@ -3097,12 +3098,14 @@ async function loadErik(){
     const d=await r.json(); const ps=d.payments||[];
     if(!ps.length){ box.innerHTML='<div class="hint">Платежей за период нет.</div>'; return; }
     box.innerHTML = ps.map(p => {
-      const badge = p.refund_status ? 'refunded' : (p.status==='paid' ? 'paid' : (p.status==='failed' ? 'unpaid' : 'deposit'));
-      const label = p.refund_status ? p.refund_status : p.status;
+      const conflict = p.status==='paid' && !p.has_booking;
+      const badge = conflict ? 'conflict' : (p.refund_status ? 'refunded' : (p.status==='paid' ? 'paid' : (p.status==='failed' ? 'unpaid' : 'deposit')));
+      const label = conflict ? 'оплачен, стол не забронирован' : (p.refund_status ? p.refund_status : p.status);
+      const sessionWhen = p.session_date ? esc(p.session_date)+(p.session_time?' '+esc(p.session_time):'') : '—';
       return '<div class="pay" data-bog="'+esc(p.bog_order_id||'')+'">'+
         '<div class="top"><span><b>'+esc(p.guest_name||'—')+'</b> · '+esc(p.event_title||'')+' · '+esc(p.table_label||'')+'</span>'+
         '<span class="badge '+badge+'">'+esc(label)+'</span></div>'+
-        '<div class="sub">'+esc(String(p.amount||''))+' GEL · '+esc(new Date(p.created_at).toLocaleString('ru-RU'))+' · '+esc(p.internal_order_id||'')+'</div>'+
+        '<div class="sub">Сеанс: '+sessionWhen+' · '+esc(String(p.amount||''))+' GEL · оплата '+esc(new Date(p.created_at).toLocaleString('ru-RU'))+' · '+esc(p.internal_order_id||'')+'</div>'+
         '<div class="detail"><div class="hint">Клик — загрузить детали из BOG…</div></div></div>';
     }).join('');
     box.querySelectorAll('.pay').forEach(el=>{

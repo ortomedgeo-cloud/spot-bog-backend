@@ -1,4 +1,4 @@
-import { createBogOrder } from "../lib/bog.js";
+import { createBogOrder, resolveTtlMinutes } from "../lib/bog.js";
 import { looksLikePhone } from "../lib/greenapi.js";
 import { getSession, createPayment, isTableBookableForSession } from "../lib/db.js";
 import {
@@ -106,7 +106,7 @@ export default async function handler(req, res) {
       return json(res, 400, { error: "Invalid guests count" });
     }
 
-    if (!(await isTableBookableForSession(sessionId, tableNo))) {
+    if (!(await isTableBookableForSession(sessionId, tableNo, resolveTtlMinutes()))) {
       return json(res, 409, {
         error: "TABLE_CLOSED",
         detail: "Этот столик сейчас нельзя забронировать онлайн. Напишите нам — подберём другой."

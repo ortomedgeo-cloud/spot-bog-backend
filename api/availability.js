@@ -1,4 +1,5 @@
-import { getBookedTables, getSessionBlocks } from "../lib/db.js";
+import { getBookedTables, getSessionBlocks, getHeldTables } from "../lib/db.js";
+import { resolveTtlMinutes } from "../lib/bog.js";
 import { json } from "../lib/utils.js";
 
 // Read-only endpoint for the Tilda seat widget. Given ?session_id=s_xxx it
@@ -39,13 +40,23 @@ export default async function handler(req, res) {
     }
 
     // Закрытые под этот показ столы выдаём вместе с занятыми: для гостя
-    // разницы нет, а выбрать он их не должен.
-    const [booked, blocks] = await Promise.all([
+    // разницы нет, а выбрать он их не должен. Столы с чужой оплатой в
+    // процессе (held) тоже помечаем занятыми — иначе виджет предложит стол,
+    // который через секунду достанется другому гостю, оплата которого уже
+    // летит в BOG.
+    const [booked, blocks, held] = await Promise.all([
       getBookedTables(sessionId),
-      getSessionBlocks(sessionId)
+      getSessionBlocks(sessionId),
+      getHeldTables(sessionId, resolveTtlMinutes())
     ]);
     const blocked = blocks.map((b) => b.table_label);
-    return json(res, 200, { ok: true, booked, blocked, unavailable: booked.concat(blocked) });
+    return json(res, 200, {
+      ok: true,
+      booked,
+      blocked,
+      held,
+      unavailable: [...new Set([...booked, ...blocked, ...held])]
+    });
   } catch (error) {
     console.error("availability.js error", error);
     return json(res, 500, {

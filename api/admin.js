@@ -1874,7 +1874,7 @@ $('fin-csv').addEventListener('click', ()=>{
     FIN.topItems.forEach(i=>lines.push(csvRow([i.title, i.qty, money(i.amount)])));
   }
 
-  const csv='﻿'+lines.join('\r\n');
+  const csv='\\ufeff'+lines.join('\\r\\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
   a.download='spot-finance-'+finIsoFromField('fin-from')+'_'+finIsoFromField('fin-to')+'.csv';

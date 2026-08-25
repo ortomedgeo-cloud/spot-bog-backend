@@ -1816,20 +1816,65 @@ $('fin-to').addEventListener('click', ()=>{
 
 // Выгрузка для бухгалтера: CSV с разделителем «;» и BOM — иначе Excel
 // открывает кириллицу кракозябрами и не разбивает строку на колонки.
+// Числа формируем через money(), чтобы совпадали с тем, что видно на экране.
+function csvCell(v){
+  const s=String(v==null?'':v);
+  return /[";\\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+function csvRow(cells){ return cells.map(csvCell).join(';'); }
+
 $('fin-csv').addEventListener('click', ()=>{
   if(!FIN) return;
-  const rows=[['Дата','Броней','Гостей','Билеты','Депозиты','Онлайн','На месте','Всего']];
-  (FIN.days||[]).forEach(d=>rows.push([d.date,d.bookings,d.guests,d.tickets,d.deposits,d.online,d.manual,d.tickets+d.deposits]));
-  const t=FIN.totals;
-  rows.push([]);
-  rows.push(['Итого получено по броням', t.taxBase]);
-  rows.push(['в т.ч. билеты (полная стоимость)', t.ticketsPaid]);
-  rows.push(['в т.ч. депозиты', t.depositsPaid]);
-  rows.push(['Онлайн по данным банка', t.onlineCaptured]);
-  rows.push(['Комиссия эквайринга '+FIN.settings.acquiring_fee_pct+'%', t.fee]);
-  rows.push(['Налог '+FIN.settings.tax_pct+'%', t.tax]);
-  rows.push(['После комиссии и налога', t.netAfterFeeAndTax]);
-  const csv='\\ufeff'+rows.map(r=>r.join(';')).join('\\n');
+  const t=FIN.totals, s=FIN.settings, cur=s.currency||'GEL';
+  const period=$('fin-from').value+' — '+$('fin-to').value;
+  const lines=[];
+
+  lines.push(csvRow(['Финансовый отчёт SPOT.']));
+  lines.push(csvRow(['Период', period]));
+  lines.push(csvRow(['Сформирован', new Date().toLocaleString('ru-RU')]));
+  lines.push('');
+
+  lines.push(csvRow(['СВОДКА']));
+  lines.push(csvRow(['Получено по броням, '+cur, money(t.taxBase)]));
+  lines.push(csvRow(['  в т.ч. билеты (полная стоимость)', money(t.ticketsPaid)]));
+  lines.push(csvRow(['  в т.ч. депозиты', money(t.depositsPaid)]));
+  lines.push(csvRow(['Онлайн по данным банка', money(t.onlineCaptured)]));
+  lines.push(csvRow(['Онлайн по броням', money(t.onlineAmount)]));
+  lines.push(csvRow(['На месте (ручные брони)', money(t.manualAmount)]));
+  lines.push(csvRow(['Комиссия эквайринга ('+s.acquiring_fee_pct+'%)', money(t.fee)]));
+  lines.push(csvRow(['Налог ('+s.tax_pct+'%)', money(t.tax)]));
+  lines.push(csvRow(['После комиссии и налога', money(t.netAfterFeeAndTax)]));
+  lines.push(csvRow(['Неоплаченные брони', money(t.depositsUnpaid+t.ticketsUnpaid)]));
+  lines.push(csvRow(['Всего броней / гостей', t.bookings, t.guests]));
+  lines.push('');
+
+  lines.push(csvRow(['ПО ДНЯМ']));
+  lines.push(csvRow(['Дата','Броней','Гостей','Билеты','Депозиты','Онлайн','На месте','Всего']));
+  (FIN.days||[]).forEach(d=>lines.push(csvRow([
+    d.date, d.bookings, d.guests, money(d.tickets), money(d.deposits), money(d.online), money(d.manual), money(d.tickets+d.deposits)
+  ])));
+  lines.push(csvRow([
+    'Итого', t.bookings, t.guests,
+    money(t.ticketsPaid+t.ticketsUnpaid), money(t.depositsPaid+t.depositsUnpaid),
+    money(t.onlineAmount), money(t.manualAmount), money(t.ticketsPaid+t.depositsPaid)
+  ]));
+  lines.push('');
+
+  const ordersActive=(FIN.orders||[]).filter(o=>o.status!=='cancelled');
+  if(ordersActive.length){
+    lines.push(csvRow(['ЗАКАЗЫ СО СТОЛИКА (по статусам)']));
+    lines.push(csvRow(['Статус','Кол-во','Сумма']));
+    (FIN.orders||[]).forEach(o=>lines.push(csvRow([o.status, o.n, money(o.total)])));
+    lines.push('');
+  }
+
+  if((FIN.topItems||[]).length){
+    lines.push(csvRow(['ЧТО ЗАКАЗЫВАЮТ СО СТОЛИКОВ']));
+    lines.push(csvRow(['Позиция','Шт.','Сумма']));
+    FIN.topItems.forEach(i=>lines.push(csvRow([i.title, i.qty, money(i.amount)])));
+  }
+
+  const csv='﻿'+lines.join('\r\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
   a.download='spot-finance-'+finIsoFromField('fin-from')+'_'+finIsoFromField('fin-to')+'.csv';

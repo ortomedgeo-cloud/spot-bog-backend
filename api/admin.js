@@ -327,6 +327,29 @@ function page() {
   .fl-warn { background:#fff7e6; border:1px solid #f5d98b; color:#8a6100; font-size:12.5px; padding:9px 11px; border-radius:8px; margin-bottom:10px; }
   .fl-save { position:sticky; bottom:0; background:#111; color:#fff; border-radius:10px; padding:10px 14px; display:none; align-items:center; gap:12px; font-size:13px; margin-top:10px; }
   .fl-save.show { display:flex; }
+
+  /* кастомная рассадка: тот же редактор зала, но в модалке и для одного события */
+  .cf-bg { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:60; padding:16px; }
+  .cf-bg.open { display:flex; }
+  .cf { background:#f5f5f7; border-radius:16px; width:100%; max-width:900px; max-height:92vh; display:flex; flex-direction:column; overflow:hidden; }
+  .cf__h { display:flex; align-items:flex-start; gap:12px; padding:16px 18px 10px; background:#fff; }
+  .cf__h h2 { margin:0; font-size:17px; }
+  .cf__h .sd__x { margin-left:auto; }
+  .cf__body { padding:12px 14px; overflow:auto; flex:1; }
+  .cf__f { display:flex; align-items:center; gap:10px; padding:12px 16px; background:#fff; border-top:1px solid #eee; }
+  .cf__f .hint { flex:1; margin:0; }
+  .cf-note { background:#eef4ff; border:1px solid #c8dcff; color:#1e429f; font-size:12.5px; padding:9px 11px; border-radius:8px; margin-bottom:10px; }
+
+  /* архив */
+  .arch-row.del { opacity:.55; }
+  .arch-row .flag { font-size:11px; font-weight:700; padding:2px 6px; border-radius:5px; background:#eee; color:#666; white-space:nowrap; }
+  .arch-row .flag.d { background:#fdecec; color:#991b1b; }
+  .arch-row .flag.u { background:#eefaf0; color:#166534; }
+  .arch-row .flag.g { background:#fff7e6; color:#8a6100; }
+  .ar-filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:13px; color:#555; }
+  .sd-canc { opacity:.6; }
+  .sd-log { font-size:12px; color:#666; }
+  .sd-log div { padding:4px 0; border-bottom:1px solid #f0f0f0; }
   .fl-save span { flex:1; }
 
   /* конструктор меню */
@@ -423,7 +446,9 @@ function page() {
         <div class="hint">Своя картинка вместо найденной в TMDB. Нужна для того, чего в TMDB нет: футбол, концерты, вечеринки.</div></div>
       <div class="row"><label>DepositText (шаблон по формату, можно править)</label><textarea id="ev-deposit"></textarea></div>
       <button class="btn" id="ev-create">Создать событие</button>
+      <button class="btn ghost" id="ev-seating-open" style="margin-left:8px">Кастомная рассадка</button>
       <button class="btn ghost" id="ev-cancel" style="display:none;margin-left:8px">Отмена</button>
+      <div class="hint">«Кастомная рассадка» открывает редактор зала для этого события: столы можно расставить и закрыть по-своему, и так будет ТОЛЬКО на его сеансах. Для нового события сначала сохраняем его, иначе рассадку не к чему привязать.</div>
       <div class="msg" id="ev-msg"></div>
     </div>
     <div class="card" id="ev-seating" style="display:none">
@@ -550,6 +575,7 @@ function page() {
 
   <!-- ===== FLOOR ===== -->
   <div class="panel" id="panel-floor">
+    <div id="fl-editor">
     <div class="card">
       <div class="fl-bar">
         <button class="btn small" id="fl-add">+ Стол</button>
@@ -572,6 +598,7 @@ function page() {
       <button class="btn small" id="fl-save-btn">Сохранить</button>
       <button class="btn small ghost" id="fl-undo-btn">Отменить</button>
     </div>
+    </div>
   </div>
 
   <!-- ===== ARCHIVE ===== -->
@@ -581,9 +608,21 @@ function page() {
       <button class="btn small" id="ar-find">Искать</button>
       <button class="btn small ghost" id="ar-clear">Сбросить</button>
     </div>
+    <div class="card ar-filters">
+      <span>Показывать:</span>
+      <select id="ar-scope" style="padding:7px 10px;border:1px solid #ccc;border-radius:8px">
+        <option value="all">все сеансы</option>
+        <option value="past">только прошедшие</option>
+        <option value="upcoming">только будущие</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:6px;font-weight:400">
+        <input type="checkbox" id="ar-deleted" checked style="width:16px;height:16px"> удалённые тоже
+      </label>
+    </div>
     <div id="ar-guests"></div>
     <div class="card">
-      <label style="font-size:13px;font-weight:600">Прошедшие сеансы</label>
+      <label style="font-size:13px;font-weight:600">Все сеансы</label>
+      <div class="hint">Архив — это лог: здесь остаётся всё, что когда-либо стояло в расписании, вместе с названием, даже если событие удалено или фильм больше не показывается.</div>
       <div id="ar-list" style="margin-top:8px"><div class="hint">Загрузка…</div></div>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn small ghost" id="ar-prev">← Раньше</button>
@@ -694,7 +733,29 @@ function page() {
       <div class="sd__stats" id="sd-stats"></div>
       <div class="hint" style="margin:-6px 0 10px">Клик по свободному столу — закрыть его на этот сеанс (под стафф или бронь по телефону). Клик по закрытому — снова открыть.</div>
       <div class="sd-plan"><div class="sd-plan__in" id="sd-plan"></div></div>
+      <div style="margin:0 0 10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn small ghost" id="sd-seating">Кастомная рассадка на этот сеанс</button>
+        <button class="btn small ghost" id="sd-rename" style="display:none">Вписать название</button>
+      </div>
       <div id="sd-list"></div>
+      <div id="sd-cancelled"></div>
+      <div id="sd-logbox"></div>
+    </div>
+  </div>
+</div>
+
+<!-- кастомная рассадка: редактор зала переезжает сюда на время правки -->
+<div class="cf-bg" id="cf-bg">
+  <div class="cf">
+    <div class="cf__h">
+      <div><h2 id="cf-title">Кастомная рассадка</h2><div class="hint" id="cf-sub"></div></div>
+      <button class="sd__x" id="cf-close" aria-label="Закрыть">×</button>
+    </div>
+    <div class="cf__body" id="cf-body"></div>
+    <div class="cf__f">
+      <button class="btn small danger" id="cf-reset">Вернуть общий план</button>
+      <span class="hint" id="cf-state"></span>
+      <button class="btn small ghost" id="cf-done">Закрыть</button>
     </div>
   </div>
 </div>
@@ -1126,7 +1187,21 @@ $('ev-format').addEventListener('change', ()=>{
 
 $('ev-cancel').addEventListener('click', evResetForm);
 
-$('ev-create').addEventListener('click', async ()=>{
+$('ev-create').addEventListener('click', ()=>{ evSubmit(); });
+
+// Кнопка рассадки работает и для нового события: чтобы привязать план,
+// событие сначала должно существовать, поэтому сохраняем его на месте.
+$('ev-seating-open').addEventListener('click', async ()=>{
+  let ev = EV_EDIT;
+  if(!ev){
+    ev = await evSubmit({ keepForm:true });
+    if(!ev) return;
+  }
+  cfOpen({ event_id: ev.id }, ev.title);
+});
+
+async function evSubmit(opts){
+  const keepForm = !!(opts && opts.keepForm);
   const m=$('ev-msg'); m.style.display='none';
   // Название вводится вручную (TMDB — необязательная подсказка, только
   // подставляет название/постер для фильмов; вечеринки и концерты просто
@@ -1137,25 +1212,38 @@ $('ev-create').addEventListener('click', async ()=>{
   const poster = $('ev-poster').value.trim()
     || (EV_PICK.title ? EV_PICK.poster : '')
     || (EV_EDIT ? (EV_EDIT.poster_url||'') : '');
-  if(!title){ msg(m,'Введи название события.',false); return; }
+  if(!title){ msg(m,'Введи название события.',false); return null; }
   const price=$('ev-price').value.trim();
-  if(!price){ msg(m,'Укажи цену.',false); return; }
+  if(!price){ msg(m,'Укажи цену.',false); return null; }
   const btn=$('ev-create'); btn.disabled=true;
   try{
     const body={ tmdb_id:EV_PICK.tmdb_id, title, poster_url:poster, format:$('ev-format').value, price, deposit_text:$('ev-deposit').value };
     if(EV_EDIT) body.id = EV_EDIT.id;
     const r=await fetch(api('admin-events'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
       body:JSON.stringify(body)});
-    if(r.status===401){ handle401(); return; }
+    if(r.status===401){ handle401(); return null; }
     const d=await r.json().catch(()=>({}));
     if(r.ok&&d.ok){
       msg(m,(EV_EDIT?'Событие обновлено: ':'Событие создано: ')+d.event.title,true);
-      evResetForm(); loadEventsList(); loadEventOptions();
+      loadEventsList(); loadEventOptions();
+      // Форму не сбрасываем, когда сразу идём в редактор рассадки: событие
+      // должно остаться выбранным, иначе непонятно, что именно правишь.
+      if(keepForm){
+        EV_EDIT={ id:d.event.id, title:d.event.title, poster_url:d.event.poster_url||'' };
+        $('ev-create').textContent='Сохранить изменения';
+        $('ev-cancel').style.display='inline-block';
+        $('ev-seating').style.display='';
+        loadEventSeating(d.event.id);
+      } else {
+        evResetForm();
+      }
+      return d.event;
     }
-    else msg(m,'Ошибка: '+(d.detail||d.error||'?'),false);
-  }catch(e){ msg(m,'Сетевая ошибка.',false); }
+    msg(m,'Ошибка: '+(d.detail||d.error||'?'),false);
+    return null;
+  }catch(e){ msg(m,'Сетевая ошибка.',false); return null; }
   finally{ btn.disabled=false; }
-});
+}
 
 async function loadEventsList(){
   const box=$('ev-list');
@@ -1793,6 +1881,7 @@ async function openSession(sessionId){
     if(!r.ok || !d.ok){ $('sd-title').textContent='Не удалось открыть сеанс'; return; }
     SD=d; SD_EDIT=null;
     sdRender();
+    sdLoadLog();
   }catch(e){ $('sd-title').textContent='Сетевая ошибка'; }
 }
 
@@ -1806,7 +1895,14 @@ function sdRender(){
   $('sd-poster').src = s.poster_url || '';
   $('sd-poster').style.visibility = s.poster_url ? 'visible' : 'hidden';
   $('sd-title').textContent = s.title;
-  $('sd-meta').textContent = s.date+' · '+s.time+' · '+s.format+' · '+s.price+' GEL';
+  const noName = s.title === 'Название не сохранено';
+  $('sd-rename').style.display = (s.event_gone || noName) ? '' : 'none';
+  const marks =
+    (s.is_deleted ? ' · СЕАНС УДАЛЁН' : '')+
+    (s.event_gone && !noName ? ' · событие удалено (название из архива)' : '')+
+    (noName ? ' · название потеряно старым удалением — впиши его' : '')+
+    (SD.plan && SD.plan.custom ? ' · кастомная рассадка' : '');
+  $('sd-meta').textContent = s.date+' · '+s.time+' · '+(s.format||'—')+' · '+(s.price==null?'—':s.price)+' GEL'+marks;
 
   $('sd-stats').innerHTML =
     '<div class="sd__stat">Броней<b>'+t.bookings+'</b></div>'+
@@ -1917,6 +2013,53 @@ function sdList(){
   $('sd-list').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>sdDelete(b.dataset.del));
   $('sd-list').querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>sdMove(b.dataset.move));
   $('sd-list').querySelectorAll('[data-refund]').forEach(b=>b.onclick=()=>sdRefund(b.dataset.refund));
+
+  sdRenderCancelled();
+}
+
+// Отменённые брони не исчезают: место освободилось, но запись осталась —
+// с контактами, суммой и причиной. Это и есть архив.
+function sdRenderCancelled(){
+  const box=$('sd-cancelled');
+  const list=(SD && SD.cancelled) || [];
+  if(!list.length){ box.innerHTML=''; return; }
+  box.innerHTML =
+    '<div class="card sd-canc"><label style="font-size:13px;font-weight:600">Отменённые брони ('+list.length+')</label>'+
+    list.map(b=>'<div class="bk">'+
+      '<div class="bk__t"><span>'+esc(b.table_label)+'</span>'+
+        '<span><span class="badge '+esc(b.payment_status)+'">'+esc(b.payment_status)+'</span></span></div>'+
+      '<div class="bk__who">'+esc(b.guest_name||'—')+' · '+esc(String(b.guests||'?'))+' чел · '+esc(String(Number(b.amount)||0))+' GEL</div>'+
+      '<div class="bk__c">'+esc(b.guest_phone||b.guest_instagram||'без контакта')+
+        (b.deleted_reason?' · причина: '+esc(b.deleted_reason):'')+
+        ' · отменена '+esc(bkTime(b.deleted_at))+'</div>'+
+      '<div class="bk__acts"><button class="btn small ghost" data-restore="'+esc(b.id)+'">Вернуть бронь</button></div>'+
+    '</div>').join('')+'</div>';
+  box.querySelectorAll('[data-restore]').forEach(b=>b.onclick=()=>sdRestore(b.dataset.restore));
+}
+
+// Журнал по сеансу — «что здесь вообще происходило»: кто когда создал,
+// поправил, перенёс и отменил бронь.
+async function sdLoadLog(){
+  const box=$('sd-logbox');
+  box.innerHTML='<div class="hint">Загрузка журнала…</div>';
+  try{
+    const u=new URL(api('admin-bookings'), location.origin);
+    u.searchParams.set('log','1');
+    u.searchParams.set('session_id', SD.session.id);
+    const r=await fetch(u, F);
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json();
+    const rows=d.log||[];
+    const ACT={ create:'создана', update:'изменена', move:'перенесена', delete:'отменена', restore:'возвращена' };
+    box.innerHTML='<div class="card"><label style="font-size:13px;font-weight:600">Журнал ('+rows.length+')</label>'+
+      (rows.length
+        ? '<div class="sd-log">'+rows.map(x=>'<div>'+esc(bkTime(x.at))+' · '+
+            esc(ACT[x.action]||x.action)+' · '+esc(x.table_label||x.entity)+
+            (x.guest_name?' · '+esc(x.guest_name):'')+
+            (x.actor?' · '+esc(x.actor):'')+'</div>').join('')+'</div>'
+        : '<div class="hint">Записей нет — журнал начал писаться с момента обновления.</div>')+
+      '</div>';
+  }catch(e){ box.innerHTML='<div class="hint">Журнал не загрузился.</div>'; }
 }
 
 async function sdBlock(label, block, reason){
@@ -1956,8 +2099,16 @@ async function sdSave(id){
 }
 
 async function sdDelete(id){
-  if(!confirm('Отменить бронь? Запись будет удалена, место освободится.')) return;
-  const ok=await sdPost({ action:'delete', id });
+  // Отмена не удаляет запись: место освобождается, бронь остаётся в архиве
+  // с причиной — чтобы через месяц было видно, что тут было.
+  const reason = prompt('Отменить бронь? Место освободится, запись останется в архиве.\\n\\nПричина (необязательно): не пришли / перенос / оплата не прошла', '');
+  if(reason===null) return;
+  const ok=await sdPost({ action:'delete', id, reason });
+  if(ok){ SD_EDIT=null; openSession(SD.session.id); loadToday(); }
+}
+
+async function sdRestore(id){
+  const ok=await sdPost({ action:'restore', id });
   if(ok){ SD_EDIT=null; openSession(SD.session.id); loadToday(); }
 }
 
@@ -2010,25 +2161,36 @@ async function loadArchive(){
     u.searchParams.set('archive','1');
     u.searchParams.set('limit', AR_LIMIT);
     u.searchParams.set('offset', AR_OFFSET);
+    u.searchParams.set('scope', $('ar-scope').value || 'all');
+    u.searchParams.set('deleted', $('ar-deleted').checked ? '1' : '0');
     const q=$('ar-q').value.trim();
     if(q) u.searchParams.set('q', q);
     const r=await fetch(u, F);
     if(r.status===401){ handle401(); return; }
     const d=await r.json();
     const list=d.sessions||[];
-    box.innerHTML = list.length ? list.map(s=>
-      '<div class="arch-row" data-s="'+esc(s.id)+'">'+
+    box.innerHTML = list.length ? list.map(s=>{
+      // Метки честно говорят, почему запись выглядит необычно: сеанс удалён,
+      // событие удалено, сеанс ещё не прошёл. Из архива ничего не пропадает.
+      const flags =
+        (s.is_deleted ? '<span class="flag d">удалён</span>' : '')+
+        (s.event_gone ? '<span class="flag g">событие удалено</span>' : '')+
+        (s.is_past ? '' : '<span class="flag u">впереди</span>');
+      const canc = s.cancelled ? ' · '+s.cancelled+' отмен.' : '';
+      return '<div class="arch-row'+(s.is_deleted?' del':'')+'" data-s="'+esc(s.id)+'">'+
         '<span class="d">'+esc(s.date)+' '+esc(s.time)+'</span>'+
-        '<span class="t">'+esc(s.title)+'</span>'+
-        '<span class="n">'+s.bookings+' брон. · '+s.guests+' гост. · '+Number(s.revenue)+' GEL</span>'+
-      '</div>'
-    ).join('') : '<div class="hint">Ничего не найдено.</div>';
+        '<span class="t">'+esc(s.title)+' '+flags+'</span>'+
+        '<span class="n">'+s.bookings+' брон. · '+s.guests+' гост. · '+Number(s.revenue)+' GEL'+canc+'</span>'+
+      '</div>';
+    }).join('') : '<div class="hint">Ничего не найдено.</div>';
     box.querySelectorAll('[data-s]').forEach(el=>el.onclick=()=>openSession(el.dataset.s));
     $('ar-prev').disabled = false;
     $('ar-next').disabled = AR_OFFSET===0;
   }catch(e){ box.innerHTML='<div class="hint">Ошибка загрузки.</div>'; }
 }
 
+$('ar-scope').addEventListener('change', ()=>{ AR_OFFSET=0; loadArchive(); });
+$('ar-deleted').addEventListener('change', ()=>{ AR_OFFSET=0; loadArchive(); });
 $('ar-find').addEventListener('click', ()=>{ AR_OFFSET=0; loadArchive(); searchGuestsUI(); });
 $('ar-q').addEventListener('keydown', e=>{ if(e.key==='Enter'){ AR_OFFSET=0; loadArchive(); searchGuestsUI(); } });
 $('ar-clear').addEventListener('click', ()=>{ $('ar-q').value=''; AR_OFFSET=0; $('ar-guests').innerHTML=''; loadArchive(); });
@@ -2049,13 +2211,14 @@ async function searchGuestsUI(){
     const g=d.guests||[];
     box.innerHTML = g.length
       ? '<div class="card"><label style="font-size:13px;font-weight:600">Гости ('+g.length+')</label>'+
-        g.map(x=>'<div class="arch-row" data-gs="'+esc(x.session_id)+'">'+
-          '<span class="d">'+esc(x.date)+' '+esc(x.time)+'</span>'+
-          '<span class="t">'+esc(x.guest_name||'—')+' · '+esc(x.table_label)+'</span>'+
+        g.map(x=>'<div class="arch-row'+(x.is_cancelled?' del':'')+'" data-gs="'+esc(x.session_id||'')+'">'+
+          '<span class="d">'+esc(x.date||'—')+' '+esc(x.time||'')+'</span>'+
+          '<span class="t">'+esc(x.guest_name||'—')+' · '+esc(x.table_label)+
+            (x.is_cancelled?' <span class="flag d">отменена</span>':'')+'</span>'+
           '<span class="n">'+esc(x.title)+' · '+esc(x.guest_phone||x.guest_instagram||'')+'</span>'+
         '</div>').join('')+'</div>'
       : '';
-    box.querySelectorAll('[data-gs]').forEach(el=>el.onclick=()=>openSession(el.dataset.gs));
+    box.querySelectorAll('[data-gs]').forEach(el=>el.onclick=()=>{ if(el.dataset.gs) openSession(el.dataset.gs); });
   }catch(e){ box.innerHTML=''; }
 }
 
@@ -2067,7 +2230,12 @@ async function searchGuestsUI(){
 // Правки копятся локально и уходят одним запросом по кнопке — случайное
 // движение мышью не должно менять схему на боевом сайте мгновенно.
 
-let FLOOR = { settings:{}, tables:[], inUse:{} };
+// FL_SCOPE=null — общий план зала (вкладка «Зал»).
+// { event_id } — кастомная рассадка события, { session_id } — одного сеанса.
+// Редактор один и тот же: меняется только то, откуда план читается и куда
+// сохраняется, — иначе пришлось бы держать две копии логики перетаскивания.
+let FL_SCOPE = null;
+let FLOOR = { settings:{}, tables:[], inUse:{}, custom:false };
 let FL_UID = 0;          // счётчик внутренних идентификаторов
 let FL_SNAP = null;
 let FL_SEL = null;      // выбранная метка
@@ -2078,9 +2246,17 @@ function flDirty(){ FL_DIRTY = true; $('fl-save').classList.add('show'); }
 function flGrid(){ return Math.max(0, Number($('fl-grid').value) || 0); }
 function flSnap(v){ const g = flGrid(); return g ? Math.round(v / g) * g : Math.round(v); }
 
+function flUrl(){
+  if(!FL_SCOPE) return new URL(api('admin-floor'), location.origin);
+  const u = new URL(api('admin-custom-floor'), location.origin);
+  if(FL_SCOPE.event_id) u.searchParams.set('event_id', FL_SCOPE.event_id);
+  if(FL_SCOPE.session_id) u.searchParams.set('session_id', FL_SCOPE.session_id);
+  return u;
+}
+
 async function loadFloor(){
   try{
-    const r = await fetch(api('admin-floor'), F);
+    const r = await fetch(flUrl(), F);
     if(r.status===401){ handle401(); return; }
     const d = await r.json();
     // Внутри редактора столы опознаём по uid, а не по метке: метки может
@@ -2089,8 +2265,10 @@ async function loadFloor(){
     FLOOR = {
       settings: d.settings||{},
       tables: (d.tables||[]).map((t,i)=>({ ...t, uid: 'u'+i })),
-      inUse: d.inUse||{}
+      inUse: d.inUse||{},
+      custom: !!d.custom
     };
+    if(FL_SCOPE) cfState(d.custom);
     FL_UID = (d.tables||[]).length;
     FL_SNAP = JSON.stringify(FLOOR.tables);
     FL_DIRTY = false; FL_SEL = null;
@@ -2178,7 +2356,7 @@ document.addEventListener('pointerup', ()=>{ FL_DRAG = null; });
 // Стрелками — точное смещение, когда мышью попасть трудно.
 document.addEventListener('keydown', e=>{
   if(!FL_SEL) return;
-  if(!$('panel-floor').classList.contains('active')) return;
+  if(!$('panel-floor').classList.contains('active') && !$('cf-bg').classList.contains('open')) return;
   const t = FLOOR.tables.find(x=>x.uid===FL_SEL);
   if(!t) return;
   const step = e.shiftKey ? (flGrid()||10) : 1;
@@ -2246,6 +2424,17 @@ async function flDelete(uid){
   const t = FLOOR.tables.find(x=>x.uid===uid);
   if(!t) return;
   const label = t.label;
+
+  // Кастомный план сохраняется целиком, отдельного удаления на сервере нет:
+  // стол просто не попадёт в следующий save. Брони при этом не трогаем —
+  // они привязаны к метке и остаются в архиве.
+  if(FL_SCOPE){
+    if(!confirm('Убрать «'+label+'» из рассадки этого события? На общий план зала это не повлияет.')) return;
+    FLOOR.tables = FLOOR.tables.filter(x=>x.uid!==uid);
+    if(FL_SEL===uid) FL_SEL=null;
+    flDirty(); flRender();
+    return;
+  }
 
   // Стол, ещё не сохранённый в базе, просто убираем из списка — на сервере
   // его нет, и запрос вернул бы «не найдено».
@@ -2321,6 +2510,78 @@ $('fl-cw').addEventListener('change', ()=>{ flDirty(); flRender(); });
 $('fl-ch').addEventListener('change', ()=>{ flDirty(); flRender(); });
 $('fl-reload').addEventListener('click', loadFloor);
 
+// ---------- КАСТОМНАЯ РАССАДКА ----------
+// Редактор зала физически переезжает в модалку и обратно: два независимых
+// экземпляра пришлось бы синхронизировать, а перетаскивание столов — самая
+// хрупкая часть панели, дублировать её нельзя.
+
+function cfState(custom){
+  $('cf-state').textContent = custom
+    ? 'У этого события своя рассадка — на общий план зала она не влияет.'
+    : 'Своей рассадки пока нет: показана копия общего плана. Измени и сохрани — она станет своей.';
+  $('cf-reset').style.display = custom ? '' : 'none';
+}
+
+function cfOpen(scope, title){
+  FL_SCOPE = scope;
+  $('cf-title').textContent = 'Кастомная рассадка';
+  $('cf-sub').textContent = (scope.session_id ? 'Только на этот сеанс: ' : 'На все сеансы события: ')+(title||'');
+  $('cf-body').appendChild($('fl-editor'));
+  $('cf-bg').classList.add('open');
+  loadFloor();
+}
+
+function cfClose(){
+  if(FL_DIRTY && !confirm('Правки рассадки не сохранены. Закрыть и потерять их?')) return;
+  $('cf-bg').classList.remove('open');
+  $('panel-floor').appendChild($('fl-editor'));
+  FL_SCOPE = null;
+  FL_DIRTY = false; FL_SEL = null;
+  $('fl-save').classList.remove('show');
+  loadFloor();   // возвращаем в редактор общий план зала
+}
+
+$('cf-close').addEventListener('click', cfClose);
+$('cf-done').addEventListener('click', cfClose);
+$('cf-bg').addEventListener('click', e=>{ if(e.target===$('cf-bg')) cfClose(); });
+
+$('cf-reset').addEventListener('click', async ()=>{
+  if(!FL_SCOPE) return;
+  if(!confirm('Вернуть общий план зала? Своя рассадка будет удалена, брони не пострадают.')) return;
+  try{
+    const r=await fetch(api('admin-custom-floor'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ ...FL_SCOPE, action:'reset' })});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok){ alert('Ошибка: '+(d.detail||d.error||'?')); return; }
+    FL_DIRTY=false; loadFloor();
+  }catch(e){ alert('Сетевая ошибка.'); }
+});
+
+// Название для старых архивных записей, где событие удалили ещё прежним
+// кодом: настоящее взять неоткуда, но вписать руками можно.
+$('sd-rename').addEventListener('click', async ()=>{
+  if(!SD) return;
+  const cur = SD.session.title==='Название не сохранено' ? '' : SD.session.title;
+  const title = prompt('Название для архива (что показывали на этом сеансе):', cur);
+  if(title===null || !title.trim()) return;
+  try{
+    const r=await fetch(api('admin-sessions'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ action:'title', id:SD.session.id, title:title.trim() })});
+    if(r.status===401){ handle401(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok){ alert('Ошибка: '+(d.detail||d.error||'?')); return; }
+    openSession(SD.session.id); loadArchive();
+  }catch(e){ alert('Сетевая ошибка.'); }
+});
+
+// Рассадка только на один сеанс — из окна сеанса.
+$('sd-seating').addEventListener('click', ()=>{
+  if(!SD) return;
+  $('sd-bg').classList.remove('open');
+  cfOpen({ session_id: SD.session.id }, SD.session.title+' · '+SD.session.date+' '+SD.session.time);
+});
+
 $('fl-undo-btn').addEventListener('click', ()=>{
   if(!FL_SNAP) return;
   FLOOR.tables = JSON.parse(FL_SNAP).map((t,i)=>({ ...t, uid:'u'+i }));
@@ -2332,14 +2593,17 @@ $('fl-undo-btn').addEventListener('click', ()=>{
 $('fl-save-btn').addEventListener('click', async ()=>{
   const btn=$('fl-save-btn'); btn.disabled=true; btn.textContent='Сохраняю…';
   try{
-    const r=await fetch(api('admin-floor'),{method:'POST',...F,headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        settings:{ canvas_w:Number($('fl-cw').value)||1000, canvas_h:Number($('fl-ch').value)||700, grid:flGrid() },
-        tables: FLOOR.tables.map((t,i)=>{
-          const { uid, ...rest } = t;   // uid живёт только в редакторе
-          return { ...rest, sort:(i+1)*10 };
-        })
-      })});
+    const body={
+      settings:{ canvas_w:Number($('fl-cw').value)||1000, canvas_h:Number($('fl-ch').value)||700, grid:flGrid() },
+      tables: FLOOR.tables.map((t,i)=>{
+        const { uid, ...rest } = t;   // uid живёт только в редакторе
+        return { ...rest, sort:(i+1)*10 };
+      })
+    };
+    if(FL_SCOPE) Object.assign(body, FL_SCOPE);
+    const r=await fetch(FL_SCOPE?api('admin-custom-floor'):api('admin-floor'),
+      {method:'POST',...F,headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)});
     if(r.status===401){ handle401(); return; }
     const d=await r.json().catch(()=>({}));
     if(r.ok&&d.ok) loadFloor();

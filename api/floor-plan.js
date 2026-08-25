@@ -18,8 +18,10 @@ export default async function handler(req, res) {
   if (req.method !== "GET") return json(res, 405, { error: "Method not allowed" });
 
   try {
+    // session_id важнее event_id: рассадка может быть задана на один сеанс.
     const eventId = String(req.query?.event_id || "").trim() || undefined;
-    return json(res, 200, { ok: true, ...(await getPublicFloorPlan(eventId)) });
+    const sessionId = String(req.query?.session_id || "").trim() || undefined;
+    return json(res, 200, { ok: true, ...(await getPublicFloorPlan(eventId, sessionId)) });
   } catch (error) {
     console.error("floor-plan error", error);
     return json(res, 500, { error: "Failed", detail: String(error?.message || error) });

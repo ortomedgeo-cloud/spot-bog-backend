@@ -310,9 +310,15 @@
   // одна и та же расстановка одинаково читается на телефоне и на десктопе.
   let PLAN = null;
 
-  async function loadPlan(eventId){
+  // sessionId важнее eventId: рассадка может быть задана на один сеанс —
+  // тогда общий план события показывать нельзя, гость выберет стол, которого
+  // сегодня физически нет там, где нарисовано.
+  async function loadPlan(eventId, sessionId){
     try{
-      const url = '/api/floor-plan' + (eventId ? ('?event_id='+encodeURIComponent(eventId)) : '');
+      const qs = [];
+      if(sessionId) qs.push('session_id='+encodeURIComponent(sessionId));
+      if(eventId) qs.push('event_id='+encodeURIComponent(eventId));
+      const url = '/api/floor-plan' + (qs.length ? ('?'+qs.join('&')) : '');
       const r = await fetch(url);
       const d = await r.json();
       if(d && d.ok) PLAN = d;
@@ -396,7 +402,7 @@
     if(!r.ok||!d.ok) throw new Error('no session');
     session={ session_id:d.session_id, event_id:d.event_id, title:d.title, date:d.date, time:d.time,
               price:d.price, poster_url:d.poster_url, deposit_text:d.deposit_text, format:d.format };
-    await loadPlan(session.event_id);
+    await loadPlan(session.event_id, session.session_id||session.id);
     renderEvent(); renderSum(); await loadAvailability();
   }
 
@@ -421,7 +427,7 @@
       const s=SESSIONS.find(x=>x.session_id===$('f-time').value);
       if(!s) return;
       session=s;
-      await loadPlan(session.event_id);
+      await loadPlan(session.event_id, session.session_id||session.id);
       renderEvent(); renderSum(); await loadAvailability();
     };
     $('f-date').addEventListener('change', fillTimes);

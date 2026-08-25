@@ -2,8 +2,10 @@ import {
   getSessionDetail,
   updateBooking,
   deleteBooking,
+  restoreBooking,
   moveBooking,
-  listPastSessions,
+  listArchiveSessions,
+  listBookingLog,
   searchGuests
 } from "../lib/db.js";
 import { json, isAdminAuthed } from "../lib/utils.js";
@@ -12,12 +14,16 @@ import { looksLikePhone } from "../lib/greenapi.js";
 // Брони для администратора.
 //
 //   GET ?session_id=s_x          -> сеанс целиком: план зала, брони, итоги
-//   GET ?archive=1&limit&offset&q-> прошедшие сеансы (архив)
+//   GET ?archive=1&limit&offset&q&scope&deleted -> архив
+//        scope: all (по умолчанию) | past | upcoming
+//        deleted=0 спрячет удалённые сеансы; по умолчанию видно всё
+//   GET ?log=1&session_id=&booking_id= -> журнал изменений
 //   GET ?guest=текст             -> поиск гостя по всем броням
 //
-//   POST { action:'update', id, ... }        -> правка брони
-//   POST { action:'move',   id, session_id } -> перенос на другой сеанс
-//   POST { action:'delete', id }             -> отмена брони
+//   POST { action:'update',  id, ... }        -> правка брони
+//   POST { action:'move',    id, session_id } -> перенос на другой сеанс
+//   POST { action:'delete',  id, reason? }    -> отмена брони (в архиве остаётся)
+//   POST { action:'restore', id }             -> вернуть отменённую бронь
 
 const STATUSES = ["paid", "deposit", "unpaid", "refunded"];
 
@@ -37,10 +43,26 @@ export default async function handler(req, res) {
         return json(res, 200, { ok: true, guests: await searchGuests(guest) });
       }
 
+      if (req.query?.log) {
+        const rows = await listBookingLog({
+          session_id: String(req.query.session_id || "").trim() || undefined,
+          entity_id: String(req.query.booking_id || "").trim() || undefined,
+          limit: Number(req.query.limit) || 200
+        });
+        return json(res, 200, { ok: true, log: rows });
+      }
+
       if (req.query?.archive) {
         const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
         const offset = Math.max(0, Number(req.query.offset) || 0);
-        const sessions = await listPastSessions({ limit, offset, q: req.query.q || "" });
+        // Архив — лог: по умолчанию отдаём всё, включая будущие и удалённые
+        // сеансы. Сузить можно параметрами, но не наоборот.
+        const sessions = await listArchiveSessions({
+          limit, offset,
+          q: req.query.q || "",
+          scope: String(req.query.scope || "all"),
+          includeDeleted: String(req.query.deleted ?? "1") !== "0"
+        });
         return json(res, 200, { ok: true, sessions, limit, offset });
       }
 
@@ -57,8 +79,13 @@ export default async function handler(req, res) {
       if (!id) return json(res, 400, { error: "Missing id" });
 
       if (b.action === "delete") {
-        const ok = await deleteBooking(id);
+        const ok = await deleteBooking(id, String(b.reason || "").trim() || null);
         return ok ? json(res, 200, { ok: true }) : json(res, 404, { error: "Booking not found" });
+      }
+
+      if (b.action === "restore") {
+        const bk = await restoreBooking(id);
+        return bk ? json(res, 200, { ok: true, booking: bk }) : json(res, 404, { error: "Booking not found" });
       }
 
       if (b.action === "move") {
